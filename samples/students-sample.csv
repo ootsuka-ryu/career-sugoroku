@@ -1,0 +1,5 @@
+real_name,kana,university,grade,graduation_year,practical_period,phone,email,desired_job_type,desired_area,motivation_level,first_contact_method,first_contact_date,tags,assigned_staff_email,memo
+佐藤 花,サトウ ハナ,東京薬科大学,5年,2027,P2_3,090-1111-2222,hana.sato@example.jp,薬局薬剤師,東京・神奈川,5,合同説明会,2026-04-12,志望度高;イベント参加済,otsuka@example.com,店舗見学に前向き
+鈴木 亮,スズキ リョウ,明治薬科大学,4年,2028,undecided,090-3333-4444,ryo.suzuki@example.jp,病院薬剤師も検討,埼玉,3,LINE友だち追加,2026-05-01,返信待ち,nakano@example.com,資料送付後の返信待ち
+田中 美咲,タナカ ミサキ,北里大学,6年,2026,P3_4,090-5555-6666,misaki.tanaka@example.jp,ドラッグストア,千葉,4,学内セミナー,2026-03-20,実習P2-P3,otsuka@example.com,Zoom面談済み
+山本 葵,ヤマモト アオイ,昭和薬科大学,5年,2027,P1_2,090-7777-8888,aoi.yamamoto@example.jp,薬局薬剤師,東京,2,紹介,2026-05-10,,nakano@example.com,初回接触のみ

@@ -1,0 +1,4 @@
+row_number,status,student_id,error_message,duplicate_candidate_ids
+1,success,20000000-0000-4000-8000-000000000001,,
+2,duplicate_pending,,氏名＋大学が既存学生と一致しています,"[""20000000-0000-4000-8000-000000000002""]"
+3,failed,,motivation_level must be between 1 and 5,

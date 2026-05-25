@@ -1,0 +1,133 @@
+import Link from "next/link";
+import { Download, Plus, Users } from "lucide-react";
+import { StudentListTable } from "@/components/students/student-list-table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
+import { isHighMotivationRank } from "@/lib/students/options";
+import { normalizeStudentListItem } from "@/lib/students/normalize";
+import type { StaffSummary, TagSummary } from "@/lib/students/types";
+
+export default async function StudentsPage() {
+  const supabase = createClient();
+
+  const [studentsResult, tagsResult, staffResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select(
+        `
+        *,
+        student_tags(tags(id, name, color)),
+        student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
+      `
+      )
+      .order("updated_at", { ascending: false }),
+    supabase.from("tags").select("id, name, color").order("name"),
+    supabase
+      .from("staff_users")
+      .select("id, name, email")
+      .eq("is_active", true)
+      .order("name")
+  ]);
+
+  const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
+  const tags = (tagsResult.data ?? []) as TagSummary[];
+  const staffUsers = (staffResult.data ?? []) as StaffSummary[];
+  const waitingReplyCount = students.filter((student) => {
+    if (!student.last_outbound_at) return false;
+    if (!student.last_inbound_at) return true;
+    return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
+  }).length;
+  const highMotivationCount = students.filter(
+    (student) =>
+      isHighMotivationRank(student.motivation_rank) ||
+      (!student.motivation_rank && (student.motivation_level ?? 0) >= 4)
+  ).length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <Badge variant="accent">学生管理</Badge>
+          <h1 className="mt-3 text-2xl font-semibold tracking-normal">学生一覧</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            氏名、大学、タグ、担当者、志望度、返信なし条件で学生を絞り込めます。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href="/students/import">
+              <Download className="mr-2 h-4 w-4" />
+              CSVインポート
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/students/new">
+              <Plus className="mr-2 h-4 w-4" />
+              新規学生
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {(studentsResult.error || tagsResult.error || staffResult.error) && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-destructive">データ取得エラー</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm text-destructive">
+            <p>{studentsResult.error?.message}</p>
+            <p>{tagsResult.error?.message}</p>
+            <p>{staffResult.error?.message}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <SummaryCard
+          description="現在Supabaseに登録されている学生"
+          label="学生数"
+          value={`${students.length}名`}
+        />
+        <SummaryCard
+          description="専願、併願、A、B または旧志望度4以上"
+          label="高志望度"
+          value={`${highMotivationCount}名`}
+        />
+        <SummaryCard
+          description="こちらの送信後に返信がない学生"
+          label="返信待ち"
+          value={`${waitingReplyCount}名`}
+        />
+      </section>
+
+      <StudentListTable staffUsers={staffUsers} students={students} tags={tags} />
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  description
+}: {
+  label: string;
+  value: string;
+  description: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
+        <Users className="h-4 w-4 text-primary" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-2xl font-semibold">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}

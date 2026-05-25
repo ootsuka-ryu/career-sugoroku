@@ -1,0 +1,37 @@
+drop table if exists public.line_usage_events cascade;
+drop table if exists public.csv_import_rows cascade;
+drop table if exists public.csv_imports cascade;
+drop table if exists public.notification_preferences cascade;
+drop table if exists public.notifications cascade;
+drop table if exists public.company_resources cascade;
+drop table if exists public.recordings cascade;
+drop table if exists public.rich_menus cascade;
+drop table if exists public.auto_replies cascade;
+drop table if exists public.survey_responses cascade;
+drop table if exists public.survey_question_tags cascade;
+drop table if exists public.survey_questions cascade;
+drop table if exists public.surveys cascade;
+drop table if exists public.broadcasts cascade;
+drop table if exists public.messages cascade;
+drop table if exists public.student_tags cascade;
+drop table if exists public.tags cascade;
+drop table if exists public.student_actions cascade;
+drop table if exists public.student_assignees cascade;
+drop table if exists public.students cascade;
+drop table if exists public.staff_users cascade;
+
+drop type if exists public.import_row_status cascade;
+drop type if exists public.import_status cascade;
+drop type if exists public.notification_channel cascade;
+drop type if exists public.resource_kind cascade;
+drop type if exists public.recording_source cascade;
+drop type if exists public.match_type cascade;
+drop type if exists public.survey_question_type cascade;
+drop type if exists public.broadcast_status cascade;
+drop type if exists public.message_type cascade;
+drop type if exists public.message_direction cascade;
+drop type if exists public.action_type cascade;
+drop type if exists public.practical_period cascade;
+drop type if exists public.staff_role cascade;
+
+drop schema if exists app cascade;
