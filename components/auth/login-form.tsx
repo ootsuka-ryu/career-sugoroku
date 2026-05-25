@@ -37,8 +37,16 @@ export function LoginForm() {
   useEffect(() => {
     const hash = window.location.hash;
     const search = window.location.search;
+    const params = new URLSearchParams(search);
     const isRecovery =
-      hash.includes("type=recovery") || search.includes("type=recovery");
+      hash.includes("type=recovery") ||
+      params.get("type") === "recovery" ||
+      params.get("mode") === "recovery";
+
+    const error = params.get("error");
+    if (error) {
+      setMessage(`認証処理でエラーが発生しました。詳細: ${error}`);
+    }
 
     if (!isRecovery) {
       return;
