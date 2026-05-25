@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
+function loginErrorMessage(message?: string) {
+  if (!message) {
+    return "ログインできませんでした。";
+  }
+
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) {
+    return "メールアドレスまたはパスワードが違います。";
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return "メール認証がまだ完了していません。Supabaseから届いた確認メールを開いてください。";
+  }
+
+  return `ログインできませんでした。詳細: ${message}`;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "reset">("login");
   const [isPending, setIsPending] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    const search = window.location.search;
+    const isRecovery =
+      hash.includes("type=recovery") || search.includes("type=recovery");
+
+    if (!isRecovery) {
+      return;
+    }
+
+    async function prepareRecoverySession() {
+      const supabase = createClient();
+      await supabase.auth.getSession();
+      setMode("reset");
+      setMessage("新しいパスワードを入力してください。");
+    }
+
+    void prepareRecoverySession();
+  }, []);
 
   async function signInWithPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,13 +69,13 @@ export function LoginForm() {
       });
       error = result.error;
     } catch {
-      error = { message: "Supabase env is missing" };
+      error = { message: "Supabaseの接続情報が不足しています。" };
     }
 
     setIsPending(false);
 
     if (error) {
-      setMessage("ログインできませんでした。Supabase の環境変数と認証設定を確認してください。");
+      setMessage(loginErrorMessage(error.message));
       return;
     }
 
@@ -44,8 +83,39 @@ export function LoginForm() {
     router.refresh();
   }
 
+  async function updatePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsPending(true);
+    setMessage(null);
+
+    if (newPassword.length < 8) {
+      setIsPending(false);
+      setMessage("パスワードは8文字以上で入力してください。");
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    setIsPending(false);
+
+    if (error) {
+      setMessage(`パスワードを変更できませんでした。詳細: ${error.message}`);
+      return;
+    }
+
+    setMessage("パスワードを変更しました。新しいパスワードでログインしてください。");
+    setMode("login");
+    setPassword("");
+    setNewPassword("");
+    router.replace("/login");
+  }
+
   async function signInWithGoogle() {
     setIsPending(true);
+    setMessage(null);
     let error: { message: string } | null = null;
 
     try {
@@ -59,13 +129,41 @@ export function LoginForm() {
       });
       error = result.error;
     } catch {
-      error = { message: "Supabase env is missing" };
+      error = { message: "Supabaseの接続情報が不足しています。" };
     }
 
     if (error) {
       setIsPending(false);
-      setMessage("Google ログインを開始できませんでした。Supabase の OAuth 設定を確認してください。");
+      setMessage(`Googleログインを開始できませんでした。詳細: ${error.message}`);
     }
+  }
+
+  if (mode === "reset") {
+    return (
+      <form className="space-y-5" onSubmit={updatePassword}>
+        <div className="space-y-2">
+          <Label htmlFor="new-password">新しいパスワード</Label>
+          <Input
+            id="new-password"
+            type="password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            required
+          />
+          <p className="text-xs text-muted-foreground">8文字以上で入力してください。</p>
+        </div>
+        {message ? (
+          <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+            {message}
+          </p>
+        ) : null}
+        <Button className="w-full" disabled={isPending} type="submit">
+          {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          パスワードを変更する
+        </Button>
+      </form>
+    );
   }
 
   return (
@@ -109,7 +207,7 @@ export function LoginForm() {
         type="button"
         variant="outline"
       >
-        Google でログイン
+        Googleでログイン
       </Button>
     </form>
   );
