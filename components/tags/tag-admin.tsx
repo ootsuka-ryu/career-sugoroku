@@ -1,19 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Edit3, Plus, Save, Search, Trash2 } from "lucide-react";
+import { ChevronDown, Edit3, Folder, Plus, Save, Search, Trash2 } from "lucide-react";
 import { deleteTag, saveTag, type TagActionState } from "@/app/(dashboard)/tags/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { localizeSampleText } from "@/lib/display/localize";
 
-type TagItem = {
+export type TagItem = {
   id: string;
   name: string;
   color: string;
   student_count: number;
+};
+
+export type TagFolderGroup = {
+  id: string;
+  name: string;
+  description: string;
+  tags: TagItem[];
 };
 
 const initialState: TagActionState = {
@@ -21,14 +28,31 @@ const initialState: TagActionState = {
   message: ""
 };
 
-export function TagAdmin({ tags }: { tags: TagItem[] }) {
+export function TagAdmin({
+  tags,
+  folders
+}: {
+  tags: TagItem[];
+  folders: TagFolderGroup[];
+}) {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<TagItem | null>(null);
-  const filteredTags = tags.filter((tag) =>
-    (localizeSampleText(tag.name) ?? tag.name)
-      .toLowerCase()
-      .includes(query.trim().toLowerCase())
-  );
+  const normalizedQuery = query.trim().toLowerCase();
+
+  const filteredFolders = useMemo(() => {
+    if (!normalizedQuery) return folders;
+
+    return folders
+      .map((folder) => ({
+        ...folder,
+        tags: folder.tags.filter((tag) =>
+          (localizeSampleText(tag.name) ?? tag.name).toLowerCase().includes(normalizedQuery)
+        )
+      }))
+      .filter((folder) => folder.tags.length > 0);
+  }, [folders, normalizedQuery]);
+
+  const filteredCount = filteredFolders.reduce((sum, folder) => sum + folder.tags.length, 0);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
@@ -37,7 +61,7 @@ export function TagAdmin({ tags }: { tags: TagItem[] }) {
           {editing ? "タグを編集" : "新しいタグ"}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          学生の分類、配信対象、アンケート回答後の自動付与に使います。
+          追加した通常タグは未分類に表示されます。大学タグは登録済みの大学分類フォルダに自動でまとまります。
         </p>
         <TagForm editing={editing} onCancel={() => setEditing(null)} />
       </section>
@@ -47,7 +71,7 @@ export function TagAdmin({ tags }: { tags: TagItem[] }) {
           <div>
             <h2 className="font-semibold">タグ一覧</h2>
             <p className="text-sm text-muted-foreground">
-              {filteredTags.length} / {tags.length}件を表示
+              {filteredCount} / {tags.length} 件を表示
             </p>
           </div>
           <div className="relative min-w-72">
@@ -62,8 +86,56 @@ export function TagAdmin({ tags }: { tags: TagItem[] }) {
         </div>
 
         <div className="divide-y">
-          {filteredTags.length > 0 ? (
-            filteredTags.map((tag) => (
+          {filteredFolders.length > 0 ? (
+            filteredFolders.map((folder) => (
+              <TagFolder
+                folder={folder}
+                key={folder.id}
+                onEdit={setEditing}
+              />
+            ))
+          ) : (
+            <p className="p-8 text-center text-sm text-muted-foreground">
+              条件に合うタグがありません。
+            </p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function TagFolder({
+  folder,
+  onEdit
+}: {
+  folder: TagFolderGroup;
+  onEdit: (tag: TagItem) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <section>
+      <button
+        className="flex w-full items-center justify-between gap-3 bg-secondary/40 px-4 py-3 text-left"
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <span className="flex items-center gap-3">
+          <Folder className="h-4 w-4 text-primary" />
+          <span>
+            <span className="font-semibold">{folder.name}</span>
+            <span className="ml-2 text-sm text-muted-foreground">{folder.tags.length} 件</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">{folder.description}</span>
+          </span>
+        </span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open ? (
+        <div className="divide-y">
+          {folder.tags.length > 0 ? (
+            folder.tags.map((tag) => (
               <div className="grid gap-3 p-4 md:grid-cols-[1fr_8rem_14rem] md:items-center" key={tag.id}>
                 <div className="flex items-center gap-3">
                   <span className="h-5 w-5 rounded-full border" style={{ backgroundColor: tag.color }} />
@@ -74,9 +146,9 @@ export function TagAdmin({ tags }: { tags: TagItem[] }) {
                     ) : null}
                   </div>
                 </div>
-                <Badge variant="outline">{tag.student_count}名</Badge>
+                <Badge variant="outline">{tag.student_count} 名</Badge>
                 <div className="flex gap-2 md:justify-end">
-                  <Button onClick={() => setEditing(tag)} size="sm" type="button" variant="outline">
+                  <Button onClick={() => onEdit(tag)} size="sm" type="button" variant="outline">
                     <Edit3 className="mr-1.5 h-4 w-4" />
                     編集
                   </Button>
@@ -85,13 +157,11 @@ export function TagAdmin({ tags }: { tags: TagItem[] }) {
               </div>
             ))
           ) : (
-            <p className="p-8 text-center text-sm text-muted-foreground">
-              条件に合うタグがありません。
-            </p>
+            <p className="p-4 text-sm text-muted-foreground">このフォルダにはまだタグがありません。</p>
           )}
         </div>
-      </section>
-    </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -113,7 +183,7 @@ function TagForm({
         <Input
           defaultValue={editing ? localizeSampleText(editing.name) ?? editing.name : ""}
           name="name"
-          placeholder="例：高志望度"
+          placeholder="例: 高志望度"
           required
         />
       </div>
