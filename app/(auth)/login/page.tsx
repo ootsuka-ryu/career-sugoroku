@@ -2,6 +2,8 @@ import { LoginForm } from "@/components/auth/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
   const supabaseEnv = getSupabasePublicEnv();
 
