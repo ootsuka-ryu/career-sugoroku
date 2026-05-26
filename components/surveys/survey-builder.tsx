@@ -35,7 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SurveyMediaPicker } from "@/components/surveys/survey-media-picker";
-import { localizeSampleText } from "@/lib/display/localize";
+import { TagRulePicker } from "@/components/surveys/tag-rule-picker";
 import type { Json } from "@/lib/supabase/database.types";
 import type { TagSummary } from "@/lib/students/types";
 
@@ -939,20 +939,13 @@ function ChoiceListEditor({
                 </Button>
               </div>
             </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-[8rem_1fr] md:items-center">
+            <div className="mt-3 grid gap-2 md:grid-cols-[8rem_1fr] md:items-start">
               <Label className="md:text-right">選択時に付けるタグ</Label>
-              <select
-                className={compactSelectClass}
-                onChange={(event) => updateChoice(index, { tagId: event.target.value })}
+              <TagRulePicker
+                onChange={(nextValue) => updateChoice(index, { tagId: nextValue })}
+                tags={tags}
                 value={choice.tagId}
-              >
-                <option value=""></option>
-                {tags.map((tag) => (
-                  <option key={tag.id} value={tag.id}>
-                    {localizeSampleText(tag.name)}
-                  </option>
-                ))}
-              </select>
+              />
               <Label className="md:text-right">次に進むセクション</Label>
               <select
                 className={compactSelectClass}

@@ -36,7 +36,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SurveyMediaPicker } from "@/components/surveys/survey-media-picker";
+import { TagRulePicker } from "@/components/surveys/tag-rule-picker";
 import { localizeSampleText } from "@/lib/display/localize";
+import type { TagSummary } from "@/lib/students/types";
 import {
   Table,
   TableBody,
@@ -274,10 +276,12 @@ function buildDraftFromSurvey(survey: SurveyItem): DraftSection[] {
 
 export function SurveyAdmin({
   surveys,
-  folders
+  folders,
+  tags
 }: {
   surveys: SurveyItem[];
   folders: FolderItem[];
+  tags: TagSummary[];
 }) {
   const [state, formAction] = useFormState(createSurvey, initialState);
   const [folderState, folderAction] = useFormState(
@@ -609,6 +613,7 @@ export function SurveyAdmin({
                       onUpdateQuestion={updateQuestion}
                       section={section}
                       sectionCount={draftSections.length}
+                      tags={tags}
                     />
                   ))}
                 </div>
@@ -658,6 +663,7 @@ function DraftSectionEditor({
   index,
   sectionCount,
   displayIndex,
+  tags,
   addQuestion,
   duplicateSection,
   moveSection,
@@ -669,6 +675,7 @@ function DraftSectionEditor({
   index: number;
   sectionCount: number;
   displayIndex: number;
+  tags: TagSummary[];
   addQuestion: (sectionId: string, type: DraftQuestionType, label: string) => void;
   duplicateSection: (sectionId: string) => void;
   moveSection: (sectionId: string, direction: -1 | 1) => void;
@@ -728,6 +735,7 @@ function DraftSectionEditor({
               onUpdate={(patch) => onUpdateQuestion(section.id, question.id, patch)}
               question={question}
               questionCount={section.questions.length}
+              tags={tags}
             />
           ))}
         </div>
@@ -746,12 +754,14 @@ function DraftSectionEditor({
 function DraftQuestionEditor({
   question,
   questionCount,
+  tags,
   onUpdate,
   onMove,
   onDelete
 }: {
   question: DraftQuestion;
   questionCount: number;
+  tags: TagSummary[];
   onUpdate: (patch: Partial<DraftQuestion>) => void;
   onMove: (direction: -1 | 1) => void;
   onDelete: () => void;
@@ -837,7 +847,14 @@ function DraftQuestionEditor({
           <div className="grid gap-3 md:grid-cols-[9rem_1fr] md:items-start">
             <Label className="pt-2 md:text-right">選択肢</Label>
             <ChoiceListEditor
-              onChange={(nextValue) => onUpdate({ options_text: nextValue })}
+              onChange={(nextValue, nextTagRules) =>
+                onUpdate({
+                  options_text: nextValue,
+                  tag_rules_text: nextTagRules ?? question.tag_rules_text
+                })
+              }
+              tagRulesText={question.tag_rules_text}
+              tags={tags}
               value={question.options_text}
             />
           </div>
@@ -899,31 +916,49 @@ function ElementPalette({
 
 function ChoiceListEditor({
   value,
+  tagRulesText,
+  tags,
   onChange
 }: {
   value: string;
-  onChange: (value: string) => void;
+  tagRulesText: string;
+  tags: TagSummary[];
+  onChange: (value: string, tagRulesText?: string) => void;
 }) {
-  const choices = value.split(/\r?\n/).filter((choice, index, array) => choice || index < array.length - 1);
-  const normalizedChoices = choices.length > 0 ? choices : ["選択肢1"];
+  const tagRules = useMemo(() => parseTagRuleText(tagRulesText), [tagRulesText]);
+  const choices = value
+    .split(/\r?\n/)
+    .filter((choice, index, array) => choice || index < array.length - 1)
+    .map((label) => ({ label, tagId: tagRules.get(label.trim()) ?? "" }));
+  const normalizedChoices =
+    choices.length > 0 ? choices : [{ label: "選択肢1", tagId: "" }];
 
-  function updateChoices(nextChoices: string[]) {
-    onChange(nextChoices.join("\n"));
+  function updateChoices(nextChoices: Array<{ label: string; tagId: string }>) {
+    const nextOptionsText = nextChoices.map((choice) => choice.label).join("\n");
+    const nextTagRulesText = nextChoices
+      .filter((choice) => choice.label.trim() && choice.tagId)
+      .map((choice) => `${choice.label.trim()}=>${choice.tagId}`)
+      .join("\n");
+    onChange(nextOptionsText, nextTagRulesText);
   }
 
-  function updateChoice(index: number, nextValue: string) {
-    updateChoices(normalizedChoices.map((choice, choiceIndex) => (choiceIndex === index ? nextValue : choice)));
+  function updateChoice(index: number, patch: Partial<{ label: string; tagId: string }>) {
+    updateChoices(
+      normalizedChoices.map((choice, choiceIndex) =>
+        choiceIndex === index ? { ...choice, ...patch } : choice
+      )
+    );
   }
 
   function addChoice(label = `選択肢${normalizedChoices.length + 1}`) {
-    updateChoices([...normalizedChoices, label]);
+    updateChoices([...normalizedChoices, { label, tagId: "" }]);
   }
 
   function duplicateChoice(index: number) {
-    const source = normalizedChoices[index] || `選択肢${index + 1}`;
+    const source = normalizedChoices[index] || { label: `選択肢${index + 1}`, tagId: "" };
     updateChoices([
       ...normalizedChoices.slice(0, index + 1),
-      `${source} のコピー`,
+      { label: `${source.label} のコピー`, tagId: source.tagId },
       ...normalizedChoices.slice(index + 1)
     ]);
   }
@@ -945,14 +980,14 @@ function ChoiceListEditor({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="space-y-3">
         {normalizedChoices.map((choice, index) => (
-          <div className="rounded-md border bg-background p-3" key={`${index}-${choice}`}>
+          <div className="rounded-md border bg-background p-3" key={`${index}-${choice.label}`}>
             <div className="grid gap-2 md:grid-cols-[5rem_1fr_auto] md:items-center">
               <span className="rounded bg-secondary px-2 py-1 text-center text-sm">
                 選択肢{index + 1}
               </span>
               <Input
-                onChange={(event) => updateChoice(index, event.target.value)}
-                value={choice}
+                onChange={(event) => updateChoice(index, { label: event.target.value })}
+                value={choice.label}
               />
               <div className="flex flex-wrap gap-1">
                 <Button onClick={() => duplicateChoice(index)} size="sm" type="button" variant="ghost">
@@ -975,9 +1010,14 @@ function ChoiceListEditor({
                 </Button>
               </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              タグ付けや条件分岐は、保存後の「質問を編集」画面で既存タグから選択できます。
-            </p>
+            <div className="mt-3 grid gap-2 md:grid-cols-[5rem_1fr] md:items-start">
+              <Label className="pt-2 text-sm text-muted-foreground md:text-right">タグ</Label>
+              <TagRulePicker
+                onChange={(nextValue) => updateChoice(index, { tagId: nextValue })}
+                tags={tags}
+                value={choice.tagId}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -993,6 +1033,19 @@ function ChoiceListEditor({
       </div>
     </div>
   );
+}
+
+function parseTagRuleText(value: string) {
+  const map = new Map<string, string>();
+  value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const [answer, tagId] = line.split("=>").map((part) => part.trim());
+      if (answer && tagId) map.set(answer, tagId);
+    });
+  return map;
 }
 
 function FolderButton({

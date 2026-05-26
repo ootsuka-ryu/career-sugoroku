@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { UNIVERSITY_TAG_COLORS } from "@/lib/tags/university-folders";
 
 export type SurveyBuilderState = {
   ok: boolean;
@@ -486,11 +487,44 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
 
   if (rules.length === 0) return;
 
+  const resolvedRules = (
+    await Promise.all(
+      rules.map(async (rule) => ({
+        answer: rule.answer,
+        tagId: await resolveTagId(supabase, rule.tagId)
+      }))
+    )
+  ).filter((rule) => rule.tagId);
+
+  if (resolvedRules.length === 0) return;
+
   await supabase.from("survey_question_tags").insert(
-    rules.map((rule) => ({
+    resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
       when_answer_matches_jsonb: { equals: rule.answer }
     }))
   );
+}
+
+async function resolveTagId(supabase: any, tagValue: string) {
+  if (!tagValue.startsWith("new:")) return tagValue;
+
+  const name = tagValue.slice(4).trim();
+  if (!name) return "";
+
+  const { data, error } = await supabase
+    .from("tags")
+    .upsert(
+      {
+        name,
+        color: UNIVERSITY_TAG_COLORS.get(name) ?? "#0ea5e9"
+      },
+      { onConflict: "name" }
+    )
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data?.id ?? "";
 }

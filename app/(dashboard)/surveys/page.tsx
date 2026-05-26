@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function SurveysPage() {
   const supabase = createClient();
-  const [surveysResult, foldersResult] = await Promise.all([
+  const [surveysResult, foldersResult, tagsResult] = await Promise.all([
     (supabase as any)
       .from("surveys")
       .select(
@@ -52,7 +52,8 @@ export default async function SurveysPage() {
       `
       )
       .order("updated_at", { ascending: false }),
-    (supabase as any).from("survey_folders").select("id, name, description").order("name")
+    (supabase as any).from("survey_folders").select("id, name, description").order("name"),
+    (supabase as any).from("tags").select("id, name, color").order("name")
   ]);
 
   const surveys = (surveysResult.data ?? [])
@@ -98,6 +99,7 @@ export default async function SurveysPage() {
         new Date(b.last_activity_at).getTime() - new Date(a.last_activity_at).getTime()
     );
   const folders = foldersResult.data ?? [];
+  const tags = tagsResult.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -111,7 +113,7 @@ export default async function SurveysPage() {
         </p>
       </div>
 
-      {surveysResult.error || foldersResult.error ? (
+      {surveysResult.error || foldersResult.error || tagsResult.error ? (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
@@ -122,11 +124,12 @@ export default async function SurveysPage() {
           <CardContent className="space-y-1 text-sm text-destructive">
             <p>{surveysResult.error?.message}</p>
             <p>{foldersResult.error?.message}</p>
+            <p>{tagsResult.error?.message}</p>
           </CardContent>
         </Card>
       ) : null}
 
-      <SurveyAdmin folders={folders} surveys={surveys} />
+      <SurveyAdmin folders={folders} surveys={surveys} tags={tags} />
     </div>
   );
 }
