@@ -16,7 +16,7 @@ export default function HomePage() {
       return;
     }
 
-    window.location.replace("/dashboard");
+    window.location.replace("/login");
   }, []);
 
   return null;
