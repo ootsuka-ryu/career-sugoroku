@@ -1,6 +1,5 @@
 import { Tags } from "lucide-react";
 import { TagAdmin, type TagFolderGroup, type TagItem } from "@/components/tags/tag-admin";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { UNIVERSITY_CATEGORY_TAGS, UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
@@ -9,25 +8,23 @@ export default async function TagsPage() {
   const supabase = createClient() as any;
   const { data, error } = await supabase
     .from("tags")
-    .select("id, name, color, student_tags(student_id)")
+    .select("id, name, color, created_at, student_tags(student_id)")
     .order("name");
 
   const tags = (data ?? []).map((tag: any) => ({
     id: tag.id,
     name: tag.name,
     color: tag.color,
+    created_at: tag.created_at,
     student_count: (tag.student_tags ?? []).length
   }));
   const folders = buildTagFolders(tags);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <Badge variant="accent">Step 3</Badge>
-        <h1 className="mt-3 text-2xl font-semibold tracking-normal">タグ管理</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          タグをフォルダごとに整理します。大学タグは北にある大学ほど上部、同程度の緯度では東にある大学ほど上部に並べています。
-        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">タグ</h1>
+        <p className="mt-1 text-sm text-muted-foreground">友だちを分類するタグを管理できます。</p>
       </div>
 
       {error ? (
@@ -63,8 +60,8 @@ function buildTagFolders(tags: TagItem[]): TagFolderGroup[] {
   if (categoryTags.length > 0) {
     folders.push({
       id: "university-categories",
-      name: "大学分類タグ",
-      description: "学生を国立・公立・私立で大きく分類するタグです。",
+      name: "大学分類",
+      description: "国立・公立・私立で分類するタグです。",
       tags: categoryTags
     });
   }
@@ -77,7 +74,7 @@ function buildTagFolders(tags: TagItem[]): TagFolderGroup[] {
 
     folders.push({
       id: folder.name,
-      name: `${folder.name}フォルダ`,
+      name: folder.name,
       description: "北から南へ、同程度の緯度では東から西へ並べています。",
       tags: folderTags
     });
