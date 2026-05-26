@@ -2,6 +2,7 @@ import { MessageSquareWarning } from "lucide-react";
 import { FollowUpBoard } from "@/components/follow-ups/follow-up-board";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { uniqueStaffByDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function FollowUpsPage() {
@@ -55,11 +56,11 @@ export default async function FollowUpsPage() {
         .filter(Boolean)
     }));
 
-  const staffUsers = (staffResult.data ?? []) as Array<{
+  const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as Array<{
     id: string;
     name: string;
     email: string;
-  }>;
+  }>);
 
   return (
     <div className="space-y-6">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StudentCreateForm } from "@/components/students/student-create-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { uniqueStaffByDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewStudentPage() {
@@ -33,7 +34,7 @@ export default async function NewStudentPage() {
       </div>
 
       <StudentCreateForm
-        staffUsers={staffResult.data ?? []}
+        staffUsers={uniqueStaffByDisplayName(staffResult.data ?? [])}
         tags={tagsResult.data ?? []}
       />
     </div>

@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { localizeSampleText } from "@/lib/display/localize";
 import { daysSince, formatDateTime } from "@/lib/format";
+import { getStaffDisplayName } from "@/lib/staff/display";
 
 type StaffSummary = {
   id: string;
@@ -74,7 +75,7 @@ export function FollowUpBoard({
           <option value="unassigned">担当者なし</option>
           {staffUsers.map((staff) => (
             <option key={staff.id} value={staff.id}>
-              {staff.name || staff.email}
+              {getStaffDisplayName(staff)}
             </option>
           ))}
         </select>
@@ -149,7 +150,7 @@ function FollowUpCard({
           <p className="sm:col-span-2">
             担当者:{" "}
             {student.assignees.length > 0
-              ? student.assignees.map((staff) => staff.name || staff.email).join(" / ")
+              ? student.assignees.map((staff) => getStaffDisplayName(staff)).join(" / ")
               : "未設定"}
           </p>
         </div>

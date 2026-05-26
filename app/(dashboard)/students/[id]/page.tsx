@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeSampleText, localizeStatus } from "@/lib/display/localize";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { getStaffDisplayName } from "@/lib/staff/display";
+import { getStaffDisplayName, uniqueStaffByDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 import { getCandidateStageLabel, getMotivationRankLabel } from "@/lib/students/options";
 import { normalizeStudentDetail } from "@/lib/students/normalize";
@@ -484,18 +484,7 @@ function isSelectableAssignee(staff: StaffSummary) {
 }
 
 function uniqueSelectableAssignees(staffUsers: StaffSummary[]) {
-  const seen = new Set<string>();
-  const result: StaffSummary[] = [];
-
-  for (const staff of staffUsers) {
-    if (!isSelectableAssignee(staff)) continue;
-    const label = getStaffDisplayName(staff);
-    if (seen.has(label)) continue;
-    seen.add(label);
-    result.push(staff);
-  }
-
-  return result;
+  return uniqueStaffByDisplayName(staffUsers.filter(isSelectableAssignee));
 }
 
 function buildTimeline({

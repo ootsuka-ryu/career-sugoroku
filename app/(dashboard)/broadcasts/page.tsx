@@ -3,6 +3,7 @@ import { BroadcastForm } from "@/components/broadcasts/broadcast-form";
 import { BroadcastList } from "@/components/broadcasts/broadcast-list";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { uniqueStaffByDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 import type { StaffSummary, TagSummary } from "@/lib/students/types";
 
@@ -46,7 +47,7 @@ export default async function BroadcastsPage() {
     staff: row.staff_users
   }));
   const tags = (tagsResult.data ?? []) as TagSummary[];
-  const staffUsers = (staffResult.data ?? []) as StaffSummary[];
+  const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const surveys = (surveysResult.data ?? []).map((row: any) => ({
     id: row.id,

@@ -4,6 +4,7 @@ import { StudentListTable } from "@/components/students/student-list-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { uniqueStaffByDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 import { isHighMotivationRank } from "@/lib/students/options";
 import { normalizeStudentListItem } from "@/lib/students/normalize";
@@ -33,7 +34,7 @@ export default async function StudentsPage() {
 
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
   const tags = (tagsResult.data ?? []) as TagSummary[];
-  const staffUsers = (staffResult.data ?? []) as StaffSummary[];
+  const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const waitingReplyCount = students.filter((student) => {
     if (!student.last_outbound_at) return false;
     if (!student.last_inbound_at) return true;

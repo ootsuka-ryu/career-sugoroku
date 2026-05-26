@@ -26,3 +26,33 @@ export function getStaffBadgeClass(staff: Pick<StaffSummary, "name" | "email">) 
 export function getUnassignedStaffBadgeClass() {
   return "border-slate-900 bg-slate-900 text-white hover:bg-slate-900";
 }
+
+export function uniqueStaffByDisplayName<T extends Pick<StaffSummary, "id" | "name" | "email">>(
+  staffUsers: T[]
+) {
+  const byName = new Map<string, T>();
+
+  for (const staff of staffUsers) {
+    const displayName = getStaffDisplayName(staff);
+    const current = byName.get(displayName);
+    if (!current || getStaffPriority(staff) > getStaffPriority(current)) {
+      byName.set(displayName, staff);
+    }
+  }
+
+  return Array.from(byName.values()).sort((a, b) =>
+    getStaffDisplayName(a).localeCompare(getStaffDisplayName(b), "ja")
+  );
+}
+
+function getStaffPriority(staff: Pick<StaffSummary, "id" | "name" | "email">) {
+  let priority = 0;
+  const email = String(staff.email ?? "").toLowerCase();
+  const name = String(staff.name ?? "").trim().toLowerCase();
+
+  if (email && !email.endsWith("@example.com")) priority += 10;
+  if (!staff.id.startsWith("00000000-0000-4000-8000-")) priority += 5;
+  if (name && name !== "admin") priority += 1;
+
+  return priority;
+}
