@@ -27,7 +27,8 @@ export async function GET(request: Request) {
       raw_answers_jsonb,
       respondent_name,
       respondent_line_user_id,
-      students(id, real_name, display_name, university)
+      needs_manual_merge,
+      students(id, real_name, display_name, university, phone, email, line_user_id, photo_url)
     `
     )
     .eq("survey_id", surveyId)

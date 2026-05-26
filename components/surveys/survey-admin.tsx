@@ -1363,12 +1363,29 @@ type SurveyResponseRow = {
   raw_answers_jsonb: Record<string, unknown>;
   respondent_name: string | null;
   respondent_line_user_id: string | null;
+  needs_manual_merge: boolean | null;
   students: {
     id: string;
     real_name: string | null;
     display_name: string | null;
     university: string | null;
+    phone: string | null;
+    email: string | null;
+    line_user_id: string | null;
+    photo_url: string | null;
   } | null;
+};
+
+type StudentSearchResult = {
+  id: string;
+  real_name: string | null;
+  display_name: string | null;
+  kana: string | null;
+  university: string | null;
+  phone: string | null;
+  email: string | null;
+  line_user_id: string | null;
+  photo_url: string | null;
 };
 
 function ResponseResultsModal({
@@ -1381,27 +1398,93 @@ function ResponseResultsModal({
   const [responses, setResponses] = useState<SurveyResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [linkingResponseId, setLinkingResponseId] = useState<string | null>(null);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [studentSearchResults, setStudentSearchResults] = useState<StudentSearchResult[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [linkMessage, setLinkMessage] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+
+  async function loadResponses() {
+    setLoading(true);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/survey-responses?survey_id=${survey.id}`, {
+        cache: "no-store"
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error ?? "回答結果を取得できませんでした。");
+      setResponses(json.responses ?? []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "回答結果を取得できませんでした。");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function loadResponses() {
-      setLoading(true);
-      setMessage("");
-      try {
-        const response = await fetch(`/api/survey-responses?survey_id=${survey.id}`, {
-          cache: "no-store"
-        });
-        const json = await response.json();
-        if (!response.ok) throw new Error(json.error ?? "回答結果を取得できませんでした。");
-        setResponses(json.responses ?? []);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "回答結果を取得できませんでした。");
-      } finally {
-        setLoading(false);
-      }
-    }
 
     void loadResponses();
   }, [survey.id]);
+
+  async function searchStudents(query = studentSearchQuery) {
+    const trimmedQuery = query.trim();
+    setStudentSearchQuery(query);
+    setSelectedStudent(null);
+    setLinkMessage("");
+
+    if (!trimmedQuery) {
+      setStudentSearchResults([]);
+      return;
+    }
+
+    setLinkLoading(true);
+    try {
+      const response = await fetch(
+        `/api/survey-responses/student-search?q=${encodeURIComponent(trimmedQuery)}`,
+        { cache: "no-store" }
+      );
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error ?? "学生を検索できませんでした。");
+      setStudentSearchResults(json.students ?? []);
+    } catch (error) {
+      setLinkMessage(error instanceof Error ? error.message : "学生を検索できませんでした。");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
+  function startLinking(response: SurveyResponseRow, answerRows: Array<{ label: string; value: unknown }>) {
+    const name = getRespondentName(response, answerRows);
+    setLinkingResponseId(response.id);
+    setStudentSearchQuery(name === "未紐付け回答" ? "" : name);
+    setStudentSearchResults([]);
+    setSelectedStudent(null);
+    setLinkMessage("");
+  }
+
+  async function linkResponseToStudent(responseId: string, student: StudentSearchResult) {
+    setLinkLoading(true);
+    setLinkMessage("");
+    try {
+      const response = await fetch("/api/survey-responses/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response_id: responseId, student_id: student.id })
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error ?? "回答を学生に登録できませんでした。");
+      setLinkingResponseId(null);
+      setStudentSearchQuery("");
+      setStudentSearchResults([]);
+      setSelectedStudent(null);
+      await loadResponses();
+    } catch (error) {
+      setLinkMessage(error instanceof Error ? error.message : "回答を学生に登録できませんでした。");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1457,6 +1540,16 @@ function ResponseResultsModal({
                         <p className="mt-1 text-xs text-muted-foreground">
                           {response.students ? "学生情報と紐付け済み" : "未紐付け"}
                         </p>
+                        {!response.students?.id ? (
+                          <Button
+                            className="mt-3"
+                            onClick={() => startLinking(response, answerRows)}
+                            size="sm"
+                            type="button"
+                          >
+                            友だちの回答として登録する
+                          </Button>
+                        ) : null}
                       </div>
                       <div className="grid gap-3 text-sm md:grid-cols-3">
                         <div>
@@ -1473,6 +1566,109 @@ function ResponseResultsModal({
                         </div>
                       </div>
                     </div>
+
+                    {!response.students?.id && linkingResponseId === response.id ? (
+                      <div className="border-b bg-emerald-50/40 p-4">
+                        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                          <div className="rounded-md border bg-background p-3">
+                            <h4 className="font-semibold">回答を登録する友だちを検索</h4>
+                            <div className="mt-3 flex gap-2">
+                              <Input
+                                onChange={(event) => setStudentSearchQuery(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key !== "Enter") return;
+                                  event.preventDefault();
+                                  void searchStudents();
+                                }}
+                                placeholder="氏名・ふりがな・大学・電話・メールで検索"
+                                value={studentSearchQuery}
+                              />
+                              <Button disabled={linkLoading} onClick={() => searchStudents()} type="button">
+                                検索
+                              </Button>
+                            </div>
+                            <div className="mt-3 overflow-hidden rounded-md border">
+                              {studentSearchResults.length > 0 ? (
+                                studentSearchResults.map((student) => (
+                                  <button
+                                    className={
+                                      selectedStudent?.id === student.id
+                                        ? "flex w-full items-center gap-3 border-b bg-primary/10 px-3 py-2 text-left last:border-b-0"
+                                        : "flex w-full items-center gap-3 border-b px-3 py-2 text-left hover:bg-muted/50 last:border-b-0"
+                                    }
+                                    key={student.id}
+                                    onClick={() => setSelectedStudent(student)}
+                                    type="button"
+                                  >
+                                    {student.photo_url ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        alt=""
+                                        className="h-10 w-10 rounded-full object-cover"
+                                        src={student.photo_url}
+                                      />
+                                    ) : (
+                                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold">
+                                        {(student.real_name || student.display_name || "?").slice(0, 1)}
+                                      </span>
+                                    )}
+                                    <span>
+                                      <span className="block font-medium">
+                                        {student.real_name || student.display_name || "名前未登録"}
+                                      </span>
+                                      <span className="block text-xs text-muted-foreground">
+                                        {[student.kana, student.university, student.phone, student.email]
+                                          .filter(Boolean)
+                                          .join(" / ") || "補足情報なし"}
+                                      </span>
+                                    </span>
+                                  </button>
+                                ))
+                              ) : (
+                                <p className="p-3 text-sm text-muted-foreground">
+                                  検索すると候補がここに表示されます。
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-md border bg-background p-3">
+                            <h4 className="font-semibold">登録内容の確認</h4>
+                            {selectedStudent ? (
+                              <div className="mt-3 space-y-3">
+                                <p className="text-sm">
+                                  <span className="font-semibold">
+                                    {selectedStudent.real_name || selectedStudent.display_name || "名前未登録"}
+                                  </span>
+                                  さんの回答として登録します。
+                                </p>
+                                <div className="rounded-md bg-muted/40 p-3 text-sm">
+                                  <p>大学: {selectedStudent.university || "-"}</p>
+                                  <p>電話: {selectedStudent.phone || "-"}</p>
+                                  <p>メール: {selectedStudent.email || "-"}</p>
+                                </div>
+                                <Button
+                                  className="w-full"
+                                  disabled={linkLoading}
+                                  onClick={() => linkResponseToStudent(response.id, selectedStudent)}
+                                  type="button"
+                                >
+                                  {selectedStudent.real_name || selectedStudent.display_name || "この学生"}の回答として登録する
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-sm text-muted-foreground">
+                                検索結果から学生を選択してください。
+                              </p>
+                            )}
+                            {linkMessage ? (
+                              <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                {linkMessage}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="grid gap-4 p-4 xl:grid-cols-[1fr_20rem]">
                       <div>
