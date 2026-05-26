@@ -286,6 +286,7 @@ async function applyProfileUpdates(
 
   for (const question of questions) {
     const label = String(question.label ?? "");
+    const lowerLabel = label.toLowerCase();
     const answer = answers[question.id];
 
     if (label.includes("志望度") || label.toLowerCase().includes("motivation")) {
@@ -293,16 +294,52 @@ async function applyProfileUpdates(
       if (value >= 1 && value <= 5) update.motivation_level = value;
     }
 
-    if ((label.includes("氏名") || label.includes("名前")) && typeof answer === "string" && answer) {
+    if (
+      (label.includes("氏名") || label.includes("名前") || lowerLabel.includes("name")) &&
+      typeof answer === "string" &&
+      answer
+    ) {
       update.real_name = answer;
       update.display_name = answer;
     }
 
-    if (question.validation_type === "email" && typeof answer === "string" && answer) {
+    if (
+      (label.includes("ふりがな") ||
+        label.includes("フリガナ") ||
+        label.includes("カナ") ||
+        lowerLabel.includes("kana")) &&
+      typeof answer === "string" &&
+      answer
+    ) {
+      update.kana = answer;
+    }
+
+    if (
+      (label.includes("大学") || lowerLabel.includes("university") || lowerLabel.includes("college")) &&
+      typeof answer === "string" &&
+      answer
+    ) {
+      update.university = answer;
+    }
+
+    if (
+      (question.validation_type === "email" ||
+        label.includes("メール") ||
+        lowerLabel.includes("email")) &&
+      typeof answer === "string" &&
+      answer
+    ) {
       update.email = answer;
     }
 
-    if (question.validation_type === "phone" && typeof answer === "string" && answer) {
+    if (
+      (question.validation_type === "phone" ||
+        label.includes("電話") ||
+        lowerLabel.includes("phone") ||
+        lowerLabel.includes("tel")) &&
+      typeof answer === "string" &&
+      answer
+    ) {
       update.phone = answer;
     }
   }

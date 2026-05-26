@@ -183,6 +183,12 @@ export function SurveyBuilder({
     description: survey.description ?? ""
   });
 
+  function submitOpenQuestionForms() {
+    document
+      .querySelectorAll<HTMLFormElement>('form[data-survey-question-form="true"]')
+      .forEach((form) => form.requestSubmit());
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-md border-2 border-slate-300 bg-card p-5">
@@ -311,7 +317,7 @@ export function SurveyBuilder({
 
       <section className="rounded-md border-2 border-slate-300 bg-card p-5">
         <h2 className="mb-4 text-lg font-semibold">最後にオプションを設定</h2>
-        <form action={optionAction} className="space-y-5">
+        <form action={optionAction} className="space-y-5" onSubmit={submitOpenQuestionForms}>
           <input name="survey_id" type="hidden" value={survey.id} />
           <input name="admin_title" type="hidden" value={basicValues.adminTitle} />
           <input name="public_title" type="hidden" value={basicValues.publicTitle} />
@@ -573,7 +579,11 @@ function QuestionCard({
       </div>
 
       {isOpen ? (
-        <form action={saveAction} className="border-t border-slate-200 p-3">
+        <form
+          action={saveAction}
+          className="border-t border-slate-200 p-3"
+          data-survey-question-form="true"
+        >
           <input name="survey_id" type="hidden" value={surveyId} />
           <input name="question_id" type="hidden" value={question.id} />
           <input name="section_id" type="hidden" value={question.section_id ?? ""} />
@@ -585,9 +595,6 @@ function QuestionCard({
             sections={sections}
             tags={tags}
           />
-          <div className="mt-3 flex justify-end">
-            <SubmitButton label="項目を保存" icon={<Save className="mr-2 h-4 w-4" />} />
-          </div>
           <FormMessage
             state={
               saveState.message
