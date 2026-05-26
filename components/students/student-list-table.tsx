@@ -28,11 +28,18 @@ import {
   motivationRanks
 } from "@/lib/students/options";
 import type { StaffSummary, StudentListItem, TagSummary } from "@/lib/students/types";
+import { UNIVERSITY_CATEGORY_TAGS, UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
 
 type StudentListTableProps = {
   students: StudentListItem[];
   tags: TagSummary[];
   staffUsers: StaffSummary[];
+};
+
+type TagGroup = {
+  id: string;
+  name: string;
+  tags: TagSummary[];
 };
 
 export function StudentListTable({
@@ -41,6 +48,7 @@ export function StudentListTable({
   staffUsers
 }: StudentListTableProps) {
   const [search, setSearch] = useState("");
+  const [tagSearch, setTagSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [tagMode, setTagMode] = useState<"or" | "and">("or");
   const [staffId, setStaffId] = useState("all");
@@ -66,7 +74,6 @@ export function StudentListTable({
         getCandidateStageLabel(student.candidate_stage),
         student.ai_next_action,
         student.manual_next_action,
-        ...student.tags.map((tag) => localizeSampleText(tag.name)),
         ...student.assignees.flatMap((staff) => [
           staff.name,
           getStaffDisplayName(staff)
@@ -123,6 +130,12 @@ export function StudentListTable({
     tagMode
   ]);
 
+  const tagGroups = useMemo(() => buildTagGroups(tags, tagSearch), [tagSearch, tags]);
+  const selectedTags = useMemo(
+    () => tags.filter((tag) => selectedTagIds.includes(tag.id)),
+    [selectedTagIds, tags]
+  );
+
   function toggleTag(tagId: string) {
     setSelectedTagIds((current) =>
       current.includes(tagId)
@@ -133,6 +146,7 @@ export function StudentListTable({
 
   function resetFilters() {
     setSearch("");
+    setTagSearch("");
     setSelectedTagIds([]);
     setStaffId("all");
     setMotivationRank("all");
@@ -145,7 +159,7 @@ export function StudentListTable({
       <div className="grid gap-3 lg:grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr]">
         <Input
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="氏名・大学・タグ・次アクションで検索"
+          placeholder="氏名・大学・次アクションで検索"
           value={search}
         />
         <Select value={staffId} onChange={setStaffId}>
@@ -175,30 +189,71 @@ export function StudentListTable({
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">タグ条件</span>
-          <Select value={tagMode} onChange={(value) => setTagMode(value as "or" | "and")}>
-            <option value="or">OR</option>
-            <option value="and">AND</option>
-          </Select>
-          {tags.map((tag) => {
-            const active = selectedTagIds.includes(tag.id);
-            return (
-              <button
-                className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                key={tag.id}
-                onClick={() => toggleTag(tag.id)}
-                style={{
-                  borderColor: tag.color,
-                  backgroundColor: active ? tag.color : "transparent",
-                  color: active ? "white" : tag.color
-                }}
-                type="button"
+        <div className="rounded-md border bg-card p-3">
+          <div className="grid gap-2 md:grid-cols-[1fr_90px]">
+            <Input
+              onChange={(event) => setTagSearch(event.target.value)}
+              placeholder="タグ名で検索"
+              value={tagSearch}
+            />
+            <Select value={tagMode} onChange={(value) => setTagMode(value as "or" | "and")}>
+              <option value="or">OR</option>
+              <option value="and">AND</option>
+            </Select>
+          </div>
+          {selectedTags.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">選択中</span>
+              {selectedTags.map((tag) => (
+                <button
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium text-white"
+                  key={tag.id}
+                  onClick={() => toggleTag(tag.id)}
+                  style={{ backgroundColor: tag.color, borderColor: tag.color }}
+                  type="button"
+                >
+                  {localizeSampleText(tag.name)} ×
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-3 space-y-2">
+            {tagGroups.map((group) => (
+              <details
+                className="rounded-md border bg-background"
+                key={group.id}
+                open={Boolean(tagSearch.trim()) || group.tags.some((tag) => selectedTagIds.includes(tag.id))}
               >
-                {localizeSampleText(tag.name)}
-              </button>
-            );
-          })}
+                <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+                  {group.name} ({group.tags.length})
+                </summary>
+                <div className="flex flex-wrap gap-2 border-t p-3">
+                  {group.tags.length > 0 ? (
+                    group.tags.map((tag) => {
+                      const active = selectedTagIds.includes(tag.id);
+                      return (
+                        <button
+                          className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+                          key={tag.id}
+                          onClick={() => toggleTag(tag.id)}
+                          style={{
+                            borderColor: tag.color,
+                            backgroundColor: active ? tag.color : "transparent",
+                            color: active ? "white" : tag.color
+                          }}
+                          type="button"
+                        >
+                          {localizeSampleText(tag.name)}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-muted-foreground">該当するタグはありません。</p>
+                  )}
+                </div>
+              </details>
+            ))}
+          </div>
           <Button onClick={resetFilters} size="sm" type="button" variant="ghost">
             <FilterX className="mr-2 h-4 w-4" />
             クリア
@@ -225,7 +280,6 @@ export function StudentListTable({
                 <TableHead>志望度</TableHead>
                 <TableHead>候補者ステージ</TableHead>
                 <TableHead>担当者</TableHead>
-                <TableHead>タグ</TableHead>
                 <TableHead>最終接触</TableHead>
                 <TableHead>次アクション</TableHead>
               </TableRow>
@@ -283,21 +337,6 @@ export function StudentListTable({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex min-w-48 flex-wrap gap-1">
-                        {student.tags.length > 0
-                          ? student.tags.map((tag) => (
-                              <span
-                                className="rounded-md px-2 py-0.5 text-xs font-medium text-white"
-                                key={tag.id}
-                                style={{ backgroundColor: tag.color }}
-                              >
-                                {localizeSampleText(tag.name)}
-                              </span>
-                            ))
-                          : "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <div className="min-w-36">
                         <p>{formatDateTime(getLatestContact(student))}</p>
                         <p className="text-xs text-muted-foreground">
@@ -317,7 +356,7 @@ export function StudentListTable({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={8}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={7}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>
@@ -328,6 +367,44 @@ export function StudentListTable({
       </div>
     </div>
   );
+}
+
+function buildTagGroups(tags: TagSummary[], query: string): TagGroup[] {
+  const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
+  const groupedIds = new Set<string>();
+  const normalizedQuery = query.trim().toLowerCase();
+
+  function include(tag: TagSummary) {
+    const name = `${tag.name} ${localizeSampleText(tag.name) ?? ""}`.toLowerCase();
+    return !normalizedQuery || name.includes(normalizedQuery);
+  }
+
+  const categoryTags = UNIVERSITY_CATEGORY_TAGS
+    .map((name) => tagsByName.get(name))
+    .filter((tag): tag is TagSummary => Boolean(tag))
+    .filter(include);
+  categoryTags.forEach((tag) => groupedIds.add(tag.id));
+
+  const groups: TagGroup[] = [
+    { id: "university-categories", name: "大学分類タグ", tags: categoryTags }
+  ];
+
+  for (const folder of UNIVERSITY_TAG_FOLDERS) {
+    const folderTags = folder.tags
+      .map((name) => tagsByName.get(name))
+      .filter((tag): tag is TagSummary => Boolean(tag))
+      .filter(include);
+    folderTags.forEach((tag) => groupedIds.add(tag.id));
+    groups.push({ id: folder.name, name: `${folder.name}フォルダ`, tags: folderTags });
+  }
+
+  const uncategorized = tags
+    .filter((tag) => !groupedIds.has(tag.id))
+    .filter(include)
+    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  groups.push({ id: "uncategorized", name: "未分類", tags: uncategorized });
+
+  return groups.filter((group) => group.tags.length > 0 || normalizedQuery);
 }
 
 function Select({
