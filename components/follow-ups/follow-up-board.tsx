@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { BellPlus, Send, Tag } from "lucide-react";
+import { BellPlus, Send } from "lucide-react";
 import {
-  addFollowUpTag,
   sendReminder,
   type FollowUpActionState
 } from "@/app/(dashboard)/follow-ups/actions";
@@ -16,10 +15,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { localizeSampleText } from "@/lib/display/localize";
 import { daysSince, formatDateTime } from "@/lib/format";
 
-type TagOption = {
+type StaffSummary = {
   id: string;
   name: string;
-  color: string | null;
+  email: string;
 };
 
 type FollowUpStudent = {
@@ -33,7 +32,7 @@ type FollowUpStudent = {
   last_outbound_at: string | null;
   ai_next_action: string | null;
   line_user_id: string | null;
-  tags: TagOption[];
+  assignees: StaffSummary[];
 };
 
 const initialState: FollowUpActionState = {
@@ -43,26 +42,47 @@ const initialState: FollowUpActionState = {
 
 export function FollowUpBoard({
   students,
-  tags
+  staffUsers
 }: {
   students: FollowUpStudent[];
-  tags: TagOption[];
+  staffUsers: StaffSummary[];
 }) {
   const [threshold, setThreshold] = useState(3);
+  const [staffId, setStaffId] = useState("all");
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
       const days = daysSince(student.last_outbound_at);
-      return days !== null && days >= threshold;
+      const matchesThreshold = days !== null && days >= threshold;
+      const matchesStaff =
+        staffId === "all" ||
+        (staffId === "unassigned"
+          ? student.assignees.length === 0
+          : student.assignees.some((staff) => staff.id === staffId));
+      return matchesThreshold && matchesStaff;
     });
-  }, [students, threshold]);
+  }, [staffId, students, threshold]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+        <select
+          className="h-9 min-w-52 rounded-md border border-input bg-background px-3 text-sm"
+          onChange={(event) => setStaffId(event.target.value)}
+          value={staffId}
+        >
+          <option value="all">担当者すべて</option>
+          <option value="unassigned">担当者なし</option>
+          {staffUsers.map((staff) => (
+            <option key={staff.id} value={staff.id}>
+              {staff.name || staff.email}
+            </option>
+          ))}
+        </select>
         {[3, 7, 14].map((days) => (
           <Button
             key={days}
             onClick={() => setThreshold(days)}
+            size="sm"
             type="button"
             variant={threshold === days ? "default" : "outline"}
           >
@@ -83,7 +103,7 @@ export function FollowUpBoard({
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
           {filteredStudents.map((student) => (
-            <FollowUpCard key={student.id} student={student} tags={tags} />
+            <FollowUpCard key={student.id} student={student} />
           ))}
         </div>
       )}
@@ -92,17 +112,14 @@ export function FollowUpBoard({
 }
 
 function FollowUpCard({
-  student,
-  tags
+  student
 }: {
   student: FollowUpStudent;
-  tags: TagOption[];
 }) {
   const [reminderState, reminderAction] = useFormState(
     sendReminder,
     initialState
   );
-  const [tagState, tagAction] = useFormState(addFollowUpTag, initialState);
   const studentName =
     localizeSampleText(student.real_name) ||
     localizeSampleText(student.display_name) ||
@@ -129,17 +146,13 @@ function FollowUpCard({
           <p>LINE ID: {student.line_user_id ? "あり" : "なし"}</p>
           <p>最終受信: {formatDateTime(student.last_inbound_at)}</p>
           <p>最終送信: {formatDateTime(student.last_outbound_at)}</p>
+          <p className="sm:col-span-2">
+            担当者:{" "}
+            {student.assignees.length > 0
+              ? student.assignees.map((staff) => staff.name || staff.email).join(" / ")
+              : "未設定"}
+          </p>
         </div>
-
-        {student.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {student.tags.map((tag) => (
-              <Badge key={tag.id} variant="secondary">
-                {localizeSampleText(tag.name)}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
 
         {student.ai_next_action ? (
           <div className="rounded-md bg-secondary/50 p-3 text-sm">
@@ -154,7 +167,7 @@ function FollowUpCard({
           <input name="student_id" type="hidden" value={student.id} />
           <Textarea defaultValue={defaultText} name="text" rows={4} />
           <div className="flex flex-wrap items-center gap-2">
-            <SubmitButton icon="send" label="リマインダー送信" />
+            <SubmitButton label="リマインダー送信" />
             <Button asChild size="sm" variant="outline">
               <Link href={`/students/${student.id}`}>詳細を見る</Link>
             </Button>
@@ -165,44 +178,21 @@ function FollowUpCard({
             ) : null}
           </div>
         </form>
-
-        <form action={tagAction} className="flex flex-wrap items-center gap-2">
-          <input name="student_id" type="hidden" value={student.id} />
-          <select
-            className="h-9 min-w-44 rounded-md border border-input bg-background px-3 text-sm"
-            name="tag_id"
-            required
-          >
-            <option value="">タグを選択</option>
-            {tags.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {localizeSampleText(tag.name)}
-              </option>
-            ))}
-          </select>
-          <SubmitButton icon="tag" label="タグ付け" />
-          {tagState.message ? (
-            <p className="text-sm text-muted-foreground">{tagState.message}</p>
-          ) : null}
-        </form>
       </CardContent>
     </Card>
   );
 }
 
 function SubmitButton({
-  icon,
   label
 }: {
-  icon: "send" | "tag";
   label: string;
 }) {
   const { pending } = useFormStatus();
-  const Icon = icon === "send" ? Send : Tag;
 
   return (
     <Button disabled={pending} size="sm" type="submit">
-      <Icon className="mr-2 h-4 w-4" />
+      <Send className="mr-2 h-4 w-4" />
       {pending ? "処理中" : label}
     </Button>
   );

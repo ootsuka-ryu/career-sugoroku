@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function FollowUpsPage() {
   const supabase = createClient();
-  const [studentsResult, tagsResult] = await Promise.all([
+  const [studentsResult, staffResult] = await Promise.all([
     supabase
       .from("students")
       .select(
@@ -21,12 +21,16 @@ export default async function FollowUpsPage() {
         last_outbound_at,
         ai_next_action,
         line_user_id,
-        student_tags(tags(id, name, color))
+        student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
       `
       )
       .not("last_outbound_at", "is", null)
       .order("last_outbound_at", { ascending: false }),
-    supabase.from("tags").select("id, name, color").order("name")
+    supabase
+      .from("staff_users")
+      .select("id, name, email")
+      .eq("is_active", true)
+      .order("name")
   ]);
 
   const students = ((studentsResult.data ?? []) as any[])
@@ -46,15 +50,15 @@ export default async function FollowUpsPage() {
       last_outbound_at: student.last_outbound_at,
       ai_next_action: student.ai_next_action,
       line_user_id: student.line_user_id,
-      tags: (student.student_tags ?? [])
-        .map((row: any) => row.tags)
+      assignees: (student.student_assignees ?? [])
+        .map((row: any) => row.staff_users)
         .filter(Boolean)
     }));
 
-  const tags = (tagsResult.data ?? []) as Array<{
+  const staffUsers = (staffResult.data ?? []) as Array<{
     id: string;
     name: string;
-    color: string | null;
+    email: string;
   }>;
 
   return (
@@ -69,7 +73,7 @@ export default async function FollowUpsPage() {
         </p>
       </div>
 
-      {(studentsResult.error || tagsResult.error) && (
+      {(studentsResult.error || staffResult.error) && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
@@ -79,12 +83,12 @@ export default async function FollowUpsPage() {
           </CardHeader>
           <CardContent className="space-y-1 text-sm text-destructive">
             <p>{studentsResult.error?.message}</p>
-            <p>{tagsResult.error?.message}</p>
+            <p>{staffResult.error?.message}</p>
           </CardContent>
         </Card>
       )}
 
-      <FollowUpBoard students={students} tags={tags} />
+      <FollowUpBoard staffUsers={staffUsers} students={students} />
     </div>
   );
 }
