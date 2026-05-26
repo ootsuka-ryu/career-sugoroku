@@ -8,6 +8,12 @@ export async function GET(request: NextRequest) {
   const isRecovery = type === "recovery";
   const next = requestUrl.searchParams.get("next") ?? (isRecovery ? "/login?mode=recovery" : "/dashboard");
 
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.redirect(
+      new URL("/login?error=supabase-env-missing", requestUrl.origin)
+    );
+  }
+
   try {
     if (code) {
       const supabase = createClient();
