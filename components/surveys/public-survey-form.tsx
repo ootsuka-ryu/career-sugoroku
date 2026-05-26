@@ -64,13 +64,10 @@ export function PublicSurveyForm({
     visibleSections[0]?.id ? [visibleSections[0].id] : ["__no_section__"]
   );
   const [nextSectionBySectionId, setNextSectionBySectionId] = useState<Record<string, string>>({});
-  const [respondentName, setRespondentName] = useState("");
   const [clientError, setClientError] = useState("");
 
   const currentSectionIndex = visibleSections.findIndex((section) => section.id === sectionId);
   const isSectionMode = visibleSections.length > 0 && sectionId !== "__no_section__";
-  const showRespondentName =
-    !lineUserId && (!isSectionMode || currentSectionIndex === 0);
   const currentQuestions = useMemo(
     () =>
       sectionId === "__no_section__"
@@ -158,21 +155,7 @@ export function PublicSurveyForm({
       <input name="survey_id" type="hidden" value={surveyId} />
       <input name="line_user_id" type="hidden" value={lineUserId ?? ""} />
       <input name="source" type="hidden" value={source ?? ""} />
-      {showRespondentName ? (
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="respondent_name">
-            お名前
-          </label>
-          <Input
-            id="respondent_name"
-            name="respondent_name"
-            onChange={(event) => setRespondentName(event.target.value)}
-            value={respondentName}
-          />
-        </div>
-      ) : (
-        <input name="respondent_name" type="hidden" value={respondentName} />
-      )}
+      <input name="respondent_name" type="hidden" value="" />
 
       {visitedSectionIds.map((visitedSectionId) => (
         <input key={visitedSectionId} name="visited_section_ids" type="hidden" value={visitedSectionId} />
