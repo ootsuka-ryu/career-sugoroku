@@ -101,11 +101,6 @@ export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
   return (
     <div className="space-y-2">
       <Input
-        onBlur={(event) => {
-          const nextTarget = event.relatedTarget as HTMLElement | null;
-          if (nextTarget?.dataset.tagRuleSelect === "true") return;
-          createCurrentTag();
-        }}
         onChange={(event) => updateQuery(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== "Enter") return;
@@ -117,7 +112,6 @@ export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
       />
       <select
         className="h-10 w-full rounded border border-slate-300 bg-white px-3 text-sm shadow-none"
-        data-tag-rule-select="true"
         disabled={isCreating}
         onChange={(event) => selectTag(event.target.value)}
         value={tagsById.has(value) ? value : ""}
