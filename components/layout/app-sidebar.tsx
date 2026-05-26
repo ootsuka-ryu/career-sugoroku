@@ -1,14 +1,18 @@
 import Link from "next/link";
-import { navigationItems } from "@/lib/constants/navigation";
 import { Badge } from "@/components/ui/badge";
+import { navigationItems } from "@/lib/constants/navigation";
 
-export function AppSidebar() {
+const lineMonthlyLimit = 5000;
+
+export function AppSidebar({ lineUsageCount }: { lineUsageCount: number }) {
+  const lineUsageRate = Math.min(100, Math.round((lineUsageCount / lineMonthlyLimit) * 100));
+
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-card lg:block">
       <div className="flex h-16 items-center border-b px-5">
         <div>
           <p className="text-sm font-medium text-primary">LINE 採用 CRM</p>
-          <p className="text-xs text-muted-foreground">薬学生 800 名運用</p>
+          <p className="text-xs text-muted-foreground">薬学生 800 名採用</p>
         </div>
       </div>
       <nav className="space-y-1 p-3">
@@ -29,11 +33,15 @@ export function AppSidebar() {
       <div className="m-4 rounded-lg border bg-secondary/40 p-4">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-medium">LINE 通数</p>
-          <Badge variant="accent">設計値</Badge>
+          <Badge variant={lineUsageRate >= 80 ? "outline" : "accent"}>
+            {lineUsageRate}%
+          </Badge>
         </div>
-        <p className="text-2xl font-semibold">0 / 5,000</p>
+        <p className="text-2xl font-semibold">
+          {lineUsageCount.toLocaleString()} / {lineMonthlyLimit.toLocaleString()}
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          実配信数はステップ 5 で broadcasts から集計します。
+          今月の配信と個別チャット送信を集計しています。
         </p>
       </div>
     </aside>
