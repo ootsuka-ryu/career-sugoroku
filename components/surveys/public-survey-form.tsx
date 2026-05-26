@@ -9,7 +9,6 @@ import {
 } from "@/app/survey/[id]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import type { Json } from "@/lib/supabase/database.types";
 
 type PublicSection = {
@@ -326,7 +325,7 @@ function QuestionField({
             type={question.validation_type === "email" ? "email" : "tel"}
           />
         ) : (
-          <Textarea
+          <Input
             name={name}
             placeholder={question.placeholder ?? ""}
             required={question.is_required}
