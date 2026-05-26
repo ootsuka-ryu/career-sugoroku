@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { pushLineMessage } from "@/lib/line/client";
 import { createClient } from "@/lib/supabase/server";
+import {
+  personalizeSurveyUrl,
+  personalizeSurveyUrlsInText
+} from "@/lib/surveys/personalized-url";
 
 export type ChatActionState = {
   ok: boolean;
@@ -54,16 +58,6 @@ export async function sendChatMessage(
   }
 
   const { student_id } = parsed.data;
-  const messageKind = parsed.data.message_kind;
-  const text = parsed.data.text ?? "";
-
-  const lineMessages = buildLineMessages(parsed.data);
-  if (lineMessages.length === 0) {
-    return {
-      ok: false,
-      message: getMissingContentMessage(parsed.data)
-    };
-  }
   const { data: student, error: studentError } = await supabase
     .from("students")
     .select("id, line_user_id")
@@ -74,6 +68,16 @@ export async function sendChatMessage(
     return {
       ok: false,
       message: studentError?.message ?? "学生が見つかりません。"
+    };
+  }
+
+  const messageKind = parsed.data.message_kind;
+  const personalizedInput = personalizeChatInput(parsed.data, student.line_user_id);
+  const lineMessages = buildLineMessages(personalizedInput);
+  if (lineMessages.length === 0) {
+    return {
+      ok: false,
+      message: getMissingContentMessage(personalizedInput)
     };
   }
 
@@ -102,7 +106,7 @@ export async function sendChatMessage(
     student_id,
     direction: "out",
     type: messageKind,
-    payload: buildStoredPayload(parsed.data),
+    payload: buildStoredPayload(personalizedInput),
     status,
     sent_at: new Date().toISOString(),
     staff_id: user.id
@@ -121,6 +125,37 @@ export async function sendChatMessage(
     ok: status !== "failed",
     message: resultMessage
   };
+}
+
+function personalizeChatInput(
+  input: z.infer<typeof sendMessageSchema>,
+  lineUserId: string | null | undefined
+): z.infer<typeof sendMessageSchema> {
+  if (!lineUserId) return input;
+
+  return {
+    ...input,
+    text: personalizeSurveyUrlsInText(input.text ?? "", lineUserId),
+    carousel_json: personalizeCarouselJson(input.carousel_json, lineUserId)
+  };
+}
+
+function personalizeCarouselJson(value: string | undefined, lineUserId: string) {
+  if (!value) return value;
+
+  try {
+    const items = JSON.parse(value);
+    if (!Array.isArray(items)) return value;
+
+    return JSON.stringify(
+      items.map((item) => ({
+        ...item,
+        url: personalizeSurveyUrl(String(item.url ?? ""), lineUserId)
+      }))
+    );
+  } catch {
+    return value;
+  }
 }
 
 async function markStudentAsPool(supabase: any, studentId: string) {

@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("students")
-    .select("id, real_name, display_name, kana, university, phone, email, line_user_id, photo_url, updated_at")
+    .select("id, real_name, display_name, kana, university, phone, email, line_user_id, updated_at")
     .limit(1000);
 
   if (error) {

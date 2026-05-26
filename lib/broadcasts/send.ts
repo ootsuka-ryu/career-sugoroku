@@ -5,6 +5,10 @@ import {
   type TargetableStudent
 } from "@/lib/broadcasts/targeting";
 import { pushLineMessage } from "@/lib/line/client";
+import {
+  personalizeSurveyUrl,
+  personalizeSurveyUrlsInText
+} from "@/lib/surveys/personalized-url";
 
 type SupabaseLike = any;
 
@@ -31,13 +35,14 @@ export async function sendBroadcastToTargets({
 }) {
   const students = await fetchTargetableStudents(supabase);
   const targets = filterBroadcastTargets(students, targeting);
-  const messages = buildLineMessages(body);
   let sentCount = 0;
   let failedCount = 0;
   const followupTargetIds: string[] = [];
 
   for (const student of targets) {
     let status = "mock_sent";
+    const personalizedBody = personalizeBroadcastBody(body, student.line_user_id);
+    const messages = buildLineMessages(personalizedBody);
 
     if (student.line_user_id) {
       const result = await pushLineMessage(student.line_user_id, messages);
@@ -66,8 +71,8 @@ export async function sendBroadcastToTargets({
       student_id: student.id,
       broadcast_id: broadcastId,
       direction: "out",
-      type: body.kind === "text" ? "text" : "flex",
-      payload: body.kind === "text" ? { text: body.text } : body,
+      type: personalizedBody.kind === "text" ? "text" : "flex",
+      payload: personalizedBody.kind === "text" ? { text: personalizedBody.text } : personalizedBody,
       status,
       sent_at: new Date().toISOString(),
       staff_id: staffId
@@ -91,6 +96,29 @@ export async function sendBroadcastToTargets({
     sentCount,
     failedCount,
     targetCount: targets.length
+  };
+}
+
+function personalizeBroadcastBody(
+  body: BroadcastBody,
+  lineUserId: string | null | undefined
+): BroadcastBody {
+  if (!lineUserId) return body;
+
+  if (body.kind === "text") {
+    return {
+      ...body,
+      text: personalizeSurveyUrlsInText(body.text, lineUserId)
+    };
+  }
+
+  return {
+    ...body,
+    cells: body.cells.map((cell) => ({
+      ...cell,
+      detailUrl: personalizeSurveyUrl(cell.detailUrl, lineUserId),
+      applyUrl: personalizeSurveyUrl(cell.applyUrl, lineUserId)
+    }))
   };
 }
 

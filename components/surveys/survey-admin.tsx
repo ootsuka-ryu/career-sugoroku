@@ -1372,7 +1372,7 @@ type SurveyResponseRow = {
     phone: string | null;
     email: string | null;
     line_user_id: string | null;
-    photo_url: string | null;
+    photo_url?: string | null;
   } | null;
 };
 
@@ -1385,7 +1385,7 @@ type StudentSearchResult = {
   phone: string | null;
   email: string | null;
   line_user_id: string | null;
-  photo_url: string | null;
+  photo_url?: string | null;
 };
 
 function ResponseResultsModal({

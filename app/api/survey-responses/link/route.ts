@@ -149,6 +149,17 @@ async function applyProfileUpdates(
     }
 
     if (
+      (label.includes("卒業年") ||
+        label.includes("卒業年度") ||
+        label.includes("卒業予定") ||
+        lowerLabel.includes("graduation")) &&
+      answer
+    ) {
+      const graduationYear = parseGraduationYear(answer);
+      if (graduationYear) update.graduation_year = graduationYear;
+    }
+
+    if (
       (question.validation_type === "email" ||
         label.includes("メール") ||
         lowerLabel.includes("email")) &&
@@ -173,6 +184,15 @@ async function applyProfileUpdates(
   if (Object.keys(update).length > 0) {
     await supabase.from("students").update(update).eq("id", studentId);
   }
+}
+
+function parseGraduationYear(answer: Json) {
+  const value = Array.isArray(answer) ? String(answer[0] ?? "") : String(answer ?? "");
+  const match = value.match(/20\d{2}/);
+  if (!match) return null;
+
+  const year = Number(match[0]);
+  return year >= 2000 && year <= 2100 ? year : null;
 }
 
 async function applyTagRules(
