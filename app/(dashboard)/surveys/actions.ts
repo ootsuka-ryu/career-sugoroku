@@ -172,6 +172,45 @@ export async function toggleSurveyActive(
   };
 }
 
+export async function createSurveyTagByName(name: string) {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return { ok: false, message: "Tag name is required." };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { ok: false, message: "Login is required." };
+  }
+
+  const { data, error } = await supabase
+    .from("tags")
+    .upsert(
+      {
+        name: trimmedName,
+        color: UNIVERSITY_TAG_COLORS.get(trimmedName) ?? "#0ea5e9",
+        created_by: user.id
+      },
+      { onConflict: "name" }
+    )
+    .select("id, name, color")
+    .single();
+
+  if (error) {
+    return { ok: false, message: error.message };
+  }
+
+  revalidatePath("/tags");
+  revalidatePath("/students");
+  revalidatePath("/surveys");
+
+  return { ok: true, tag: data };
+}
+
 function parseDraftPayload(value?: string): DraftPayload {
   if (!value) return {};
 
