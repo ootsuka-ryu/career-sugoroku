@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import type { SupabasePublicEnv } from "@/lib/supabase/env";
 
 function loginErrorMessage(message?: string) {
   if (!message) {
@@ -25,7 +26,11 @@ function loginErrorMessage(message?: string) {
   return `ログインできませんでした。詳細: ${message}`;
 }
 
-export function LoginForm() {
+type LoginFormProps = {
+  supabaseEnv: SupabasePublicEnv;
+};
+
+export function LoginForm({ supabaseEnv }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,14 +58,18 @@ export function LoginForm() {
     }
 
     async function prepareRecoverySession() {
-      const supabase = createClient();
-      await supabase.auth.getSession();
-      setMode("reset");
-      setMessage("新しいパスワードを入力してください。");
+      try {
+        const supabase = createClient(supabaseEnv);
+        await supabase.auth.getSession();
+        setMode("reset");
+        setMessage("新しいパスワードを入力してください。");
+      } catch {
+        setMessage("Supabaseの接続情報が不足しています。");
+      }
     }
 
     void prepareRecoverySession();
-  }, []);
+  }, [supabaseEnv]);
 
   async function signInWithPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +79,7 @@ export function LoginForm() {
     let error: { message: string } | null = null;
 
     try {
-      const supabase = createClient();
+      const supabase = createClient(supabaseEnv);
       const result = await supabase.auth.signInWithPassword({
         email,
         password
@@ -102,10 +111,17 @@ export function LoginForm() {
       return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    let error: { message: string } | null = null;
+
+    try {
+      const supabase = createClient(supabaseEnv);
+      const result = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      error = result.error;
+    } catch {
+      error = { message: "Supabaseの接続情報が不足しています。" };
+    }
 
     setIsPending(false);
 
@@ -127,7 +143,7 @@ export function LoginForm() {
     let error: { message: string } | null = null;
 
     try {
-      const supabase = createClient();
+      const supabase = createClient(supabaseEnv);
       const origin = window.location.origin;
       const result = await supabase.auth.signInWithOAuth({
         provider: "google",
