@@ -34,12 +34,12 @@ export function LStepSurveyImportForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileUp className="h-5 w-5 text-primary" />
-          Lステップ回答CSVを学生情報に反映
+          CSVを選択して取り込む
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Lステップの回答CSVをアップロードすると、氏名が一致する学生に電話番号・メール・大学・卒業年を反映し、回答内容を備考欄と履歴に残します。
+          Lステップの回答CSV専用です。氏名が一致する学生に電話番号・メール・大学・卒業年を反映し、回答内容を備考欄と履歴に残します。
         </p>
         <form action={action} className="grid gap-3 md:grid-cols-[1fr_auto]">
           <input

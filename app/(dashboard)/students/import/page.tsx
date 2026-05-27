@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { CsvImportPreview } from "@/components/students/csv-import-preview";
 import { LStepSurveyImportForm } from "@/components/students/lstep-survey-import-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,11 +19,10 @@ export default function StudentImportPage() {
           CSVインポート
         </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          学生名簿や外部アンケートCSVを取り込み、既存の学生情報へ反映します。
+          Lステップの回答CSVを取り込み、氏名が一致する学生情報へ反映します。
         </p>
       </div>
       <LStepSurveyImportForm />
-      <CsvImportPreview />
     </div>
   );
 }
