@@ -13,7 +13,14 @@ import { createClient } from "@/lib/supabase/server";
 export default async function ChatPage({
   searchParams
 }: {
-  searchParams: { studentId?: string; draft?: string };
+  searchParams: {
+    studentId?: string;
+    draft?: string;
+    tab?: string;
+    imageUrl?: string;
+    pdfUrl?: string;
+    previewImageUrl?: string;
+  };
 }) {
   const supabase = createClient();
 
@@ -95,6 +102,7 @@ export default async function ChatPage({
     folderId: row.folder_id,
     folderName: row.message_template_folders?.name ?? "未分類"
   })) as ChatTemplate[];
+  const initialComposerTab = getInitialComposerTab(searchParams.tab);
 
   return (
     <div className="space-y-6">
@@ -124,6 +132,10 @@ export default async function ChatPage({
       )}
 
       <ChatConsole
+        initialComposerTab={initialComposerTab}
+        initialImageUrl={searchParams.imageUrl ?? ""}
+        initialPdfUrl={searchParams.pdfUrl ?? ""}
+        initialPreviewImageUrl={searchParams.previewImageUrl ?? ""}
         messages={messages}
         draftText={searchParams.draft ?? ""}
         selectedStudentId={searchParams.studentId ?? null}
@@ -133,4 +145,11 @@ export default async function ChatPage({
       />
     </div>
   );
+}
+
+function getInitialComposerTab(value?: string) {
+  if (value === "image" || value === "pdf" || value === "carousel" || value === "video") {
+    return value;
+  }
+  return "text";
 }

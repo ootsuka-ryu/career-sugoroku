@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { ExternalLink, FileText, ImageIcon, NotebookPen, RefreshCw, Send, Video } from "lucide-react";
 import {
@@ -64,13 +64,19 @@ const initialState: ChatActionState = {
   message: ""
 };
 
+type ComposerTabType = "text" | "image" | "carousel" | "video" | "pdf";
+
 export function ChatConsole({
   students,
   messages,
   surveys,
   templates,
   selectedStudentId,
-  draftText = ""
+  draftText = "",
+  initialComposerTab = "text",
+  initialImageUrl = "",
+  initialPdfUrl = "",
+  initialPreviewImageUrl = ""
 }: {
   students: ChatStudent[];
   messages: ChatMessage[];
@@ -78,6 +84,10 @@ export function ChatConsole({
   templates: ChatTemplate[];
   selectedStudentId: string | null;
   draftText?: string;
+  initialComposerTab?: ComposerTabType;
+  initialImageUrl?: string;
+  initialPdfUrl?: string;
+  initialPreviewImageUrl?: string;
 }) {
   const [query, setQuery] = useState("");
   const currentStudentId = selectedStudentId ?? students[0]?.id ?? null;
@@ -205,6 +215,10 @@ export function ChatConsole({
 
             <ChatComposer
               initialText={draftText}
+              initialComposerTab={initialComposerTab}
+              initialImageUrl={initialImageUrl}
+              initialPdfUrl={initialPdfUrl}
+              initialPreviewImageUrl={initialPreviewImageUrl}
               lineUserId={currentStudent.line_user_id}
               studentId={currentStudent.id}
               surveys={surveys}
@@ -307,29 +321,54 @@ function ExternalLogSubmitButton() {
 
 function ChatComposer({
   initialText = "",
+  initialComposerTab = "text",
+  initialImageUrl = "",
+  initialPdfUrl = "",
+  initialPreviewImageUrl = "",
   lineUserId,
   studentId,
   surveys,
   templates
 }: {
   initialText?: string;
+  initialComposerTab?: ComposerTabType;
+  initialImageUrl?: string;
+  initialPdfUrl?: string;
+  initialPreviewImageUrl?: string;
   lineUserId: string | null;
   studentId: string;
   surveys: ChatSurveyLink[];
   templates: ChatTemplate[];
 }) {
   const [state, formAction] = useFormState(sendChatMessage, initialState);
-  const [tab, setTab] = useState<"text" | "image" | "carousel" | "video" | "pdf">("text");
-  const [text, setText] = useState(initialText);
+  const initialTextWithPdf = buildInitialComposerText(initialText, initialPdfUrl);
+  const [tab, setTab] = useState<ComposerTabType>(initialComposerTab);
+  const [text, setText] = useState(initialTextWithPdf);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [videoUrl, setVideoUrl] = useState("");
-  const [previewImageUrl, setPreviewImageUrl] = useState("");
-  const [uploadMessage, setUploadMessage] = useState("");
+  const [previewImageUrl, setPreviewImageUrl] = useState(initialPreviewImageUrl || initialImageUrl);
+  const [uploadMessage, setUploadMessage] = useState(initialPdfUrl ? "PDF URLを下書きにセットしました。" : "");
   const [carouselItems, setCarouselItems] = useState([
     { title: "", description: "", imageUrl: "", url: "", buttonLabel: "詳細を見る" },
     { title: "", description: "", imageUrl: "", url: "", buttonLabel: "詳細を見る" },
     { title: "", description: "", imageUrl: "", url: "", buttonLabel: "詳細を見る" }
+  ]);
+
+  useEffect(() => {
+    setTab(initialComposerTab);
+    setText(buildInitialComposerText(initialText, initialPdfUrl));
+    setImageUrl(initialImageUrl);
+    setPreviewImageUrl(initialPreviewImageUrl || initialImageUrl);
+    setVideoUrl("");
+    setUploadMessage(initialPdfUrl ? "PDF URLを下書きにセットしました。" : "");
+  }, [
+    initialComposerTab,
+    initialImageUrl,
+    initialPdfUrl,
+    initialPreviewImageUrl,
+    initialText,
+    studentId
   ]);
 
   const groupedSurveys = useMemo(() => {
@@ -613,6 +652,15 @@ function ChatComposer({
       </div>
     </form>
   );
+}
+
+function buildInitialComposerText(initialText: string, initialPdfUrl: string) {
+  const text = initialText.trim();
+  const pdfUrl = initialPdfUrl.trim();
+  if (!pdfUrl) return initialText;
+
+  const pdfLine = `PDFはこちら\n${pdfUrl}`;
+  return text ? `${text}\n\n${pdfLine}` : pdfLine;
 }
 
 function ComposerTab({

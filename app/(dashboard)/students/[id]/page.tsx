@@ -166,6 +166,7 @@ export default async function StudentDetailPage({
     eventParticipants
   });
   const recommendedChatText = buildRecommendedChatText(student);
+  const recommendedChatHref = buildRecommendedChatHref(student.id, recommendedChatText);
 
   return (
     <div className="space-y-6">
@@ -204,15 +205,15 @@ export default async function StudentDetailPage({
           />
           {recommendedChatText ? (
             <Button asChild size="sm">
-              <Link href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(recommendedChatText)}`}>
+              <Link href={recommendedChatHref}>
                 <MessageSquareText className="mr-2 h-4 w-4" />
-                AIおすすめチャット
+                AIおススメチャット
               </Link>
             </Button>
           ) : (
             <Button disabled size="sm" variant="outline">
               <MessageSquareText className="mr-2 h-4 w-4" />
-              AIおすすめチャット
+              AIおススメチャット
             </Button>
           )}
           <Button asChild size="sm">
@@ -291,15 +292,15 @@ export default async function StudentDetailPage({
                 </p>
                 {recommendedChatText ? (
                   <Button asChild className="mt-3" size="sm">
-                    <Link href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(recommendedChatText)}`}>
+                    <Link href={recommendedChatHref}>
                       <MessageSquareText className="mr-2 h-4 w-4" />
-                      AIおすすめチャット
+                      AIおススメチャット
                     </Link>
                   </Button>
                 ) : (
                   <Button className="mt-3" disabled size="sm" variant="outline">
                     <MessageSquareText className="mr-2 h-4 w-4" />
-                    AIおすすめチャット
+                    AIおススメチャット
                   </Button>
                 )}
               </div>
@@ -524,9 +525,57 @@ function buildRecommendedChatText(student: ReturnType<typeof normalizeStudentDet
   if (aiText) return aiText;
 
   const manualText = localizeSampleText(student.manual_next_action)?.trim();
-  if (manualText) return manualText;
+  if (manualText) {
+    const name = getStudentChatName(student);
+    return `${name}さん、こんにちは。\n${manualText}\nご都合の良いタイミングでご返信ください。`;
+  }
+
+  const name = getStudentChatName(student);
+  const daysSinceOutbound = getDaysSince(student.last_outbound_at);
+  const lastOutboundIsNewer =
+    student.last_outbound_at &&
+    (!student.last_inbound_at ||
+      new Date(student.last_outbound_at).getTime() > new Date(student.last_inbound_at).getTime());
+
+  if (lastOutboundIsNewer && daysSinceOutbound !== null && daysSinceOutbound >= 5) {
+    return `${name}さん、こんにちは。\n先日お送りしたご案内について、もしご興味があればお気軽にご返信ください。ご都合に合わせて個別にご案内します。`;
+  }
+
+  const isHighMotivation =
+    ["A", "B"].includes(String(student.motivation_rank ?? "").toUpperCase()) ||
+    Number(student.motivation_level ?? 0) >= 4;
+
+  if (isHighMotivation && !student.funnel_next) {
+    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。先日はありがとうございました。次のステップとして、Zoom面談や店舗見学の日程をご相談できればと思っています。ご都合の良い日程があれば教えてください。`;
+  }
+
+  if (student.funnel_next && !student.funnel_pharmacist_interview) {
+    return `${name}さん、こんにちは。\n次のご案内として、薬剤師インタビューや個別相談で実際の働き方をより具体的にお伝えできればと思っています。興味があれば日程をご案内します。`;
+  }
 
   return "";
+}
+
+function buildRecommendedChatHref(studentId: string, draftText: string) {
+  return {
+    pathname: "/chat",
+    query: draftText ? { studentId, draft: draftText, tab: "text" } : { studentId }
+  };
+}
+
+function getStudentChatName(student: ReturnType<typeof normalizeStudentDetail>) {
+  return (
+    localizeSampleText(student.real_name) ||
+    localizeSampleText(student.display_name) ||
+    "学生"
+  );
+}
+
+function getDaysSince(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
 function buildTimeline({
