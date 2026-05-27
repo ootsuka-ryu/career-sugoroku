@@ -10,16 +10,28 @@ type TopbarProps = {
 
 export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
   return (
-    <header className="flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-      <Button className="lg:hidden" size="icon" variant="ghost">
+    <header className="flex h-14 items-center gap-3 border-b border-emerald-800 bg-emerald-600 px-4 text-white md:px-6">
+      <Button
+        className="text-white hover:bg-emerald-700 hover:text-white lg:hidden"
+        size="icon"
+        variant="ghost"
+      >
         <Menu className="h-5 w-5" />
         <span className="sr-only">メニュー</span>
       </Button>
       <div className="relative max-w-xl flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-9" placeholder="学生名・大学・タグで検索" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+        <Input
+          className="border-white/30 bg-white pl-9 text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-white"
+          placeholder="学生名・大学・タグで検索"
+        />
       </div>
-      <Button asChild className="relative" size="icon" variant="outline">
+      <Button
+        asChild
+        className="relative border-white/40 bg-white text-emerald-800 hover:bg-neutral-100"
+        size="icon"
+        variant="outline"
+      >
         <Link href="/notifications">
           <Bell className="h-4 w-4" />
           <span className="sr-only">通知</span>
@@ -31,8 +43,8 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
         </Link>
       </Button>
       <div className="hidden min-w-0 text-right text-sm md:block">
-        <p className="truncate font-medium">{email ?? "未ログイン"}</p>
-        <p className="text-xs text-muted-foreground">staff</p>
+        <p className="truncate font-semibold text-white">{email ?? "未ログイン"}</p>
+        <p className="text-xs text-emerald-50">staff</p>
       </div>
     </header>
   );

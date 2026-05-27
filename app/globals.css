@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 214 78% 32%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 198 38% 94%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 28% 92%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 172 66% 38%;
-    --accent-foreground: 210 40% 98%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 142 78% 32%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 8%;
+    --muted: 0 0% 91%;
+    --muted-foreground: 0 0% 31%;
+    --accent: 166 88% 27%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214 24% 88%;
-    --input: 214 24% 88%;
-    --ring: 214 78% 32%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 80%;
+    --input: 0 0% 73%;
+    --ring: 142 78% 32%;
     --radius: 0.5rem;
   }
 
@@ -33,19 +33,19 @@
     --card-foreground: 210 40% 98%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 88% 64%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
     --secondary: 217 33% 18%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217 33% 18%;
     --muted-foreground: 215 20% 65%;
-    --accent: 172 58% 46%;
-    --accent-foreground: 222 47% 8%;
+    --accent: 166 78% 38%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
     --border: 217 33% 18%;
     --input: 217 33% 18%;
-    --ring: 210 88% 64%;
+    --ring: 142 70% 45%;
   }
 
   * {
@@ -55,5 +55,9 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "palt";
+  }
+
+  ::selection {
+    @apply bg-primary text-primary-foreground;
   }
 }
