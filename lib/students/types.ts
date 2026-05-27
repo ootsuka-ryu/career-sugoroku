@@ -90,6 +90,11 @@ export type StudentSurveyResponseItem = {
   raw_answers_jsonb: Json;
   survey: {
     title: string;
+    questions?: Array<{
+      id: string;
+      label: string;
+      order: number;
+    }>;
   } | null;
 };
 

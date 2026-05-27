@@ -104,7 +104,7 @@ export default async function StudentDetailPage({
       .limit(50),
     supabase
       .from("survey_responses")
-      .select("id, submitted_at, raw_answers_jsonb, surveys(title)")
+      .select("id, submitted_at, raw_answers_jsonb, surveys(title, survey_questions(id, label, order))")
       .eq("student_id", params.id)
       .order("submitted_at", { ascending: false })
       .limit(30),
@@ -153,6 +153,15 @@ export default async function StudentDetailPage({
     submitted_at: row.submitted_at,
     raw_answers_jsonb: row.raw_answers_jsonb,
     survey: row.surveys
+      ? {
+          title: row.surveys.title,
+          questions: (row.surveys.survey_questions ?? []).map((question: any) => ({
+            id: question.id,
+            label: question.label,
+            order: question.order
+          }))
+        }
+      : null
   })) as StudentSurveyResponseItem[];
   const recordings = (recordingsResult.data ?? []) as StudentRecordingItem[];
   const eventParticipants = (eventParticipantsResult.data ?? []) as EventParticipant[];
@@ -396,7 +405,7 @@ export default async function StudentDetailPage({
                 id: response.id,
                 title: response.survey?.title ?? "アンケート",
                 meta: formatDateTime(response.submitted_at),
-                body: formatSurveyAnswer(response.raw_answers_jsonb)
+                body: formatSurveyAnswer(response.raw_answers_jsonb, response.survey?.questions)
               }))}
             />
           </CardContent>
@@ -497,12 +506,35 @@ function getActionTypeLabel(type: string) {
   return labels[type] ?? type;
 }
 
-function formatSurveyAnswer(value: unknown) {
+function formatSurveyAnswer(
+  value: unknown,
+  questions: NonNullable<StudentSurveyResponseItem["survey"]>["questions"] = []
+) {
   if (!value || typeof value !== "object") return "";
   const record = value as Record<string, unknown>;
+  const questionMap = new Map((questions ?? []).map((question) => [question.id, question]));
   return Object.entries(record)
-    .map(([key, item]) => `${key}: ${Array.isArray(item) ? item.join(", ") : String(item)}`)
+    .map(([key, item]) => {
+      const question = questionMap.get(key);
+      return {
+        order: question?.order ?? 9999,
+        key,
+        label: localizeSampleText(question?.label) || question?.label || localizeSampleText(key) || key,
+        value: formatSurveyAnswerValue(item)
+      };
+    })
+    .sort((a, b) => a.order - b.order || a.key.localeCompare(b.key))
+    .map((row) => `${row.label}: ${row.value}`)
     .join("\n");
+}
+
+function formatSurveyAnswerValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => localizeSampleText(String(item)) || String(item)).join("、");
+  }
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "object") return JSON.stringify(value);
+  return localizeSampleText(String(value)) || String(value);
 }
 
 function isSelectableAssignee(staff: StaffSummary) {
@@ -611,7 +643,7 @@ function buildTimeline({
       at: response.submitted_at,
       label: "アンケート",
       title: response.survey?.title ?? "アンケート回答",
-      body: formatSurveyAnswer(response.raw_answers_jsonb)
+      body: formatSurveyAnswer(response.raw_answers_jsonb, response.survey?.questions)
     })),
     ...recordings.map((recording) => ({
       id: `recording-${recording.id}`,
