@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { FilterX } from "lucide-react";
+import { FilterX, MessageSquareText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ import {
   localizeKanaText,
   localizeSampleText
 } from "@/lib/display/localize";
-import { daysSince, formatDateTime } from "@/lib/format";
+import { daysSince } from "@/lib/format";
 import { getStaffBadgeClass, getStaffDisplayName } from "@/lib/staff/display";
 import {
   candidateStages,
@@ -33,10 +33,25 @@ import {
   UNIVERSITY_TAG_FOLDERS
 } from "@/lib/tags/university-folders";
 
+export type StudentEventSummary = {
+  student_id: string;
+  status: string | null;
+  memo: string | null;
+  created_at: string | null;
+  event: {
+    id: string;
+    title: string;
+    event_type: string | null;
+    starts_at: string | null;
+    location: string | null;
+  } | null;
+};
+
 type StudentListTableProps = {
   students: StudentListItem[];
   tags: TagSummary[];
   staffUsers: StaffSummary[];
+  eventParticipants?: StudentEventSummary[];
 };
 
 type TagGroup = {
@@ -45,10 +60,20 @@ type TagGroup = {
   tags: TagSummary[];
 };
 
+const EVENT_COLUMN_PATTERNS = {
+  himejiTour: [/姫路/, /店舗見学/, /ツアー/],
+  realTalk: [/リアルトーク/i, /real\s*talk/i],
+  companyBriefing: [/会社説明会/, /個別会社説明/, /説明会/],
+  staffExchange: [/社員交流/, /交流会/],
+  pharmacistInterview: [/薬剤師インタビュー/, /インタビュー/],
+  selection: [/選考会/, /選考/]
+};
+
 export function StudentListTable({
   students,
   tags,
-  staffUsers
+  staffUsers,
+  eventParticipants = []
 }: StudentListTableProps) {
   const [search, setSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
@@ -61,10 +86,26 @@ export function StudentListTable({
   const [candidateStage, setCandidateStage] = useState("all");
   const [noReplyDays, setNoReplyDays] = useState("off");
 
+  const eventsByStudent = useMemo(() => {
+    const map = new Map<string, StudentEventSummary[]>();
+    for (const participant of eventParticipants) {
+      const list = map.get(participant.student_id) ?? [];
+      list.push(participant);
+      map.set(participant.student_id, list);
+    }
+
+    Array.from(map.values()).forEach((list: StudentEventSummary[]) => {
+      list.sort((a: StudentEventSummary, b: StudentEventSummary) => getEventTime(a) - getEventTime(b));
+    });
+
+    return map;
+  }, [eventParticipants]);
+
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return students.filter((student) => {
+      const studentEvents = eventsByStudent.get(student.id) ?? [];
       const haystack = [
         student.display_name,
         localizeSampleText(student.display_name),
@@ -75,10 +116,19 @@ export function StudentListTable({
         localizeSampleText(student.university),
         student.grade,
         student.graduation_year?.toString(),
+        student.desired_area,
+        student.first_contact_method,
+        student.first_contact_date,
         student.motivation_rank,
         getCandidateStageLabel(student.candidate_stage),
         student.ai_next_action,
         student.manual_next_action,
+        ...studentEvents.flatMap((participant) => [
+          participant.event?.title,
+          participant.event?.event_type,
+          participant.event?.location,
+          participant.memo
+        ]),
         ...student.assignees.flatMap((staff) => [
           staff.name,
           getStaffDisplayName(staff)
@@ -126,6 +176,7 @@ export function StudentListTable({
     });
   }, [
     candidateStage,
+    eventsByStudent,
     motivationRank,
     noReplyDays,
     search,
@@ -244,7 +295,9 @@ export function StudentListTable({
                         );
                       })
                     ) : (
-                      <p className="px-3 py-2 text-sm text-muted-foreground">該当するフォルダがありません。</p>
+                      <p className="px-3 py-2 text-sm text-muted-foreground">
+                        該当するフォルダがありません。
+                      </p>
                     )}
                   </div>
                   <div className="max-h-80 overflow-auto p-3">
@@ -252,7 +305,9 @@ export function StudentListTable({
                       <>
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold">{activeTagGroup.name}</p>
-                          <p className="text-xs text-muted-foreground">{activeTagGroup.tags.length}件</p>
+                          <p className="text-xs text-muted-foreground">
+                            {activeTagGroup.tags.length}件
+                          </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {activeTagGroup.tags.map((tag) => {
@@ -276,7 +331,9 @@ export function StudentListTable({
                         </div>
                       </>
                     ) : (
-                      <p className="text-sm text-muted-foreground">左のフォルダにカーソルを合わせてください。</p>
+                      <p className="text-sm text-muted-foreground">
+                        左のフォルダにカーソルを合わせてください。
+                      </p>
                     )}
                   </div>
                 </div>
@@ -289,7 +346,9 @@ export function StudentListTable({
           </div>
           {selectedTags.length > 0 ? (
             <div className="mt-2 flex max-h-20 flex-wrap items-center gap-1.5 overflow-auto rounded-md border bg-secondary/30 p-2">
-              <span className="mr-1 text-xs text-muted-foreground">選択中 {selectedTags.length}件</span>
+              <span className="mr-1 text-xs text-muted-foreground">
+                選択中 {selectedTags.length}件
+              </span>
               {selectedTags.map((tag) => (
                 <button
                   className="rounded-md border px-2 py-0.5 text-xs font-medium text-white"
@@ -321,95 +380,120 @@ export function StudentListTable({
           {filteredStudents.length} / {students.length}名を表示
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1180px] table-fixed">
+          <Table className="min-w-[3300px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[14rem] whitespace-nowrap">氏名</TableHead>
-                <TableHead className="w-[13rem] whitespace-nowrap">大学/学年</TableHead>
-                <TableHead className="w-[4.5rem] whitespace-nowrap">志望度</TableHead>
-                <TableHead className="w-[7rem] leading-tight">
-                  候補者
-                  <br />
-                  ステージ
-                </TableHead>
-                <TableHead className="w-[11rem] whitespace-nowrap">担当者</TableHead>
-                <TableHead className="w-[14rem] whitespace-nowrap">最終接触</TableHead>
-                <TableHead>次アクション</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">卒業年度</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">志望度</TableHead>
+                <TableHead className="w-[13rem] whitespace-nowrap">氏名</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">担当者</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">大学名</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">地元</TableHead>
+                <TableHead className="w-[11rem] whitespace-nowrap">初回接触方法</TableHead>
+                <TableHead className="w-[13rem] whitespace-nowrap">初回参加イベント</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">母集団日</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">ネクスト</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">姫路ツアー</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">リアルトーク会</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">個別会社説明会</TableHead>
+                <TableHead className="w-[11rem] whitespace-nowrap">社員交流会</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">薬剤師インタビュー</TableHead>
+                <TableHead className="w-[18rem] whitespace-nowrap">ネクストアクション</TableHead>
+                <TableHead className="w-[20rem] whitespace-nowrap">AI判断</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">選考会日程</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">奨学金金額</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">面接官</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">内定</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">内定内諾</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                        <div className="min-w-0">
-                        <Link
-                          className="font-medium text-primary hover:underline"
-                          href={`/students/${student.id}`}
-                        >
-                          {localizeSampleText(student.real_name) ||
-                            localizeSampleText(student.display_name) ||
-                            "名前未登録"}
-                        </Link>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {localizeKanaText(student.kana) || "-"}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="min-w-0">
-                        <p>{localizeSampleText(student.university) || "-"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.grade || "-"} / {student.graduation_year ?? "-"}卒
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium">
+                filteredStudents.map((student) => {
+                  const studentEvents = eventsByStudent.get(student.id) ?? [];
+                  const aiSuggestion = buildAiSuggestion(student);
+                  return (
+                    <TableRow key={student.id}>
+                      <TableCell>{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
+                      <TableCell className="font-medium">
                         {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {getCandidateStageLabel(student.candidate_stage)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex min-w-0 flex-wrap gap-1">
-                        {student.assignees.length > 0
-                          ? student.assignees.map((staff) => (
-                              <Badge
-                                className={getStaffBadgeClass(staff)}
-                                key={staff.id}
-                                variant="outline"
-                              >
-                                {getStaffDisplayName(staff)}
-                              </Badge>
-                            ))
-                          : "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="min-w-0">
-                        <p>{formatDateTime(getLatestContact(student))}</p>
-                        <p className="text-xs text-muted-foreground">
-                          受信 {formatDateTime(student.last_inbound_at)} / 送信{" "}
-                          {formatDateTime(student.last_outbound_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="min-w-0">
+                          <Link
+                            className="font-medium text-primary hover:underline"
+                            href={`/students/${student.id}`}
+                          >
+                            {localizeSampleText(student.real_name) ||
+                              localizeSampleText(student.display_name) ||
+                              "名前未登録"}
+                          </Link>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {localizeKanaText(student.kana) || "-"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex min-w-0 flex-wrap gap-1">
+                          {student.assignees.length > 0
+                            ? student.assignees.map((staff) => (
+                                <Badge
+                                  className={getStaffBadgeClass(staff)}
+                                  key={staff.id}
+                                  variant="outline"
+                                >
+                                  {getStaffDisplayName(staff)}
+                                </Badge>
+                              ))
+                            : "-"}
+                        </div>
+                      </TableCell>
+                      <TableCell>{localizeSampleText(student.university) || "-"}</TableCell>
+                      <TableCell>{localizeSampleText(student.desired_area) || "-"}</TableCell>
+                      <TableCell>{localizeSampleText(student.first_contact_method) || "-"}</TableCell>
+                      <TableCell>{getFirstParticipationEvent(studentEvents) || "-"}</TableCell>
+                      <TableCell>{getPopulationDate(student) || "-"}</TableCell>
+                      <TableCell className="text-lg">{student.funnel_next ? "✓" : "-"}</TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.himejiTour)}</TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.realTalk)}</TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.companyBriefing)}</TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.staffExchange)}</TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.pharmacistInterview)}</TableCell>
+                      <TableCell>
+                        <p className="line-clamp-3 text-sm">
+                          {localizeSampleText(student.manual_next_action) ||
+                            localizeSampleText(student.ai_next_action) ||
+                            "-"}
                         </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <p className="min-w-52 line-clamp-2 text-sm text-muted-foreground">
-                        {localizeSampleText(student.manual_next_action) ||
-                          localizeSampleText(student.ai_next_action) ||
-                          "-"}
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-2">
+                          <p className="line-clamp-3 text-sm text-muted-foreground">
+                            {localizeSampleText(aiSuggestion) || "-"}
+                          </p>
+                          {aiSuggestion ? (
+                            <Button asChild size="sm" variant="outline">
+                              <Link
+                                href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(aiSuggestion)}`}
+                              >
+                                <MessageSquareText className="mr-2 h-4 w-4" />
+                                チャット
+                              </Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.selection)}</TableCell>
+                      <TableCell>{extractNoteField(student.notes, "奨学金金額")}</TableCell>
+                      <TableCell>{extractNoteField(student.notes, "面接官")}</TableCell>
+                      <TableCell>{extractNoteField(student.notes, "内定")}</TableCell>
+                      <TableCell>{extractNoteField(student.notes, "内定内諾")}</TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={7}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={22}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>
@@ -477,12 +561,77 @@ function Select({
   );
 }
 
-function getLatestContact(student: StudentListItem) {
-  if (student.last_inbound_at && student.last_outbound_at) {
-    return new Date(student.last_inbound_at) > new Date(student.last_outbound_at)
-      ? student.last_inbound_at
-      : student.last_outbound_at;
+function getEventTime(participant: StudentEventSummary) {
+  return new Date(
+    participant.event?.starts_at ?? participant.created_at ?? "1970-01-01T00:00:00.000Z"
+  ).getTime();
+}
+
+function getFirstParticipationEvent(events: StudentEventSummary[]) {
+  return localizeSampleText(events[0]?.event?.title) ?? "";
+}
+
+function getPopulationDate(student: StudentListItem) {
+  return formatDateOnly(
+    student.first_contact_date ??
+      student.last_inbound_at ??
+      student.last_outbound_at ??
+      student.created_at
+  );
+}
+
+function getEventParticipationDates(events: StudentEventSummary[], patterns: RegExp[]) {
+  const dates = events
+    .filter((participant) => {
+      const text = [
+        participant.event?.title,
+        participant.event?.event_type,
+        participant.event?.location,
+        participant.memo
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return patterns.some((pattern) => pattern.test(text));
+    })
+    .map((participant) => formatDateOnly(participant.event?.starts_at ?? participant.created_at))
+    .filter(Boolean);
+
+  return Array.from(new Set(dates)).join(" / ") || "-";
+}
+
+function formatDateOnly(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function buildAiSuggestion(student: StudentListItem) {
+  const explicit = localizeSampleText(student.ai_next_action);
+  if (explicit) return explicit;
+
+  const name =
+    localizeSampleText(student.real_name) ||
+    localizeSampleText(student.display_name) ||
+    "学生";
+
+  if (!student.funnel_next) {
+    return `${name}さん、先日はありがとうございました。次回のイベントやZoom面談について、もし興味があればお気軽にご返信ください。`;
   }
 
-  return student.last_outbound_at ?? student.last_inbound_at;
+  if (!student.funnel_pharmacist_interview) {
+    return `${name}さん、次は薬剤師インタビューや個別相談で、実際の働き方をより具体的にご案内できればと思います。`;
+  }
+
+  return "";
+}
+
+function extractNoteField(notes: string | null, label: string) {
+  if (!notes) return "-";
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = notes.match(new RegExp(`${escaped}\\s*[:：]\\s*([^\\n]+)`));
+  return match?.[1]?.trim() || "-";
 }

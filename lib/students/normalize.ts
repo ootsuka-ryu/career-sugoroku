@@ -25,6 +25,9 @@ export function normalizeStudentListItem(row: any): StudentListItem {
     grade: row.grade,
     graduation_year: row.graduation_year,
     practical_period: row.practical_period,
+    desired_area: row.desired_area ?? null,
+    first_contact_method: row.first_contact_method ?? null,
+    first_contact_date: row.first_contact_date ?? null,
     motivation_level: row.motivation_level,
     motivation_rank: row.motivation_rank ?? null,
     candidate_stage: row.candidate_stage ?? null,
@@ -62,9 +65,6 @@ export function normalizeStudentDetail(row: any): StudentDetail {
     phone: row.phone,
     email: row.email,
     desired_job_type: row.desired_job_type,
-    desired_area: row.desired_area,
-    first_contact_method: row.first_contact_method,
-    first_contact_date: row.first_contact_date,
     optimistic_lock_version: row.optimistic_lock_version
   };
 }

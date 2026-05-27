@@ -28,6 +28,9 @@ export type StudentListItem = {
   grade: string | null;
   graduation_year: number | null;
   practical_period: PracticalPeriod;
+  desired_area: string | null;
+  first_contact_method: string | null;
+  first_contact_date: string | null;
   motivation_level: number | null;
   motivation_rank: string | null;
   candidate_stage: string | null;
@@ -60,9 +63,6 @@ export type StudentDetail = StudentListItem & {
   phone: string | null;
   email: string | null;
   desired_job_type: string | null;
-  desired_area: string | null;
-  first_contact_method: string | null;
-  first_contact_date: string | null;
   optimistic_lock_version: number;
 };
 

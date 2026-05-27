@@ -69,13 +69,15 @@ export function ChatConsole({
   messages,
   surveys,
   templates,
-  selectedStudentId
+  selectedStudentId,
+  draftText = ""
 }: {
   students: ChatStudent[];
   messages: ChatMessage[];
   surveys: ChatSurveyLink[];
   templates: ChatTemplate[];
   selectedStudentId: string | null;
+  draftText?: string;
 }) {
   const [query, setQuery] = useState("");
   const currentStudentId = selectedStudentId ?? students[0]?.id ?? null;
@@ -202,6 +204,7 @@ export function ChatConsole({
             </div>
 
             <ChatComposer
+              initialText={draftText}
               lineUserId={currentStudent.line_user_id}
               studentId={currentStudent.id}
               surveys={surveys}
@@ -303,11 +306,13 @@ function ExternalLogSubmitButton() {
 }
 
 function ChatComposer({
+  initialText = "",
   lineUserId,
   studentId,
   surveys,
   templates
 }: {
+  initialText?: string;
   lineUserId: string | null;
   studentId: string;
   surveys: ChatSurveyLink[];
@@ -315,7 +320,7 @@ function ChatComposer({
 }) {
   const [state, formAction] = useFormState(sendChatMessage, initialState);
   const [tab, setTab] = useState<"text" | "image" | "carousel" | "video" | "pdf">("text");
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");

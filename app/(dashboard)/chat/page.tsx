@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function ChatPage({
   searchParams
 }: {
-  searchParams: { studentId?: string };
+  searchParams: { studentId?: string; draft?: string };
 }) {
   const supabase = createClient();
 
@@ -125,6 +125,7 @@ export default async function ChatPage({
 
       <ChatConsole
         messages={messages}
+        draftText={searchParams.draft ?? ""}
         selectedStudentId={searchParams.studentId ?? null}
         students={students}
         surveys={surveys}

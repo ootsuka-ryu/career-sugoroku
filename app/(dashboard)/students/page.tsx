@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Download, Plus, Users } from "lucide-react";
-import { StudentListTable } from "@/components/students/student-list-table";
+import {
+  StudentListTable,
+  type StudentEventSummary
+} from "@/components/students/student-list-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +16,7 @@ import type { StaffSummary, TagSummary } from "@/lib/students/types";
 export default async function StudentsPage() {
   const supabase = createClient();
 
-  const [studentsResult, tagsResult, staffResult] = await Promise.all([
+  const [studentsResult, tagsResult, staffResult, eventParticipantsResult] = await Promise.all([
     supabase
       .from("students")
       .select(
@@ -29,12 +32,32 @@ export default async function StudentsPage() {
       .from("staff_users")
       .select("id, name, email")
       .eq("is_active", true)
-      .order("name")
+      .order("name"),
+    (supabase as any)
+      .from("event_participants")
+      .select(
+        `
+        student_id,
+        status,
+        memo,
+        created_at,
+        recruiting_events(id, title, event_type, starts_at, location)
+      `
+      )
   ]);
 
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
+  const eventParticipants = (eventParticipantsResult.data ?? []).map((row: any) => ({
+    student_id: row.student_id,
+    status: row.status,
+    memo: row.memo,
+    created_at: row.created_at,
+    event: Array.isArray(row.recruiting_events)
+      ? row.recruiting_events[0] ?? null
+      : row.recruiting_events
+  })) as StudentEventSummary[];
   const waitingReplyCount = students.filter((student) => {
     if (!student.last_outbound_at) return false;
     if (!student.last_inbound_at) return true;
@@ -72,7 +95,7 @@ export default async function StudentsPage() {
         </div>
       </div>
 
-      {(studentsResult.error || tagsResult.error || staffResult.error) && (
+      {(studentsResult.error || tagsResult.error || staffResult.error || eventParticipantsResult.error) && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive">データ取得エラー</CardTitle>
@@ -81,6 +104,7 @@ export default async function StudentsPage() {
             <p>{studentsResult.error?.message}</p>
             <p>{tagsResult.error?.message}</p>
             <p>{staffResult.error?.message}</p>
+            <p>{eventParticipantsResult.error?.message}</p>
           </CardContent>
         </Card>
       )}
@@ -103,7 +127,12 @@ export default async function StudentsPage() {
         />
       </section>
 
-      <StudentListTable staffUsers={staffUsers} students={students} tags={tags} />
+      <StudentListTable
+        eventParticipants={eventParticipants}
+        staffUsers={staffUsers}
+        students={students}
+        tags={tags}
+      />
     </div>
   );
 }
