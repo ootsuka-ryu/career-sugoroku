@@ -318,15 +318,19 @@ export function StudentListTable({
           {filteredStudents.length} / {students.length}名を表示
         </div>
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-[1180px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>氏名</TableHead>
-                <TableHead>大学/学年</TableHead>
-                <TableHead>志望度</TableHead>
-                <TableHead>候補者ステージ</TableHead>
-                <TableHead>担当者</TableHead>
-                <TableHead>最終接触</TableHead>
+                <TableHead className="w-[14rem] whitespace-nowrap">氏名</TableHead>
+                <TableHead className="w-[13rem] whitespace-nowrap">大学/学年</TableHead>
+                <TableHead className="w-[4.5rem] whitespace-nowrap">志望度</TableHead>
+                <TableHead className="w-[7rem] leading-tight">
+                  候補者
+                  <br />
+                  ステージ
+                </TableHead>
+                <TableHead className="w-[11rem] whitespace-nowrap">担当者</TableHead>
+                <TableHead className="w-[14rem] whitespace-nowrap">最終接触</TableHead>
                 <TableHead>次アクション</TableHead>
               </TableRow>
             </TableHeader>
@@ -335,7 +339,7 @@ export function StudentListTable({
                 filteredStudents.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>
-                      <div className="min-w-44">
+                        <div className="min-w-0">
                         <Link
                           className="font-medium text-primary hover:underline"
                           href={`/students/${student.id}`}
@@ -350,7 +354,7 @@ export function StudentListTable({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="min-w-40">
+                      <div className="min-w-0">
                         <p>{localizeSampleText(student.university) || "-"}</p>
                         <p className="text-xs text-muted-foreground">
                           {student.grade || "-"} / {student.graduation_year ?? "-"}卒
@@ -368,7 +372,7 @@ export function StudentListTable({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex min-w-32 flex-wrap gap-1">
+                      <div className="flex min-w-0 flex-wrap gap-1">
                         {student.assignees.length > 0
                           ? student.assignees.map((staff) => (
                               <Badge
@@ -383,7 +387,7 @@ export function StudentListTable({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="min-w-36">
+                      <div className="min-w-0">
                         <p>{formatDateTime(getLatestContact(student))}</p>
                         <p className="text-xs text-muted-foreground">
                           受信 {formatDateTime(student.last_inbound_at)} / 送信{" "}
