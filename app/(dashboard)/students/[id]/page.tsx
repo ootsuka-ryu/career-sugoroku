@@ -15,6 +15,7 @@ import { StudentAssigneeSelect } from "@/components/students/student-assignee-se
 import {
   StudentActionForm,
   StudentFunnelFlagForm,
+  StudentPageSaveButton,
   StudentProfileForm,
   StudentTagManager
 } from "@/components/students/student-detail-forms";
@@ -285,6 +286,10 @@ export default async function StudentDetailPage({
           </Card>
         </div>
       </section>
+
+      <div className="flex justify-end">
+        <StudentPageSaveButton studentId={student.id} />
+      </div>
 
       <section className="grid gap-4 xl:grid-cols-[0.45fr_0.55fr]">
         <Card>

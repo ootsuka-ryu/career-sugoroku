@@ -82,7 +82,7 @@ export async function updateStudentProfile(
     .eq("id", input.student_id)
     .maybeSingle();
 
-  const payload = {
+  const profilePayload = {
     real_name: input.real_name,
     display_name: input.real_name,
     kana: input.kana || null,
@@ -106,6 +106,13 @@ export async function updateStudentProfile(
     notes: input.notes || null,
     manual_next_action: input.manual_next_action || null
   };
+  const funnelPayload = Object.fromEntries(
+    studentFunnelFlagFields.map((field) => [field.name, formData.get(field.name) === "on"])
+  );
+  const payload = {
+    ...profilePayload,
+    ...funnelPayload
+  };
 
   let updatePayload: Record<string, unknown> = payload;
   let { data, error } = await supabase
@@ -123,8 +130,12 @@ export async function updateStudentProfile(
       decline_reason: _declineReason,
       last_stage_changed_at: _lastStageChangedAt,
       notes: _notes,
-      ...legacyPayload
-    } = payload;
+      ...legacyProfilePayload
+    } = profilePayload;
+    const legacyPayload = {
+      ...legacyProfilePayload,
+      ...(error?.message?.includes("funnel_") ? {} : funnelPayload)
+    };
 
     updatePayload = legacyPayload;
     const retry = await supabase
@@ -169,7 +180,8 @@ function isMissingNewStudentColumnError(error: any) {
     "candidate_stage",
     "decline_reason",
     "last_stage_changed_at",
-    "notes"
+    "notes",
+    "funnel_"
   ].some((column) => error.message.includes(column));
 }
 

@@ -7,7 +7,6 @@ import {
   addStudentAction,
   addStudentTag,
   removeStudentTag,
-  updateStudentFunnelFlags,
   updateStudentProfile,
   type StudentActionState
 } from "@/app/(dashboard)/students/[id]/actions";
@@ -39,9 +38,10 @@ const initialState: StudentActionState = {
 
 export function StudentProfileForm({ student }: { student: StudentDetail }) {
   const [state, formAction] = useFormState(updateStudentProfile, initialState);
+  const formId = getStudentEditFormId(student.id);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-4" id={formId}>
       <input name="student_id" type="hidden" value={student.id} />
       <input name="expected_updated_at" type="hidden" value={student.updated_at} />
 
@@ -152,17 +152,15 @@ export function StudentProfileForm({ student }: { student: StudentDetail }) {
         現在の進捗: {getCandidateStageLabel(student.candidate_stage)}
       </p>
       <FormMessage state={state} />
-      <SubmitButton icon="save" label="学生情報を保存" />
     </form>
   );
 }
 
 export function StudentFunnelFlagForm({ student }: { student: StudentDetail }) {
-  const [state, formAction] = useFormState(updateStudentFunnelFlags, initialState);
+  const formId = getStudentEditFormId(student.id);
 
   return (
-    <form action={formAction} className="space-y-4">
-      <input name="student_id" type="hidden" value={student.id} />
+    <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-2">
         {studentFunnelFlagFields.map((field) => (
           <label
@@ -172,6 +170,7 @@ export function StudentFunnelFlagForm({ student }: { student: StudentDetail }) {
             <input
               className="h-4 w-4"
               defaultChecked={Boolean(student[field.name])}
+              form={formId}
               name={field.name}
               type="checkbox"
             />
@@ -182,10 +181,21 @@ export function StudentFunnelFlagForm({ student }: { student: StudentDetail }) {
       <p className="text-xs text-muted-foreground">
         LINEでやり取りが発生した学生は、自動で「未母集団」が外れ「母集団」に入ります。
       </p>
-      <FormMessage state={state} />
-      <SubmitButton icon="save" label="進捗チェックを保存" />
-    </form>
+    </div>
   );
+}
+
+export function StudentPageSaveButton({ studentId }: { studentId: string }) {
+  return (
+    <Button form={getStudentEditFormId(studentId)} type="submit">
+      <Save className="mr-2 h-4 w-4" />
+      このページの編集内容を保存
+    </Button>
+  );
+}
+
+function getStudentEditFormId(studentId: string) {
+  return `student-edit-form-${studentId}`;
 }
 
 const interviewMemoTemplate = `希望勤務地：
