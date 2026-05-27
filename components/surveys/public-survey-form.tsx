@@ -42,6 +42,7 @@ const initialState: PublicSurveyState = {
 export function PublicSurveyForm({
   surveyId,
   lineUserId,
+  studentId,
   source,
   sections,
   questions,
@@ -50,6 +51,7 @@ export function PublicSurveyForm({
 }: {
   surveyId: string;
   lineUserId?: string;
+  studentId?: string;
   source?: string;
   sections: PublicSection[];
   questions: PublicQuestion[];
@@ -154,6 +156,7 @@ export function PublicSurveyForm({
     <form action={formAction} className="survey-card space-y-5 rounded-lg border bg-card p-5" noValidate>
       <input name="survey_id" type="hidden" value={surveyId} />
       <input name="line_user_id" type="hidden" value={lineUserId ?? ""} />
+      <input name="student_id" type="hidden" value={studentId ?? ""} />
       <input name="source" type="hidden" value={source ?? ""} />
       <input name="respondent_name" type="hidden" value="" />
 

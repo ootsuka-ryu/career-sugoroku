@@ -201,7 +201,12 @@ export function ChatConsole({
               )}
             </div>
 
-            <ChatComposer studentId={currentStudent.id} surveys={surveys} templates={templates} />
+            <ChatComposer
+              lineUserId={currentStudent.line_user_id}
+              studentId={currentStudent.id}
+              surveys={surveys}
+              templates={templates}
+            />
             <ExternalLineLogForm studentId={currentStudent.id} />
           </>
         ) : (
@@ -298,10 +303,12 @@ function ExternalLogSubmitButton() {
 }
 
 function ChatComposer({
+  lineUserId,
   studentId,
   surveys,
   templates
 }: {
+  lineUserId: string | null;
   studentId: string;
   surveys: ChatSurveyLink[];
   templates: ChatTemplate[];
@@ -359,7 +366,7 @@ function ChatComposer({
 
   function appendSurveyUrl(url: string) {
     if (!url) return;
-    insertAtCursor(`アンケートはこちら\n${url}`);
+    insertAtCursor(`アンケートはこちら\n${buildPersonalSurveyUrl(url, lineUserId, studentId)}`);
   }
 
   function applyCarouselTemplate(templateId: string) {
@@ -471,7 +478,7 @@ function ChatComposer({
           {groupedSurveys.map(([folderName, items]) => (
             <optgroup key={folderName} label={folderName}>
               {items.map((survey) => (
-                <option key={survey.id} value={`${survey.url}?source=personal-line`}>
+                <option key={survey.id} value={survey.url}>
                   {survey.title}
                 </option>
               ))}
@@ -636,6 +643,21 @@ function SubmitButton() {
       {pending ? "送信中..." : "送信"}
     </Button>
   );
+}
+
+function buildPersonalSurveyUrl(url: string, lineUserId: string | null, studentId: string) {
+  try {
+    const personalUrl = new URL(url);
+    personalUrl.searchParams.set("source", "personal-line");
+    if (lineUserId) personalUrl.searchParams.set("lineUserId", lineUserId);
+    personalUrl.searchParams.set("studentId", studentId);
+    return personalUrl.toString();
+  } catch {
+    const separator = url.includes("?") ? "&" : "?";
+    const params = new URLSearchParams({ source: "personal-line", studentId });
+    if (lineUserId) params.set("lineUserId", lineUserId);
+    return `${url}${separator}${params.toString()}`;
+  }
 }
 
 function getMessageText(payload: Json) {

@@ -8,7 +8,7 @@ export default async function PublicSurveyPage({
   searchParams
 }: {
   params: { id: string };
-  searchParams: { lineUserId?: string; source?: string };
+  searchParams: { lineUserId?: string; source?: string; studentId?: string };
 }) {
   const supabase = createAdminClient() as any;
   const { data: survey, error } = await supabase
@@ -56,13 +56,12 @@ export default async function PublicSurveyPage({
     notFound();
   }
 
-  const { data: linkedStudent } = searchParams.lineUserId
-    ? await supabase
-        .from("students")
-        .select("id")
-        .eq("line_user_id", searchParams.lineUserId)
-        .maybeSingle()
-    : { data: null };
+  const linkedStudent = await findLinkedStudent(
+    supabase,
+    searchParams.lineUserId,
+    searchParams.studentId,
+    searchParams.source
+  );
 
   await supabase.from("survey_link_clicks").insert({
     survey_id: params.id,
@@ -101,6 +100,7 @@ export default async function PublicSurveyPage({
             redirectUrl={survey.redirect_url}
             sections={sections}
             source={searchParams.source}
+            studentId={searchParams.studentId}
             surveyId={survey.id}
             thankYouMessage={survey.thank_you_message}
           />
@@ -112,4 +112,31 @@ export default async function PublicSurveyPage({
       </div>
     </main>
   );
+}
+
+async function findLinkedStudent(
+  supabase: any,
+  lineUserId?: string,
+  studentId?: string,
+  source?: string
+) {
+  if (lineUserId) {
+    const { data } = await supabase
+      .from("students")
+      .select("id")
+      .eq("line_user_id", lineUserId)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  if (source === "personal-line" && studentId) {
+    const { data } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", studentId)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  return null;
 }

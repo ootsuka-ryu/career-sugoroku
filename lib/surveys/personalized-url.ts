@@ -3,20 +3,28 @@ const ABSOLUTE_SURVEY_URL_PATTERN =
 const RELATIVE_SURVEY_URL_PATTERN =
   /(^|[\s(（])((?:\/survey\/[0-9a-fA-F-]{36})[^\s<>"'）)。、]*)/g;
 
-export function personalizeSurveyUrlsInText(text: string, lineUserId: string | null | undefined) {
-  if (!text || !lineUserId) return text;
+export function personalizeSurveyUrlsInText(
+  text: string,
+  lineUserId: string | null | undefined,
+  studentId?: string | null
+) {
+  if (!text || (!lineUserId && !studentId)) return text;
 
   const withAbsoluteUrls = text.replace(ABSOLUTE_SURVEY_URL_PATTERN, (url) =>
-    personalizeSurveyUrl(url, lineUserId)
+    personalizeSurveyUrl(url, lineUserId, studentId)
   );
 
   return withAbsoluteUrls.replace(RELATIVE_SURVEY_URL_PATTERN, (match, prefix, url) => {
-    return `${prefix}${personalizeSurveyUrl(url, lineUserId)}`;
+    return `${prefix}${personalizeSurveyUrl(url, lineUserId, studentId)}`;
   });
 }
 
-export function personalizeSurveyUrl(rawUrl: string, lineUserId: string | null | undefined) {
-  if (!rawUrl || !lineUserId) return rawUrl;
+export function personalizeSurveyUrl(
+  rawUrl: string,
+  lineUserId: string | null | undefined,
+  studentId?: string | null
+) {
+  if (!rawUrl || (!lineUserId && !studentId)) return rawUrl;
 
   try {
     const isAbsolute = /^https?:\/\//i.test(rawUrl);
@@ -25,7 +33,8 @@ export function personalizeSurveyUrl(rawUrl: string, lineUserId: string | null |
     if (!url.pathname.startsWith("/survey/")) return rawUrl;
 
     url.searchParams.set("source", "personal-line");
-    url.searchParams.set("lineUserId", lineUserId);
+    if (lineUserId) url.searchParams.set("lineUserId", lineUserId);
+    if (studentId) url.searchParams.set("studentId", studentId);
 
     return isAbsolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
   } catch {

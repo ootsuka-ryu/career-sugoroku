@@ -72,7 +72,7 @@ export async function sendChatMessage(
   }
 
   const messageKind = parsed.data.message_kind;
-  const personalizedInput = personalizeChatInput(parsed.data, student.line_user_id);
+  const personalizedInput = personalizeChatInput(parsed.data, student.line_user_id, student.id);
   const lineMessages = buildLineMessages(personalizedInput);
   if (lineMessages.length === 0) {
     return {
@@ -129,18 +129,23 @@ export async function sendChatMessage(
 
 function personalizeChatInput(
   input: z.infer<typeof sendMessageSchema>,
-  lineUserId: string | null | undefined
+  lineUserId: string | null | undefined,
+  studentId: string
 ): z.infer<typeof sendMessageSchema> {
-  if (!lineUserId) return input;
+  if (!lineUserId && !studentId) return input;
 
   return {
     ...input,
-    text: personalizeSurveyUrlsInText(input.text ?? "", lineUserId),
-    carousel_json: personalizeCarouselJson(input.carousel_json, lineUserId)
+    text: personalizeSurveyUrlsInText(input.text ?? "", lineUserId, studentId),
+    carousel_json: personalizeCarouselJson(input.carousel_json, lineUserId, studentId)
   };
 }
 
-function personalizeCarouselJson(value: string | undefined, lineUserId: string) {
+function personalizeCarouselJson(
+  value: string | undefined,
+  lineUserId: string | null | undefined,
+  studentId: string
+) {
   if (!value) return value;
 
   try {
@@ -150,7 +155,7 @@ function personalizeCarouselJson(value: string | undefined, lineUserId: string) 
     return JSON.stringify(
       items.map((item) => ({
         ...item,
-        url: personalizeSurveyUrl(String(item.url ?? ""), lineUserId)
+        url: personalizeSurveyUrl(String(item.url ?? ""), lineUserId, studentId)
       }))
     );
   } catch {

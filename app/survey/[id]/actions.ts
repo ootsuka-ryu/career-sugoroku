@@ -23,6 +23,7 @@ const initialState: PublicSurveyState = {
 const submitSchema = z.object({
   survey_id: z.string().uuid(),
   line_user_id: z.string().trim().optional(),
+  student_id: z.string().uuid().optional().or(z.literal("")),
   respondent_name: z.string().trim().optional(),
   source: z.string().trim().optional()
 });
@@ -78,7 +79,12 @@ export async function submitPublicSurvey(
     return { ok: false, message: "このアンケートは現在公開されていません。" };
   }
 
-  const student = await findStudentByLineUserId(supabase, input.line_user_id);
+  const student = await findSurveyStudent(
+    supabase,
+    input.line_user_id,
+    input.student_id || undefined,
+    input.source
+  );
 
   if (survey.one_response_per_student && student) {
     const { data: existing } = await supabase
@@ -270,16 +276,33 @@ async function applyRecruitingFunnelFromSurveyTitle(supabase: any, studentId: st
   if (error?.message?.includes("funnel_")) return;
 }
 
-async function findStudentByLineUserId(supabase: any, lineUserId?: string) {
-  if (!lineUserId) return null;
+async function findSurveyStudent(
+  supabase: any,
+  lineUserId?: string,
+  studentId?: string,
+  source?: string
+) {
+  if (lineUserId) {
+    const { data } = await supabase
+      .from("students")
+      .select("id")
+      .eq("line_user_id", lineUserId)
+      .maybeSingle();
 
-  const { data } = await supabase
-    .from("students")
-    .select("id")
-    .eq("line_user_id", lineUserId)
-    .maybeSingle();
+    if (data) return data;
+  }
 
-  return data;
+  if (source === "personal-line" && studentId) {
+    const { data } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (data) return data;
+  }
+
+  return null;
 }
 
 async function applyProfileUpdates(
