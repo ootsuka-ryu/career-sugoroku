@@ -28,7 +28,10 @@ import {
   motivationRanks
 } from "@/lib/students/options";
 import type { StaffSummary, StudentListItem, TagSummary } from "@/lib/students/types";
-import { UNIVERSITY_CATEGORY_TAGS, UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
+import {
+  UNIVERSITY_CLASSIFICATION_TAG_NAMES,
+  UNIVERSITY_TAG_FOLDERS
+} from "@/lib/tags/university-folders";
 
 type StudentListTableProps = {
   students: StudentListItem[];
@@ -423,21 +426,18 @@ function buildTagGroups(tags: TagSummary[], query: string): TagGroup[] {
   const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
   const groupedIds = new Set<string>();
   const normalizedQuery = query.trim().toLowerCase();
+  const classificationNames = new Set(UNIVERSITY_CLASSIFICATION_TAG_NAMES);
 
   function include(tag: TagSummary) {
     const name = `${tag.name} ${localizeSampleText(tag.name) ?? ""}`.toLowerCase();
     return !normalizedQuery || name.includes(normalizedQuery);
   }
 
-  const categoryTags = UNIVERSITY_CATEGORY_TAGS
-    .map((name) => tagsByName.get(name))
-    .filter((tag): tag is TagSummary => Boolean(tag))
-    .filter(include);
-  categoryTags.forEach((tag) => groupedIds.add(tag.id));
+  tags
+    .filter((tag) => classificationNames.has(tag.name))
+    .forEach((tag) => groupedIds.add(tag.id));
 
-  const groups: TagGroup[] = [
-    { id: "university-categories", name: "大学分類タグ", tags: categoryTags }
-  ];
+  const groups: TagGroup[] = [];
 
   for (const folder of UNIVERSITY_TAG_FOLDERS) {
     const folderTags = folder.tags

@@ -1,6 +1,6 @@
 import { localizeSampleText } from "@/lib/display/localize";
 import {
-  UNIVERSITY_CATEGORY_TAGS,
+  UNIVERSITY_CLASSIFICATION_TAG_NAMES,
   UNIVERSITY_TAG_FOLDERS
 } from "@/lib/tags/university-folders";
 
@@ -24,6 +24,7 @@ export function groupTagsByFolder<T extends GroupableTag>(
   const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
   const groupedIds = new Set<string>();
   const normalizedQuery = query.trim().toLowerCase();
+  const classificationNames = new Set(UNIVERSITY_CLASSIFICATION_TAG_NAMES);
 
   function include(tag: T) {
     const haystack = `${tag.name} ${localizeSampleText(tag.name) ?? ""}`.toLowerCase();
@@ -31,20 +32,9 @@ export function groupTagsByFolder<T extends GroupableTag>(
   }
 
   const folders: TagFolder<T>[] = [];
-  const categoryTags = UNIVERSITY_CATEGORY_TAGS
-    .map((name) => tagsByName.get(name))
-    .filter((tag): tag is T => Boolean(tag))
-    .filter(include);
-
-  if (categoryTags.length > 0 || normalizedQuery) {
-    folders.push({
-      id: "university-categories",
-      name: "大学分類タグ",
-      color: "#64748b",
-      tags: categoryTags
-    });
-  }
-  categoryTags.forEach((tag) => groupedIds.add(tag.id));
+  tags
+    .filter((tag) => classificationNames.has(tag.name))
+    .forEach((tag) => groupedIds.add(tag.id));
 
   for (const folder of UNIVERSITY_TAG_FOLDERS) {
     const folderTags = folder.tags

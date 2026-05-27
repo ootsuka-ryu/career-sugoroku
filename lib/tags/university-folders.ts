@@ -4,8 +4,6 @@ export type UniversityTagFolder = {
   tags: string[];
 };
 
-export const UNIVERSITY_CATEGORY_TAGS = ["国立大学", "公立大学", "私立大学"];
-
 export const UNIVERSITY_TAG_FOLDERS: UniversityTagFolder[] = [
   {
     name: "国立大学",
@@ -113,5 +111,9 @@ export const UNIVERSITY_TAG_FOLDERS: UniversityTagFolder[] = [
 export const UNIVERSITY_TAG_COLORS = new Map(
   UNIVERSITY_TAG_FOLDERS.flatMap((folder) =>
     folder.tags.map((tagName) => [tagName, folder.color] as const)
-  ).concat(UNIVERSITY_CATEGORY_TAGS.map((tagName) => [tagName, "#64748b"] as const))
+  )
+);
+
+export const UNIVERSITY_CLASSIFICATION_TAG_NAMES = UNIVERSITY_TAG_FOLDERS.map(
+  (folder) => folder.name
 );

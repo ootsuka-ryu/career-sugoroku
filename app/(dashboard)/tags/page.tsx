@@ -2,7 +2,10 @@ import { Tags } from "lucide-react";
 import { TagAdmin, type TagFolderGroup, type TagItem } from "@/components/tags/tag-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { UNIVERSITY_CATEGORY_TAGS, UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
+import {
+  UNIVERSITY_CLASSIFICATION_TAG_NAMES,
+  UNIVERSITY_TAG_FOLDERS
+} from "@/lib/tags/university-folders";
 
 export default async function TagsPage() {
   const supabase = createClient() as any;
@@ -49,22 +52,12 @@ export default async function TagsPage() {
 function buildTagFolders(tags: TagItem[]): TagFolderGroup[] {
   const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
   const groupedTagIds = new Set<string>();
-
-  const categoryTags = UNIVERSITY_CATEGORY_TAGS
-    .map((name) => tagsByName.get(name))
-    .filter(Boolean) as TagItem[];
-  categoryTags.forEach((tag) => groupedTagIds.add(tag.id));
+  const classificationNames = new Set(UNIVERSITY_CLASSIFICATION_TAG_NAMES);
 
   const folders: TagFolderGroup[] = [];
-
-  if (categoryTags.length > 0) {
-    folders.push({
-      id: "university-categories",
-      name: "大学分類",
-      description: "国立・公立・私立で分類するタグです。",
-      tags: categoryTags
-    });
-  }
+  tags
+    .filter((tag) => classificationNames.has(tag.name))
+    .forEach((tag) => groupedTagIds.add(tag.id));
 
   for (const folder of UNIVERSITY_TAG_FOLDERS) {
     const folderTags = folder.tags
@@ -88,7 +81,7 @@ function buildTagFolders(tags: TagItem[]): TagFolderGroup[] {
     folders.push({
       id: "uncategorized",
       name: "未分類",
-      description: "大学分類に属さない通常タグです。",
+      description: "大学フォルダに属さない通常タグです。",
       tags: uncategorizedTags
     });
   }
