@@ -49,6 +49,8 @@ export function StudentListTable({
 }: StudentListTableProps) {
   const [search, setSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [activeTagGroupId, setActiveTagGroupId] = useState<string | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [tagMode, setTagMode] = useState<"or" | "and">("or");
   const [staffId, setStaffId] = useState("all");
@@ -135,6 +137,8 @@ export function StudentListTable({
     () => tags.filter((tag) => selectedTagIds.includes(tag.id)),
     [selectedTagIds, tags]
   );
+  const activeTagGroup =
+    tagGroups.find((group) => group.id === activeTagGroupId) ?? tagGroups[0] ?? null;
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((current) =>
@@ -147,6 +151,8 @@ export function StudentListTable({
   function resetFilters() {
     setSearch("");
     setTagSearch("");
+    setTagPickerOpen(false);
+    setActiveTagGroupId(null);
     setSelectedTagIds([]);
     setStaffId("all");
     setMotivationRank("all");
@@ -189,24 +195,101 @@ export function StudentListTable({
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-        <div className="rounded-md border bg-card p-3">
+        <div className="relative rounded-md border bg-card p-3">
           <div className="grid gap-2 md:grid-cols-[1fr_90px]">
-            <Input
-              onChange={(event) => setTagSearch(event.target.value)}
-              placeholder="タグ名で検索"
-              value={tagSearch}
-            />
+            <div
+              className="relative"
+              onBlur={(event) => {
+                const next = event.relatedTarget;
+                if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+                  setTagPickerOpen(false);
+                }
+              }}
+            >
+              <Input
+                onChange={(event) => {
+                  setTagSearch(event.target.value);
+                  setTagPickerOpen(true);
+                  setActiveTagGroupId(null);
+                }}
+                onClick={() => setTagPickerOpen(true)}
+                onFocus={() => setTagPickerOpen(true)}
+                placeholder="タグ名で検索・フォルダから選択"
+                value={tagSearch}
+              />
+              {tagPickerOpen ? (
+                <div className="absolute left-0 top-full z-30 mt-2 grid w-full min-w-[720px] max-w-[900px] grid-cols-[230px_minmax(0,1fr)] overflow-hidden rounded-md border bg-white shadow-lg">
+                  <div className="max-h-80 overflow-auto border-r bg-secondary/40 p-2">
+                    {tagGroups.length > 0 ? (
+                      tagGroups.map((group) => {
+                        const active = activeTagGroup?.id === group.id;
+                        return (
+                          <button
+                            className={
+                              active
+                                ? "flex w-full items-center justify-between rounded-md bg-primary px-3 py-2 text-left text-sm font-medium text-primary-foreground"
+                                : "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-background"
+                            }
+                            key={group.id}
+                            onFocus={() => setActiveTagGroupId(group.id)}
+                            onMouseEnter={() => setActiveTagGroupId(group.id)}
+                            type="button"
+                          >
+                            <span className="truncate">{group.name}</span>
+                            <span className="ml-2 text-xs opacity-80">{group.tags.length}</span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">該当するフォルダがありません。</p>
+                    )}
+                  </div>
+                  <div className="max-h-80 overflow-auto p-3">
+                    {activeTagGroup ? (
+                      <>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">{activeTagGroup.name}</p>
+                          <p className="text-xs text-muted-foreground">{activeTagGroup.tags.length}件</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {activeTagGroup.tags.map((tag) => {
+                            const active = selectedTagIds.includes(tag.id);
+                            return (
+                              <button
+                                className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+                                key={tag.id}
+                                onClick={() => toggleTag(tag.id)}
+                                style={{
+                                  borderColor: tag.color,
+                                  backgroundColor: active ? tag.color : "transparent",
+                                  color: active ? "white" : tag.color
+                                }}
+                                type="button"
+                              >
+                                {localizeSampleText(tag.name)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">左のフォルダにカーソルを合わせてください。</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <Select value={tagMode} onChange={(value) => setTagMode(value as "or" | "and")}>
               <option value="or">OR</option>
               <option value="and">AND</option>
             </Select>
           </div>
           {selectedTags.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">選択中</span>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs text-muted-foreground">選択中 {selectedTags.length}件</span>
               {selectedTags.map((tag) => (
                 <button
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium text-white"
+                  className="rounded-md border px-2 py-0.5 text-xs font-medium text-white"
                   key={tag.id}
                   onClick={() => toggleTag(tag.id)}
                   style={{ backgroundColor: tag.color, borderColor: tag.color }}
@@ -217,44 +300,7 @@ export function StudentListTable({
               ))}
             </div>
           ) : null}
-          <div className="mt-3 space-y-2">
-            {tagGroups.map((group) => (
-              <details
-                className="rounded-md border bg-background"
-                key={group.id}
-                open={Boolean(tagSearch.trim()) || group.tags.some((tag) => selectedTagIds.includes(tag.id))}
-              >
-                <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
-                  {group.name} ({group.tags.length})
-                </summary>
-                <div className="flex flex-wrap gap-2 border-t p-3">
-                  {group.tags.length > 0 ? (
-                    group.tags.map((tag) => {
-                      const active = selectedTagIds.includes(tag.id);
-                      return (
-                        <button
-                          className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                          key={tag.id}
-                          onClick={() => toggleTag(tag.id)}
-                          style={{
-                            borderColor: tag.color,
-                            backgroundColor: active ? tag.color : "transparent",
-                            color: active ? "white" : tag.color
-                          }}
-                          type="button"
-                        >
-                          {localizeSampleText(tag.name)}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <p className="text-xs text-muted-foreground">該当するタグはありません。</p>
-                  )}
-                </div>
-              </details>
-            ))}
-          </div>
-          <Button onClick={resetFilters} size="sm" type="button" variant="ghost">
+          <Button className="mt-2" onClick={resetFilters} size="sm" type="button" variant="ghost">
             <FilterX className="mr-2 h-4 w-4" />
             クリア
           </Button>
