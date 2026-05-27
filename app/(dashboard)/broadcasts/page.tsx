@@ -87,7 +87,7 @@ export default async function BroadcastsPage() {
         <SummaryCard label="今月送信記録" value={`${sentCount}通`} />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[0.42fr_0.58fr]">
+      <section className="grid gap-4 2xl:grid-cols-[minmax(0,0.85fr)_minmax(48rem,1.15fr)]">
         <Card>
           <CardHeader>
             <CardTitle>新規配信</CardTitle>
@@ -100,7 +100,7 @@ export default async function BroadcastsPage() {
           <CardHeader>
             <CardTitle>配信一覧</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <BroadcastList broadcasts={broadcasts} staffUsers={staffUsers} />
           </CardContent>
         </Card>

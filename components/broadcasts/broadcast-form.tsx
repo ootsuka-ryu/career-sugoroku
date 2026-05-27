@@ -12,6 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { localizeSampleText } from "@/lib/display/localize";
+import {
+  UNIVERSITY_CATEGORY_TAGS,
+  UNIVERSITY_TAG_FOLDERS
+} from "@/lib/tags/university-folders";
 import type { TagSummary } from "@/lib/students/types";
 
 const initialState: BroadcastActionState = {
@@ -155,7 +159,7 @@ export function BroadcastForm({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <TagCheckboxGroup
           fieldName="target_tag_ids"
           label="配信対象タグ"
@@ -295,22 +299,42 @@ function TagCheckboxGroup({
   fieldName: string;
   tags: TagSummary[];
 }) {
+  const tagFolders = useMemo(() => groupTagsByFolder(tags), [tags]);
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{label}</p>
-      <div className="flex min-h-24 flex-wrap content-start gap-2 rounded-md border p-3">
-        {tags.map((tag) => (
-          <label
-            className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1 text-sm"
-            key={tag.id}
-          >
-            <input name={fieldName} type="checkbox" value={tag.id} />
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: tag.color }}
-            />
-            {localizeSampleText(tag.name)}
-          </label>
+      <div className="space-y-2 rounded-md border bg-background p-2">
+        {tagFolders.map((folder) => (
+          <details className="group rounded-md border bg-card" key={folder.name}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium">
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: folder.color }}
+                />
+                <span className="truncate">{folder.name}</span>
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {folder.tags.length}件
+              </span>
+            </summary>
+            <div className="grid max-h-48 gap-2 overflow-auto border-t p-2 sm:grid-cols-2">
+              {folder.tags.map((tag) => (
+                <label
+                  className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-secondary"
+                  key={tag.id}
+                >
+                  <input name={fieldName} type="checkbox" value={tag.id} />
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <span className="min-w-0 truncate">{localizeSampleText(tag.name)}</span>
+                </label>
+              ))}
+            </div>
+          </details>
         ))}
         {tags.length === 0 ? (
           <p className="text-sm text-muted-foreground">タグがありません。</p>
@@ -318,6 +342,50 @@ function TagCheckboxGroup({
       </div>
     </div>
   );
+}
+
+function groupTagsByFolder(tags: TagSummary[]) {
+  const remaining = new Map(tags.map((tag) => [tag.name, tag]));
+  const folders: Array<{ name: string; color: string; tags: TagSummary[] }> = [];
+
+  const categoryTags = UNIVERSITY_CATEGORY_TAGS.map((name) => remaining.get(name)).filter(
+    (tag): tag is TagSummary => Boolean(tag)
+  );
+
+  if (categoryTags.length > 0) {
+    folders.push({
+      name: "大学分類タグ",
+      color: "#64748b",
+      tags: categoryTags
+    });
+    categoryTags.forEach((tag) => remaining.delete(tag.name));
+  }
+
+  for (const folder of UNIVERSITY_TAG_FOLDERS) {
+    const folderTags = folder.tags
+      .map((name) => remaining.get(name))
+      .filter((tag): tag is TagSummary => Boolean(tag));
+
+    if (folderTags.length > 0) {
+      folders.push({
+        name: `${folder.name}フォルダ`,
+        color: folder.color,
+        tags: folderTags
+      });
+      folderTags.forEach((tag) => remaining.delete(tag.name));
+    }
+  }
+
+  const otherTags = Array.from(remaining.values());
+  if (otherTags.length > 0) {
+    folders.push({
+      name: "その他",
+      color: "#525252",
+      tags: otherTags
+    });
+  }
+
+  return folders;
 }
 
 function SubmitButton() {

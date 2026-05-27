@@ -68,16 +68,16 @@ export function BroadcastList({
         </p>
       ) : null}
       <div className="rounded-lg border">
-        <Table>
+        <Table className="min-w-[980px] table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>タイトル</TableHead>
-              <TableHead>形式</TableHead>
-              <TableHead>状態</TableHead>
-              <TableHead>対象</TableHead>
-              <TableHead>予約/送信</TableHead>
-              <TableHead>作成者</TableHead>
-              <TableHead className="w-[22rem]">操作</TableHead>
+              <TableHead className="w-[15rem] whitespace-nowrap">タイトル</TableHead>
+              <TableHead className="w-[7rem] whitespace-nowrap">形式</TableHead>
+              <TableHead className="w-[9rem] whitespace-nowrap">状態</TableHead>
+              <TableHead className="w-[9rem] whitespace-nowrap">対象</TableHead>
+              <TableHead className="w-[11rem] whitespace-nowrap">予約/送信</TableHead>
+              <TableHead className="w-[8rem] whitespace-nowrap">作成者</TableHead>
+              <TableHead className="w-[22rem] whitespace-nowrap">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -85,8 +85,8 @@ export function BroadcastList({
               broadcasts.map((broadcast) => (
                 <TableRow key={broadcast.id}>
                   <TableCell className="font-medium">{broadcast.title}</TableCell>
-                  <TableCell>{getBroadcastKind(broadcast.body_jsonb)}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">{getBroadcastKind(broadcast.body_jsonb)}</TableCell>
+                  <TableCell className="align-top">
                     <Badge variant={broadcast.status === "sent" ? "accent" : "secondary"}>
                       {getStatusLabel(broadcast.status)}
                     </Badge>
@@ -98,19 +98,19 @@ export function BroadcastList({
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {broadcast.sent_count > 0
                       ? `${broadcast.sent_count}件送信`
                       : `${broadcast.estimated_recipients}名見込み`}
                     {broadcast.failed_count > 0 ? ` / 失敗${broadcast.failed_count}` : ""}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <p>{formatDateTime(broadcast.scheduled_at)}</p>
                     <p className="text-xs text-muted-foreground">
                       sent {formatDateTime(broadcast.sent_at)}
                     </p>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {broadcast.staff ? getStaffDisplayName(broadcast.staff) : "-"}
                   </TableCell>
                   <TableCell>
