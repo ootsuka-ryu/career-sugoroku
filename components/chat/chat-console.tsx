@@ -116,7 +116,7 @@ export function ChatConsole({
     .sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
 
   return (
-    <div className="grid min-h-[calc(100vh-11rem)] gap-4 xl:grid-cols-[22rem_1fr]">
+    <div className="grid h-[calc(100vh-11rem)] min-h-[42rem] gap-4 xl:grid-cols-[22rem_1fr]">
       <aside className="rounded-lg border bg-card">
         <div className="border-b p-3">
           <Input
@@ -170,9 +170,9 @@ export function ChatConsole({
         </div>
       </aside>
 
-      <section className="flex min-h-0 flex-col rounded-lg border bg-card">
+      <section className="flex min-h-0 overflow-hidden rounded-lg border bg-card">
         {currentStudent ? (
-          <>
+          <div className="flex min-h-0 w-full flex-col">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -201,7 +201,7 @@ export function ChatConsole({
               </div>
             </header>
 
-            <div className="flex-1 space-y-4 overflow-auto bg-secondary/20 p-4">
+            <div className="min-h-[18rem] flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-4">
               {currentMessages.length > 0 ? (
                 currentMessages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
@@ -225,7 +225,7 @@ export function ChatConsole({
               templates={templates}
             />
             <ExternalLineLogForm studentId={currentStudent.id} />
-          </>
+          </div>
         ) : (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             学生データがありません。
