@@ -113,6 +113,16 @@ export async function getNotificationTargetsForStudent(
   return (staffUsers ?? []).map((row: { id: string }) => row.id);
 }
 
+export async function getAdminNotificationTargets(supabase: SupabaseLike) {
+  const { data: staffUsers } = await supabase
+    .from("staff_users")
+    .select("id")
+    .eq("role", "admin")
+    .eq("is_active", true);
+
+  return (staffUsers ?? []).map((row: { id: string }) => row.id);
+}
+
 export function normalizeNotificationType(type: NotificationType) {
   return type === "ai_urgent" ? "urgent_ai_action" : type;
 }

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import {
   createNotificationsForStaff,
+  getAdminNotificationTargets,
   getNotificationTargetsForStudent
 } from "@/lib/notifications/service";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -154,22 +155,27 @@ export async function submitPublicSurvey(
     };
   }
 
+  const surveyTitle = survey.public_title || survey.title;
+
   if (student) {
     await applyProfileUpdates(supabase, student.id, questions, answers);
     await applyTagRules(supabase, student.id, questions, answers);
     await recordSurveyParticipation(
       supabase,
       student.id,
-      survey.public_title || survey.title,
-      response.id
-    );
-    await notifyAssignees(
-      supabase,
-      student.id,
-      survey.public_title || survey.title,
+      surveyTitle,
       response.id
     );
   }
+
+  await notifySurveyResponse(
+    supabase,
+    student?.id ?? null,
+    surveyTitle,
+    response.id,
+    input.respondent_name || null,
+    !student
+  );
 
   return {
     ok: true,
@@ -415,21 +421,37 @@ function matchesRule(answer: Json, rule: Json) {
   return false;
 }
 
-async function notifyAssignees(
+async function notifySurveyResponse(
   supabase: any,
-  studentId: string,
+  studentId: string | null,
   surveyTitle: string,
-  responseId: string
+  responseId: string,
+  respondentName: string | null,
+  needsManualMerge: boolean
 ) {
-  const targets = await getNotificationTargetsForStudent(supabase, studentId);
+  const [assigneeTargets, adminTargets] = await Promise.all([
+    studentId ? getNotificationTargetsForStudent(supabase, studentId) : Promise.resolve([]),
+    getAdminNotificationTargets(supabase)
+  ]);
+  const targets = Array.from(new Set([...adminTargets, ...assigneeTargets]));
+  const respondentText = respondentName
+    ? `回答者: ${respondentName}`
+    : studentId
+      ? "回答者: 学生情報に紐づき済み"
+      : "回答者: 未紐付け";
+  const mergeText = needsManualMerge
+    ? "\n学生情報と未紐付けです。回答結果から紐付けしてください。"
+    : "";
+
   await createNotificationsForStaff(supabase, targets, {
     type: "survey_response",
     title: "アンケート回答がありました",
-    body: `${surveyTitle} に回答がありました。`,
+    body: `${surveyTitle} に回答がありました。\n${respondentText}${mergeText}`,
     payload: {
       surveyTitle,
       studentId,
-      responseId
+      responseId,
+      needsManualMerge
     }
   });
 }
