@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { BarChart3, PencilLine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatRate, recruitingMetrics, type RecruitingMetricCounts } from "@/lib/recruiting/funnel";
+import {
+  formatRate,
+  recruitingMetrics,
+  type RecruitingMetricCounts
+} from "@/lib/recruiting/funnel";
 
 type StudentGoalSource = {
   id: string;
@@ -75,16 +79,45 @@ export function RecruitingGoalBoard({
   previousCounts: Partial<RecruitingMetricCounts> | null;
   snapshots: SnapshotSource[];
 }) {
+  const visibleMetrics = useMemo(() => recruitingMetrics.slice(0, 8), []);
   const [targetOverrides, setTargetOverrides] = useLocalNumberMap(
     `recruiting-targets-${selectedGraduationYear}`
   );
   const [actualOverrides, setActualOverrides] = useLocalNumberMap(
     `recruiting-actuals-${selectedGraduationYear}`
   );
+  const [meetingCurrentOverrides, setMeetingCurrentOverrides] = useLocalNumberMap(
+    `recruiting-meeting-current-${selectedGraduationYear}`
+  );
+  const [meetingPreviousOverrides, setMeetingPreviousOverrides] = useLocalNumberMap(
+    `recruiting-meeting-previous-${selectedGraduationYear}`
+  );
+  const [meetingMonthlyOverrides, setMeetingMonthlyOverrides] = useLocalNumberMap(
+    `recruiting-meeting-monthly-${selectedGraduationYear}`
+  );
 
   const actualByMonth = useMemo(() => countStudentsByMonth(students), [students]);
   const rows = selectedGraduationYear === 2028 ? targetRows28 : [];
-  const targetTotal = rows.reduce((sum, row) => sum + getEditableValue(targetOverrides, row.key, row.target), 0);
+  const currentCounts = useMemo(() => {
+    const next = { ...counts };
+    for (const metric of visibleMetrics) {
+      const override = meetingCurrentOverrides[`current-${metric.key}`];
+      if (typeof override === "number") next[metric.key] = override;
+    }
+    return next;
+  }, [counts, meetingCurrentOverrides, visibleMetrics]);
+  const editablePreviousCounts = useMemo(() => {
+    const next: Partial<RecruitingMetricCounts> = { ...(previousCounts ?? {}) };
+    for (const metric of visibleMetrics) {
+      const override = meetingPreviousOverrides[`previous-${metric.key}`];
+      if (typeof override === "number") next[metric.key] = override;
+    }
+    return next;
+  }, [meetingPreviousOverrides, previousCounts, visibleMetrics]);
+  const targetTotal = rows.reduce(
+    (sum, row) => sum + getEditableValue(targetOverrides, row.key, row.target),
+    0
+  );
   const actualTotal = rows.reduce(
     (sum, row) => sum + getActualValue(actualOverrides, row, actualByMonth),
     0
@@ -141,7 +174,13 @@ export function RecruitingGoalBoard({
                             onChange={(value) => setActualOverrides(row.key, value)}
                           />
                         </td>
-                        <td className={actual >= target ? "border px-3 py-2 text-right text-emerald-700" : "border px-3 py-2 text-right text-red-700"}>
+                        <td
+                          className={
+                            actual >= target
+                              ? "border px-3 py-2 text-right text-emerald-700"
+                              : "border px-3 py-2 text-right text-red-700"
+                          }
+                        >
                           {actual - target}
                         </td>
                         <td className="border px-3 py-2 text-right font-medium">
@@ -154,10 +193,18 @@ export function RecruitingGoalBoard({
                     <th className="border px-3 py-2 text-left">合計</th>
                     <td className="border px-3 py-2 text-right">{targetTotal}</td>
                     <td className="border px-3 py-2 text-right">{actualTotal}</td>
-                    <td className={actualTotal >= targetTotal ? "border px-3 py-2 text-right text-emerald-700" : "border px-3 py-2 text-right text-red-700"}>
+                    <td
+                      className={
+                        actualTotal >= targetTotal
+                          ? "border px-3 py-2 text-right text-emerald-700"
+                          : "border px-3 py-2 text-right text-red-700"
+                      }
+                    >
                       {actualTotal - targetTotal}
                     </td>
-                    <td className="border px-3 py-2 text-right">{formatRate(actualTotal, targetTotal)}</td>
+                    <td className="border px-3 py-2 text-right">
+                      {formatRate(actualTotal, targetTotal)}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -177,7 +224,7 @@ export function RecruitingGoalBoard({
             経営会議用 進捗サマリー
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            現在値、CV、前年同月、前年比を自動計算します。
+            自動計算値を初期表示し、会議用に必要な数字だけ直接修正できます。
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -186,7 +233,7 @@ export function RecruitingGoalBoard({
               <thead className="bg-neutral-900 text-white">
                 <tr>
                   <th className="border px-3 py-2 text-left">区分</th>
-                  {recruitingMetrics.slice(0, 8).map((metric) => (
+                  {visibleMetrics.map((metric) => (
                     <th className="border px-3 py-2 text-center" key={metric.key}>
                       {metric.label}
                     </th>
@@ -196,34 +243,46 @@ export function RecruitingGoalBoard({
               <tbody>
                 <tr>
                   <th className="border px-3 py-2 text-left">{selectedGraduationYear}卒</th>
-                  {recruitingMetrics.slice(0, 8).map((metric) => (
-                    <td className="border px-3 py-2 text-center font-semibold" key={metric.key}>
-                      {counts[metric.key]}
+                  {visibleMetrics.map((metric) => (
+                    <td className="border px-2 py-1" key={metric.key}>
+                      <NumberCell
+                        value={currentCounts[metric.key]}
+                        onChange={(value) =>
+                          setMeetingCurrentOverrides(`current-${metric.key}`, value)
+                        }
+                      />
                     </td>
                   ))}
                 </tr>
                 <tr className="bg-emerald-50">
                   <th className="border px-3 py-2 text-left">CV</th>
-                  {recruitingMetrics.slice(0, 8).map((metric, index, metrics) => (
+                  {visibleMetrics.map((metric, index, metrics) => (
                     <td className="border px-3 py-2 text-center" key={metric.key}>
-                      {index === 0 ? "-" : formatRate(counts[metric.key], counts[metrics[index - 1].key])}
+                      {index === 0
+                        ? "-"
+                        : formatRate(currentCounts[metric.key], currentCounts[metrics[index - 1].key])}
                     </td>
                   ))}
                 </tr>
                 <tr className="bg-amber-50">
                   <th className="border px-3 py-2 text-left">前年同月</th>
-                  {recruitingMetrics.slice(0, 8).map((metric) => (
-                    <td className="border px-3 py-2 text-center" key={metric.key}>
-                      {previousCounts?.[metric.key] ?? "-"}
+                  {visibleMetrics.map((metric) => (
+                    <td className="border px-2 py-1" key={metric.key}>
+                      <NumberCell
+                        value={Number(editablePreviousCounts[metric.key] ?? 0)}
+                        onChange={(value) =>
+                          setMeetingPreviousOverrides(`previous-${metric.key}`, value)
+                        }
+                      />
                     </td>
                   ))}
                 </tr>
                 <tr className="bg-amber-100">
                   <th className="border px-3 py-2 text-left">前年比</th>
-                  {recruitingMetrics.slice(0, 8).map((metric) => (
+                  {visibleMetrics.map((metric) => (
                     <td className="border px-3 py-2 text-center" key={metric.key}>
-                      {previousCounts?.[metric.key]
-                        ? `${((counts[metric.key] / Number(previousCounts[metric.key])) * 100).toFixed(1)}%`
+                      {editablePreviousCounts[metric.key]
+                        ? `${((currentCounts[metric.key] / Number(editablePreviousCounts[metric.key])) * 100).toFixed(1)}%`
                         : "-"}
                     </td>
                   ))}
@@ -237,7 +296,7 @@ export function RecruitingGoalBoard({
               <thead className="sticky top-0 bg-secondary">
                 <tr>
                   <th className="border-b px-3 py-2 text-left">月</th>
-                  {recruitingMetrics.slice(0, 8).map((metric) => (
+                  {visibleMetrics.map((metric) => (
                     <th className="border-b px-3 py-2 text-center" key={metric.key}>
                       {metric.label}
                     </th>
@@ -249,10 +308,21 @@ export function RecruitingGoalBoard({
                   const snapshot = snapshotByMonth.get(monthKey);
                   return (
                     <tr key={monthKey}>
-                      <th className="border-b px-3 py-2 text-left">{formatMonthLabel(monthKey)}</th>
-                      {recruitingMetrics.slice(0, 8).map((metric) => (
-                        <td className="border-b px-3 py-2 text-center" key={metric.key}>
-                          {snapshot?.metrics_jsonb?.[metric.key] ?? ""}
+                      <th className="border-b px-3 py-2 text-left">
+                        {formatMonthLabel(monthKey)}
+                      </th>
+                      {visibleMetrics.map((metric) => (
+                        <td className="border-b px-2 py-1" key={metric.key}>
+                          <NumberCell
+                            value={getEditableValue(
+                              meetingMonthlyOverrides,
+                              `${monthKey}-${metric.key}`,
+                              Number(snapshot?.metrics_jsonb?.[metric.key] ?? 0)
+                            )}
+                            onChange={(value) =>
+                              setMeetingMonthlyOverrides(`${monthKey}-${metric.key}`, value)
+                            }
+                          />
                         </td>
                       ))}
                     </tr>
@@ -276,7 +346,7 @@ function NumberCell({
 }) {
   return (
     <Input
-      className="h-8 text-right"
+      className="h-8 min-w-16 text-right"
       min={0}
       onChange={(event) => onChange(Number(event.target.value || 0))}
       type="number"
