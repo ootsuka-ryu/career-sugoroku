@@ -165,6 +165,7 @@ export default async function StudentDetailPage({
     recordings,
     eventParticipants
   });
+  const recommendedChatText = buildRecommendedChatText(student);
 
   return (
     <div className="space-y-6">
@@ -201,6 +202,19 @@ export default async function StudentDetailPage({
             staffOptions={staffOptions}
             studentId={student.id}
           />
+          {recommendedChatText ? (
+            <Button asChild size="sm">
+              <Link href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(recommendedChatText)}`}>
+                <MessageSquareText className="mr-2 h-4 w-4" />
+                AIおすすめチャット
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled size="sm" variant="outline">
+              <MessageSquareText className="mr-2 h-4 w-4" />
+              AIおすすめチャット
+            </Button>
+          )}
           <Button asChild size="sm">
             <Link href={`/chat?studentId=${student.id}`}>
               <MessageSquareText className="mr-2 h-4 w-4" />
@@ -275,6 +289,19 @@ export default async function StudentDetailPage({
                 <p className="mt-1 text-muted-foreground">
                   {localizeSampleText(student.ai_next_action) || "まだ提案はありません。"}
                 </p>
+                {recommendedChatText ? (
+                  <Button asChild className="mt-3" size="sm">
+                    <Link href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(recommendedChatText)}`}>
+                      <MessageSquareText className="mr-2 h-4 w-4" />
+                      AIおすすめチャット
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button className="mt-3" disabled size="sm" variant="outline">
+                    <MessageSquareText className="mr-2 h-4 w-4" />
+                    AIおすすめチャット
+                  </Button>
+                )}
               </div>
               <div>
                 <p className="font-medium">手動次アクション</p>
@@ -490,6 +517,16 @@ function isSelectableAssignee(staff: StaffSummary) {
 
 function uniqueSelectableAssignees(staffUsers: StaffSummary[]) {
   return uniqueStaffByDisplayName(staffUsers.filter(isSelectableAssignee));
+}
+
+function buildRecommendedChatText(student: ReturnType<typeof normalizeStudentDetail>) {
+  const aiText = localizeSampleText(student.ai_next_action)?.trim();
+  if (aiText) return aiText;
+
+  const manualText = localizeSampleText(student.manual_next_action)?.trim();
+  if (manualText) return manualText;
+
+  return "";
 }
 
 function buildTimeline({

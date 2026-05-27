@@ -1,24 +1,10 @@
-import Link from "next/link";
-import { CheckCircle2, Clock, UserRound } from "lucide-react";
-import { completeGeneratedTask, completeManualTask } from "@/app/(dashboard)/tasks/actions";
+import { TaskBoard, type GeneratedTaskView, type ManualTaskView } from "@/components/tasks/task-board";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { localizeSampleText } from "@/lib/display/localize";
 import { daysSince, formatDateTime } from "@/lib/format";
 import { getStaffDisplayName } from "@/lib/staff/display";
 import { createClient } from "@/lib/supabase/server";
 import { getMotivationRankLabel } from "@/lib/students/options";
-
-type GeneratedTask = {
-  key: string;
-  title: string;
-  reason: string;
-  studentId: string;
-  studentName: string;
-  university: string;
-  priority: number;
-};
 
 export default async function TasksPage() {
   const supabase = createClient() as any;
@@ -47,7 +33,13 @@ export default async function TasksPage() {
   const generatedTasks = buildGeneratedTasks(studentsResult.data ?? []).filter(
     (task) => !dismissed.has(task.key)
   );
-  const manualTasks = manualTasksResult.data ?? [];
+  const manualTasks = (manualTasksResult.data ?? []).map((task: any) => ({
+    id: task.id,
+    title: task.title,
+    dueDate: task.due_date,
+    studentName: task.students?.real_name ?? task.students?.display_name ?? "学生未指定",
+    staffId: task.staff_users?.id ?? null
+  })) as ManualTaskView[];
   const staffUsers = uniqueVisibleStaff(staffResult.data ?? []);
 
   return (
@@ -60,93 +52,17 @@ export default async function TasksPage() {
         </p>
       </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_0.55fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              自動ピックアップ
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {generatedTasks.length > 0 ? (
-              generatedTasks.map((task) => (
-                <div className="rounded-md border bg-card p-4" key={task.key}>
-                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          className={task.priority >= 90 ? "bg-destructive text-destructive-foreground" : ""}
-                          variant="secondary"
-                        >
-                          優先度 {task.priority}
-                        </Badge>
-                        <Link className="font-medium text-primary hover:underline" href={`/students/${task.studentId}`}>
-                          {task.studentName}
-                        </Link>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">{task.university}</p>
-                      <p className="mt-2 text-sm">{task.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{task.reason}</p>
-                    </div>
-                    <form action={completeGeneratedTask}>
-                      <input name="task_key" type="hidden" value={task.key} />
-                      <Button size="sm" type="submit" variant="outline">
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        完了
-                      </Button>
-                    </form>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">今日の自動タスクはありません。</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserRound className="h-5 w-5 text-primary" />
-              スタッフ別タスク
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {staffUsers.map((staff: any) => {
-              const tasks = manualTasks.filter((task: any) =>
-                staff.ids.includes(task.staff_users?.id)
-              );
-              return (
-                <div key={staff.displayName} className="rounded-md border p-3">
-                  <p className="font-medium">{staff.displayName}</p>
-                  <p className="text-xs text-muted-foreground">{tasks.length}件の未完了タスク</p>
-                  <div className="mt-3 space-y-2">
-                    {tasks.length > 0 ? tasks.map((task: any) => (
-                      <div key={task.id} className="rounded-md bg-secondary/70 p-2 text-sm">
-                        <p className="font-medium">{task.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {task.students?.real_name ?? task.students?.display_name ?? "学生未指定"} / 期限 {task.due_date ?? "-"}
-                        </p>
-                        <form action={completeManualTask} className="mt-2">
-                          <input name="task_id" type="hidden" value={task.id} />
-                          <Button size="sm" type="submit" variant="outline">完了</Button>
-                        </form>
-                      </div>
-                    )) : <p className="text-xs text-muted-foreground">未完了タスクはありません。</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </section>
+      <TaskBoard
+        generatedTasks={generatedTasks}
+        manualTasks={manualTasks}
+        staffUsers={staffUsers}
+      />
     </div>
   );
 }
 
-function buildGeneratedTasks(students: any[]): GeneratedTask[] {
-  const tasks: GeneratedTask[] = [];
+function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
+  const tasks: GeneratedTaskView[] = [];
   for (const student of students) {
     const studentName =
       localizeSampleText(student.real_name) ||
@@ -158,6 +74,9 @@ function buildGeneratedTasks(students: any[]): GeneratedTask[] {
       student.last_inbound_at &&
       student.last_outbound_at &&
       new Date(student.last_inbound_at) > new Date(student.last_outbound_at);
+    const assigneeIds = (student.student_assignees ?? [])
+      .map((relation: any) => relation.staff_users?.id)
+      .filter(Boolean) as string[];
 
     if (student.last_outbound_at && !inboundAfterOutbound && outboundDays !== null && outboundDays >= 3) {
       tasks.push({
@@ -167,7 +86,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTask[] {
         studentId: student.id,
         studentName,
         university,
-        priority: outboundDays >= 14 ? 95 : outboundDays >= 7 ? 85 : 70
+        priority: outboundDays >= 14 ? 95 : outboundDays >= 7 ? 85 : 70,
+        assigneeIds
       });
     }
 
@@ -180,7 +100,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTask[] {
         studentId: student.id,
         studentName,
         university,
-        priority: 90
+        priority: 90,
+        assigneeIds
       });
     }
 
@@ -192,7 +113,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTask[] {
         studentId: student.id,
         studentName,
         university,
-        priority: 80
+        priority: 80,
+        assigneeIds
       });
     }
   }

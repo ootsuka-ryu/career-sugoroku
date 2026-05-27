@@ -8,6 +8,7 @@ import {
 import { AiNextActionRunner } from "@/components/dashboard/ai-next-action-runner";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { RecruitingGoalBoard } from "@/components/dashboard/recruiting-goal-board";
 import { SaveSnapshotButton } from "@/components/dashboard/save-snapshot-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,18 @@ export default async function DashboardPage({
           <MetricCard key={metric.title} {...metric} />
         ))}
       </section>
+
+      <RecruitingGoalBoard
+        counts={recruitingCounts}
+        previousCounts={previousCounts}
+        selectedGraduationYear={selectedGraduationYear}
+        snapshots={snapshots}
+        students={selectedStudents.map((student: any) => ({
+          id: student.id,
+          first_contact_date: student.first_contact_date ?? null,
+          created_at: student.created_at ?? null
+        }))}
+      />
 
       <RecruitingFunnelDashboard
         counts={recruitingCounts}
