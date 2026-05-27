@@ -11,6 +11,7 @@ import {
   updateStudentProfile,
   type StudentActionState
 } from "@/app/(dashboard)/students/[id]/actions";
+import { FolderedTagSelector } from "@/components/tags/foldered-tag-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
   localizeSampleText,
   localizeStatus
 } from "@/lib/display/localize";
+import { groupTagsByFolder } from "@/lib/tags/group-tags";
 import {
   candidateStages,
   declineReasons,
@@ -256,51 +258,64 @@ export function StudentTagManager({
 }) {
   const [addState, addAction] = useFormState(addStudentTag, initialState);
   const [removeState, removeAction] = useFormState(removeStudentTag, initialState);
+  const [tagIdToAdd, setTagIdToAdd] = useState("");
   const currentTagIds = new Set(currentTags.map((tag) => tag.id));
   const availableTags = allTags.filter((tag) => !currentTagIds.has(tag.id));
+  const currentTagFolders = groupTagsByFolder(currentTags);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="space-y-2 rounded-md border bg-background p-2">
         {currentTags.length > 0 ? (
-          currentTags.map((tag) => (
-            <form action={removeAction} key={tag.id}>
-              <input name="student_id" type="hidden" value={studentId} />
-              <input name="tag_id" type="hidden" value={tag.id} />
-              <Button
-                size="sm"
-                style={{ borderColor: tag.color, color: tag.color }}
-                type="submit"
-                variant="outline"
-              >
-                {localizeSampleText(tag.name)}
-                <X className="ml-2 h-3.5 w-3.5" />
-              </Button>
-            </form>
+          currentTagFolders.map((folder) => (
+            <details className="rounded-md border bg-card" key={folder.id}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-medium">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: folder.color }}
+                  />
+                  <span className="truncate">{folder.name}</span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {folder.tags.length}件
+                </span>
+              </summary>
+              <div className="flex max-h-36 flex-wrap gap-2 overflow-auto border-t p-2">
+                {folder.tags.map((tag) => (
+                  <form action={removeAction} key={tag.id}>
+                    <input name="student_id" type="hidden" value={studentId} />
+                    <input name="tag_id" type="hidden" value={tag.id} />
+                    <Button
+                      size="sm"
+                      style={{ borderColor: tag.color, color: tag.color }}
+                      type="submit"
+                      variant="outline"
+                    >
+                      {localizeSampleText(tag.name)}
+                      <X className="ml-2 h-3.5 w-3.5" />
+                    </Button>
+                  </form>
+                ))}
+              </div>
+            </details>
           ))
         ) : (
           <p className="text-sm text-muted-foreground">タグはまだありません。</p>
         )}
       </div>
 
-      <form action={addAction} className="flex gap-2">
+      <form action={addAction} className="space-y-3">
         <input name="student_id" type="hidden" value={studentId} />
-        <select
-          className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-          disabled={availableTags.length === 0}
-          name="tag_id"
-        >
-          {availableTags.length === 0 ? (
-            <option>追加できるタグがありません</option>
-          ) : (
-            availableTags.map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {localizeSampleText(tag.name)}
-              </option>
-            ))
-          )}
-        </select>
-        <SubmitButton disabled={availableTags.length === 0} icon="plus" label="追加" />
+        <input name="tag_id" type="hidden" value={tagIdToAdd} />
+        <FolderedTagSelector
+          emptyMessage="追加できるタグがありません。"
+          maxHeightClassName="max-h-44"
+          onToggle={(tagId) => setTagIdToAdd((current) => (current === tagId ? "" : tagId))}
+          selectedTagIds={tagIdToAdd ? [tagIdToAdd] : []}
+          tags={availableTags}
+        />
+        <SubmitButton disabled={!tagIdToAdd || availableTags.length === 0} icon="plus" label="選択したタグを追加" />
       </form>
       <FormMessage state={addState.message ? addState : removeState} />
     </div>

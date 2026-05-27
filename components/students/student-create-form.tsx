@@ -5,10 +5,10 @@ import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Save } from "lucide-react";
 import { createStudent, type CreateStudentState } from "@/app/(dashboard)/students/new/actions";
+import { FolderedTagSelector } from "@/components/tags/foldered-tag-selector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { localizeSampleText } from "@/lib/display/localize";
 import { motivationRanks } from "@/lib/students/options";
 
 type StaffItem = {
@@ -135,23 +135,18 @@ export function StudentCreateForm({
           </div>
           <div>
             <p className="mb-2 text-sm font-medium">タグ</p>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <TogglePill
-                  active={tagIds.includes(tag.id)}
-                  color={tag.color}
-                  key={tag.id}
-                  label={localizeSampleText(tag.name) ?? tag.name}
-                  onClick={() =>
-                    setTagIds((current) =>
-                      current.includes(tag.id)
-                        ? current.filter((id) => id !== tag.id)
-                        : [...current, tag.id]
-                    )
-                  }
-                />
-              ))}
-            </div>
+            <FolderedTagSelector
+              maxHeightClassName="max-h-56"
+              onToggle={(tagId) =>
+                setTagIds((current) =>
+                  current.includes(tagId)
+                    ? current.filter((id) => id !== tagId)
+                    : [...current, tagId]
+                )
+              }
+              selectedTagIds={tagIds}
+              tags={tags}
+            />
           </div>
         </div>
       </section>

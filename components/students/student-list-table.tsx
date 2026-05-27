@@ -285,7 +285,7 @@ export function StudentListTable({
             </Select>
           </div>
           {selectedTags.length > 0 ? (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2 flex max-h-20 flex-wrap items-center gap-1.5 overflow-auto rounded-md border bg-secondary/30 p-2">
               <span className="mr-1 text-xs text-muted-foreground">選択中 {selectedTags.length}件</span>
               {selectedTags.map((tag) => (
                 <button

@@ -18,6 +18,7 @@ import {
   type RichMenuActionState
 } from "@/app/(dashboard)/rich-menus/actions";
 import { SurveyMediaPicker } from "@/components/surveys/survey-media-picker";
+import { FolderedTagSelector } from "@/components/tags/foldered-tag-selector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,8 +217,8 @@ export function RichMenuAdmin({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-md border bg-white">
-          <div className="grid grid-cols-[2rem_1.5fr_1fr_1fr_1fr_1fr] bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+        <div className="overflow-x-auto rounded-md border bg-white">
+          <div className="grid min-w-[900px] grid-cols-[2rem_1.5fr_1fr_1fr_1.4fr_1fr] bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
             <span></span>
             <span>リッチメニュー名</span>
             <span>メニュー初期状態</span>
@@ -228,7 +229,7 @@ export function RichMenuAdmin({
           {filteredMenus.length > 0 ? (
             filteredMenus.map((menu) => (
               <div
-                className="grid grid-cols-[2rem_1.5fr_1fr_1fr_1fr_1fr] items-center border-t px-4 py-3 text-sm"
+                className="grid min-w-[900px] grid-cols-[2rem_1.5fr_1fr_1fr_1.4fr_1fr] items-center border-t px-4 py-3 text-sm"
                 key={menu.id}
               >
                 <input type="checkbox" />
@@ -251,7 +252,9 @@ export function RichMenuAdmin({
                     "-"
                   )}
                 </span>
-                <span>{formatTargetTags(menu.target_tag_ids, tags)}</span>
+                <span className="truncate" title={formatTargetTags(menu.target_tag_ids, tags, false)}>
+                  {formatTargetTags(menu.target_tag_ids, tags)}
+                </span>
                 <div className="flex gap-2">
                   <Button onClick={() => startEdit(menu)} size="sm" type="button" variant="outline">
                     編集
@@ -378,33 +381,20 @@ function RichMenuForm({
           </FieldRow>
 
           <FieldRow label="対象タグ">
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <button
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-sm",
-                    draft.targetTagIds.includes(tag.id)
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "bg-white"
-                  )}
-                  key={tag.id}
-                  onClick={() =>
-                    setDraft((current) => ({
-                      ...current,
-                      targetTagIds: current.targetTagIds.includes(tag.id)
-                        ? current.targetTagIds.filter((id) => id !== tag.id)
-                        : [...current.targetTagIds, tag.id]
-                    }))
-                  }
-                  type="button"
-                >
-                  {tag.name}
-                </button>
-              ))}
-              {tags.length === 0 ? (
-                <p className="text-sm text-muted-foreground">タグがまだありません。</p>
-              ) : null}
-            </div>
+            <FolderedTagSelector
+              emptyMessage="タグがまだありません。"
+              maxHeightClassName="max-h-44"
+              onToggle={(tagId) =>
+                setDraft((current) => ({
+                  ...current,
+                  targetTagIds: current.targetTagIds.includes(tagId)
+                    ? current.targetTagIds.filter((id) => id !== tagId)
+                    : [...current.targetTagIds, tagId]
+                }))
+              }
+              selectedTagIds={draft.targetTagIds}
+              tags={tags}
+            />
           </FieldRow>
 
           <FieldRow label="テンプレート">
@@ -750,13 +740,15 @@ function getActionPlaceholder(type: ActionType) {
   return "";
 }
 
-function formatTargetTags(value: unknown, tags: TagItem[]) {
+function formatTargetTags(value: unknown, tags: TagItem[], summarize = true) {
   if (!Array.isArray(value) || value.length === 0) return "全員";
   const names = value
     .filter((id): id is string => typeof id === "string")
     .map((id) => tags.find((tag) => tag.id === id)?.name)
     .filter(Boolean);
-  return names.length > 0 ? names.join("、") : "全員";
+  if (names.length === 0) return "全員";
+  if (!summarize || names.length <= 3) return names.join("、");
+  return `${names.length}件: ${names.slice(0, 3).join("、")}ほか`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

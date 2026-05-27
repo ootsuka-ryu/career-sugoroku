@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createSurveyTagByName } from "@/app/(dashboard)/surveys/actions";
 import { Input } from "@/components/ui/input";
-import { UNIVERSITY_CATEGORY_TAGS, UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
+import { groupTagsByFolder } from "@/lib/tags/group-tags";
 import type { TagSummary } from "@/lib/students/types";
 
 type TagRulePickerProps = {
@@ -140,38 +140,5 @@ export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
 }
 
 function buildTagGroups(tags: TagSummary[], query: string): TagGroup[] {
-  const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
-  const groupedIds = new Set<string>();
-  const normalizedQuery = query.trim().toLowerCase();
-
-  function include(tag: TagSummary) {
-    return !normalizedQuery || tag.name.toLowerCase().includes(normalizedQuery);
-  }
-
-  const categoryTags = UNIVERSITY_CATEGORY_TAGS
-    .map((name) => tagsByName.get(name))
-    .filter((tag): tag is TagSummary => Boolean(tag))
-    .filter(include);
-  categoryTags.forEach((tag) => groupedIds.add(tag.id));
-
-  const groups: TagGroup[] = [
-    { id: "university-categories", name: "大学分類タグ", tags: categoryTags }
-  ];
-
-  for (const folder of UNIVERSITY_TAG_FOLDERS) {
-    const folderTags = folder.tags
-      .map((name) => tagsByName.get(name))
-      .filter((tag): tag is TagSummary => Boolean(tag))
-      .filter(include);
-    folderTags.forEach((tag) => groupedIds.add(tag.id));
-    groups.push({ id: folder.name, name: `${folder.name}フォルダ`, tags: folderTags });
-  }
-
-  const uncategorized = tags
-    .filter((tag) => !groupedIds.has(tag.id))
-    .filter(include)
-    .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-  groups.push({ id: "uncategorized", name: "未分類", tags: uncategorized });
-
-  return groups;
+  return groupTagsByFolder(tags, query);
 }
