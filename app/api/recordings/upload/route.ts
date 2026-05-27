@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!(audio instanceof File) || audio.size === 0) {
+  if (!isUploadedFile(audio)) {
     return NextResponse.json(
       { error: "audio file is required" },
       { status: 400 }
@@ -41,12 +41,20 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient() as any;
-  const storage = await uploadRecordingFile({
-    bytes: await audio.arrayBuffer(),
-    fileName: audio.name || "recording.webm",
-    contentType: audio.type || "audio/webm",
-    studentId
-  });
+  let storage;
+  try {
+    storage = await uploadRecordingFile({
+      bytes: await audio.arrayBuffer(),
+      fileName: audio.name || "recording.webm",
+      contentType: audio.type || "audio/webm",
+      studentId
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "音声ファイルを保存できませんでした。" },
+      { status: 500 }
+    );
+  }
 
   const { data: recording, error } = await admin
     .from("recordings")
@@ -67,17 +75,34 @@ export async function POST(request: Request) {
   }
 
   let aiResult = null;
+  let aiError = null;
   if (shouldProcessAi) {
-    aiResult = await processRecording({
-      supabase: admin,
-      recordingId: recording.id,
-      audioFile: audio,
-      transcriptOverride: transcript
-    });
+    try {
+      aiResult = await processRecording({
+        supabase: admin,
+        recordingId: recording.id,
+        audioFile: audio,
+        transcriptOverride: transcript
+      });
+    } catch (error) {
+      aiError = error instanceof Error ? error.message : "AI処理に失敗しました。";
+    }
   }
 
   return NextResponse.json({
     recording,
-    aiResult
+    aiResult,
+    aiError
   });
+}
+
+function isUploadedFile(value: FormDataEntryValue | null): value is File {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "arrayBuffer" in value &&
+      typeof value.arrayBuffer === "function" &&
+      "size" in value &&
+      Number(value.size) > 0
+  );
 }

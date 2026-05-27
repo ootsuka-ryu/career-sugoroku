@@ -52,9 +52,9 @@ export async function summarizeRecordingWithClaude({
         }
       ]
     })
-  });
+  }).catch(() => null);
 
-  if (!response.ok) {
+  if (!response?.ok) {
     return {
       summary: "Claude summarization failed. Please retry after checking the API key.",
       nextActions: ["要約を再実行する"],

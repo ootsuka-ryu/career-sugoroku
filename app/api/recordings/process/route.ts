@@ -37,8 +37,8 @@ export async function POST(request: Request) {
 
   let audioFile: File | undefined;
   if (!recording.transcript && recording.audio_url) {
-    const response = await fetch(recording.audio_url);
-    if (response.ok) {
+    const response = await fetch(recording.audio_url).catch(() => null);
+    if (response?.ok) {
       const blob = await response.blob();
       audioFile = new File([blob], "recording.audio", {
         type: blob.type || "audio/webm"
@@ -51,7 +51,9 @@ export async function POST(request: Request) {
     recordingId,
     audioFile,
     transcriptOverride: recording.transcript ?? undefined
-  });
+  }).catch((error) => ({
+    error: error instanceof Error ? error.message : "AI処理に失敗しました。"
+  }));
 
   return NextResponse.json(result);
 }

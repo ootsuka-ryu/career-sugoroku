@@ -56,7 +56,9 @@ async function transcribeWithOpenAICompatibleApi({
       Authorization: `Bearer ${apiKey}`
     },
     body: formData
-  });
+  }).catch(() => null);
+
+  if (!response) return null;
 
   if (!response.ok) {
     return null;

@@ -83,12 +83,17 @@ export function RecordingConsole({
     recorder.onstop = () => {
       stream.getTracks().forEach((track) => track.stop());
       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const recordedDurationSec = Math.max(1, Math.round((Date.now() - started) / 1000));
+      const audioFile = new File([blob], "browser-recording.webm", {
+        type: blob.type || "audio/webm"
+      });
+
       if (browserUrl) URL.revokeObjectURL(browserUrl);
       setBrowserBlob(blob);
       setBrowserUrl(URL.createObjectURL(blob));
-      setDurationSec(Math.max(1, Math.round((Date.now() - started) / 1000)));
+      setDurationSec(recordedDurationSec);
       setFile(null);
-      setStatus("録音を一時保存しました。アップロードで保存できます。");
+      void uploadRecording(audioFile, "browser", recordedDurationSec);
     };
 
     recorder.start();
@@ -107,30 +112,53 @@ export function RecordingConsole({
       return;
     }
 
-    const formData = new FormData();
-    formData.set("student_id", studentId);
-    formData.set("source", browserBlob ? "browser" : "upload");
-    formData.set("duration_sec", String(durationSec ?? ""));
-    formData.set("transcript", transcript);
-    formData.set("process_ai", String(processAi));
-    formData.set("audio", selectedAudio);
+    await uploadRecording(selectedAudio, browserBlob ? "browser" : "upload", durationSec);
+  }
 
-    setIsSubmitting(true);
-    setStatus("保存中です。AI処理を選んだ場合は少し時間がかかります。");
-    const response = await fetch("/api/recordings/upload", {
-      method: "POST",
-      body: formData
-    });
-    const result = await response.json();
-    setIsSubmitting(false);
-
-    if (!response.ok) {
-      setStatus(result.error ?? "保存に失敗しました。");
+  async function uploadRecording(
+    audioFile: File,
+    source: "browser" | "upload",
+    recordingDurationSec: number | null
+  ) {
+    if (!studentId) {
+      setStatus("学生を選んでください。");
       return;
     }
 
-    setStatus("保存しました。");
-    window.location.reload();
+    const formData = new FormData();
+    formData.set("student_id", studentId);
+    formData.set("source", source);
+    formData.set("duration_sec", String(recordingDurationSec ?? ""));
+    formData.set("transcript", transcript);
+    formData.set("process_ai", String(processAi));
+    formData.set("audio", audioFile);
+
+    setIsSubmitting(true);
+    setStatus("録音を保存中です。AI文字起こし・要約も続けて処理します。");
+
+    try {
+      const response = await fetch("/api/recordings/upload", {
+        method: "POST",
+        body: formData
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setStatus(result.error ?? "保存に失敗しました。");
+        return;
+      }
+
+      setStatus(
+        result.aiError
+          ? `録音は保存しました。AI処理は未完了です: ${result.aiError}`
+          : "録音を保存し、AI処理も完了しました。一覧を更新します。"
+      );
+      window.setTimeout(() => window.location.reload(), 600);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "保存に失敗しました。");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function processExisting(recordingId: string) {
@@ -247,7 +275,7 @@ export function RecordingConsole({
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
-            アップロード
+            音声ファイルを保存
           </Button>
 
           {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
