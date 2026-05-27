@@ -43,7 +43,7 @@ export async function saveRecruitingMonthlySnapshots({
     graduation_year: year,
     snapshot_month: snapshotMonth,
     metrics_jsonb: calculateRecruitingMetrics(rowsForYear),
-    created_by: createdBy
+    ...(createdBy ? { created_by: createdBy } : {})
   }));
 
   if (rows.length === 0) {

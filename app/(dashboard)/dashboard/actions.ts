@@ -29,8 +29,9 @@ export async function saveRecruitingMonthlySnapshot(
   } = await supabase.auth.getUser();
 
   try {
+    const staffId = user?.id ? await getExistingStaffId(supabase, user.id) : null;
     const result = await saveRecruitingMonthlySnapshots({
-      createdBy: user?.id ?? null,
+      createdBy: staffId,
       graduationYear: parsed.data.graduation_year,
       supabase
     });
@@ -50,4 +51,15 @@ export async function saveRecruitingMonthlySnapshot(
     }
     return { ok: false, message };
   }
+}
+
+async function getExistingStaffId(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from("staff_users")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+  return data.id as string;
 }
