@@ -51,6 +51,14 @@ export async function processRecording({
     .eq("id", recordingId);
 
   if (recording?.student_id) {
+    await appendRecordingSummaryToStudentNotes({
+      supabase,
+      studentId: recording.student_id,
+      summary: summary.summary,
+      nextAction,
+      transcript
+    });
+
     await supabase
       .from("students")
       .update({ ai_next_action: nextAction || summary.summary })
@@ -72,6 +80,74 @@ export async function processRecording({
     nextAction,
     tagCandidates: summary.tagCandidates
   };
+}
+
+async function appendRecordingSummaryToStudentNotes({
+  supabase,
+  studentId,
+  summary,
+  nextAction,
+  transcript
+}: {
+  supabase: SupabaseLike;
+  studentId: string;
+  summary: string;
+  nextAction: string;
+  transcript: string;
+}) {
+  const { data: student, error } = await supabase
+    .from("students")
+    .select("notes")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (isMissingNotesColumnError(error)) return;
+  if (error) throw error;
+
+  const entry = buildRecordingNoteEntry({ summary, nextAction, transcript });
+  const currentNotes = String(student?.notes ?? "").trim();
+  const notes = currentNotes ? `${currentNotes}\n\n${entry}` : entry;
+
+  const { error: updateError } = await supabase
+    .from("students")
+    .update({ notes })
+    .eq("id", studentId);
+
+  if (isMissingNotesColumnError(updateError)) return;
+  if (updateError) throw updateError;
+}
+
+function buildRecordingNoteEntry({
+  summary,
+  nextAction,
+  transcript
+}: {
+  summary: string;
+  nextAction: string;
+  transcript: string;
+}) {
+  const timestamp = new Intl.DateTimeFormat("ja-JP", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Asia/Tokyo"
+  }).format(new Date());
+  const transcriptExcerpt = transcript.length > 1200 ? `${transcript.slice(0, 1200)}...` : transcript;
+
+  return [
+    `【録音AI要約 ${timestamp}】`,
+    "要約:",
+    summary || "-",
+    "",
+    "次アクション:",
+    nextAction || "-",
+    "",
+    "文字起こし:",
+    transcriptExcerpt || "-"
+  ].join("\n");
+}
+
+function isMissingNotesColumnError(error: any) {
+  return Boolean(error?.message?.includes("notes") || error?.details?.includes("notes"));
 }
 
 async function fetchCompanyContext(supabase: SupabaseLike) {

@@ -41,6 +41,7 @@ const profileSchema = z.object({
   phone: z.string().trim().optional(),
   email: z.string().trim().email().optional().or(z.literal("")),
   status: z.string().trim().min(1),
+  notes: z.string().trim().optional(),
   manual_next_action: z.string().trim().optional()
 });
 
@@ -102,6 +103,7 @@ export async function updateStudentProfile(
     phone: input.phone || null,
     email: input.email || null,
     status: input.status,
+    notes: input.notes || null,
     manual_next_action: input.manual_next_action || null
   };
 
@@ -120,6 +122,7 @@ export async function updateStudentProfile(
       candidate_stage: _candidateStage,
       decline_reason: _declineReason,
       last_stage_changed_at: _lastStageChangedAt,
+      notes: _notes,
       ...legacyPayload
     } = payload;
 
@@ -165,7 +168,8 @@ function isMissingNewStudentColumnError(error: any) {
     "motivation_rank",
     "candidate_stage",
     "decline_reason",
-    "last_stage_changed_at"
+    "last_stage_changed_at",
+    "notes"
   ].some((column) => error.message.includes(column));
 }
 

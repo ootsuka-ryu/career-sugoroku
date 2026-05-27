@@ -90,6 +90,7 @@ export type Database = {
           last_outbound_at: Timestamp | null;
           ai_next_action: string | null;
           manual_next_action: string | null;
+          notes: string | null;
           photo_url: string | null;
           status: string;
           funnel_entry: boolean;

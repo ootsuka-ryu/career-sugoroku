@@ -36,6 +36,7 @@ export type StudentListItem = {
   last_outbound_at: string | null;
   ai_next_action: string | null;
   manual_next_action: string | null;
+  notes: string | null;
   photo_url: string | null;
   status: string;
   created_at: string;

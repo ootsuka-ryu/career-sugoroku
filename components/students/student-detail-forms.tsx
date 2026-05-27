@@ -120,6 +120,20 @@ export function StudentProfileForm({ student }: { student: StudentDetail }) {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="notes">備考</Label>
+        <Textarea
+          defaultValue={localizeSampleText(student.notes) ?? ""}
+          id="notes"
+          name="notes"
+          placeholder="面談メモ、AI要約、注意事項などを記録"
+          rows={6}
+        />
+        <p className="text-xs text-muted-foreground">
+          録音のAI要約はここへ自動で追記されます。
+        </p>
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="manual_next_action">ネクストアクション</Label>
         <Textarea
           defaultValue={localizeSampleText(student.manual_next_action) ?? ""}

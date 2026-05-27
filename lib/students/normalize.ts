@@ -33,6 +33,7 @@ export function normalizeStudentListItem(row: any): StudentListItem {
     last_outbound_at: row.last_outbound_at,
     ai_next_action: row.ai_next_action,
     manual_next_action: row.manual_next_action,
+    notes: row.notes ?? null,
     photo_url: row.photo_url ?? null,
     status: row.status,
     created_at: row.created_at,
