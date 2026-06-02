@@ -18,18 +18,37 @@ const folderSchema = z.object({
   name: z.string().trim().min(1, "フォルダ名を入力してください。")
 });
 
-export async function createTemplateFolder(formData: FormData) {
+export async function createTemplateFolder(
+  _prevState: MessageTemplateActionState = initialState,
+  formData: FormData
+): Promise<MessageTemplateActionState> {
   const parsed = folderSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.errors[0]?.message ?? "フォルダ名を入力してください。"
+    };
+  }
   const supabase = createClient() as any;
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  await supabase.from("message_template_folders").insert({
+  const { error } = await supabase.from("message_template_folders").insert({
     name: parsed.data.name,
     created_by: user?.id ?? null
   });
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message.includes("message_template_folders")
+        ? "Supabaseで 10_recruiting_ops_features.sql を先に実行してください。"
+        : error.message
+    };
+  }
+
   revalidatePath("/message-templates");
+  return { ok: true, message: "フォルダを作成しました。" };
 }
 
 const templateSchema = z.object({

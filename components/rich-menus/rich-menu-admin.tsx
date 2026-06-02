@@ -55,6 +55,10 @@ type AreaAction = {
   label: string;
   type: ActionType;
   value: string;
+  xPct: number;
+  yPct: number;
+  widthPct: number;
+  heightPct: number;
 };
 
 type TemplateItem = {
@@ -125,6 +129,7 @@ export function RichMenuAdmin({
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<Draft>(() => createDraft());
   const [createOpen, setCreateOpen] = useState(false);
+  const [localFolders, setLocalFolders] = useState<string[]>([]);
 
   const filteredMenus = menus.filter((menu) =>
     menu.name.toLowerCase().includes(query.trim().toLowerCase())
@@ -158,15 +163,40 @@ export function RichMenuAdmin({
     <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
       <aside className="rounded-md border bg-white">
         <div className="border-b p-3">
-          <Button className="w-full" type="button" variant="outline">
+          <Button
+            className="w-full"
+            onClick={() => {
+              const name = window.prompt("フォルダ名を入力してください。");
+              const normalized = name?.trim();
+              if (!normalized) return;
+              setLocalFolders((current) =>
+                current.includes(normalized) ? current : [...current, normalized]
+              );
+            }}
+            type="button"
+            variant="outline"
+          >
             <Plus className="mr-2 h-4 w-4" />
             新しいフォルダ
           </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            フォルダ分けは画面上の整理用です。LINE反映処理とあわせて永続保存に接続します。
+          </p>
         </div>
         <button className="flex w-full items-center justify-between bg-amber-50 px-4 py-3 text-sm font-medium">
           <span>📁 未分類</span>
           <span>{menus.length}</span>
         </button>
+        {localFolders.map((folder) => (
+          <button
+            className="flex w-full items-center justify-between border-t px-4 py-3 text-sm font-medium hover:bg-slate-50"
+            key={folder}
+            type="button"
+          >
+            <span>📁 {folder}</span>
+            <span>0</span>
+          </button>
+        ))}
       </aside>
 
       <section className="space-y-4">
@@ -422,7 +452,8 @@ function RichMenuForm({
             <div className="space-y-3">
               {template.areas.map((area, index) => {
                 const currentAction =
-                  draft.actions.find((item) => item.id === area.id) ?? createAreaAction(area.id, index);
+                  draft.actions.find((item) => item.id === area.id) ??
+                  createAreaAction(area.id, index, getAreaBounds(area, template));
                 return (
                   <AreaActionEditor
                     action={currentAction}
@@ -456,20 +487,25 @@ function RichMenuForm({
                     メニュー画像を選択してください
                   </div>
                 )}
-                {template.areas.map((area, index) => (
+                {template.areas.map((area, index) => {
+                  const action =
+                    draft.actions.find((item) => item.id === area.id) ??
+                    createAreaAction(area.id, index, getAreaBounds(area, template));
+                  return (
                   <div
                     className="absolute border-2 border-red-500 bg-red-500/20 text-center text-xs font-semibold text-white"
                     key={area.id}
                     style={{
-                      left: `${(area.x / template.columns) * 100}%`,
-                      top: `${(area.y / template.rows) * 100}%`,
-                      width: `${(area.width / template.columns) * 100}%`,
-                      height: `${(area.height / template.rows) * 100}%`
+                      left: `${action.xPct}%`,
+                      top: `${action.yPct}%`,
+                      width: `${action.widthPct}%`,
+                      height: `${action.heightPct}%`
                     }}
                   >
                     {index + 1}
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="border-x border-b bg-white py-3 text-center text-sm">
                 {draft.chatBarText || "メニュー"}
@@ -573,8 +609,39 @@ function AreaActionEditor({
             value={action.value}
           />
         ) : null}
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <RangeField label="左" value={action.xPct} onChange={(value) => update({ xPct: value })} />
+          <RangeField label="上" value={action.yPct} onChange={(value) => update({ yPct: value })} />
+          <RangeField label="幅" value={action.widthPct} onChange={(value) => update({ widthPct: value })} />
+          <RangeField label="高さ" value={action.heightPct} onChange={(value) => update({ heightPct: value })} />
+        </div>
       </div>
     </div>
+  );
+}
+
+function RangeField({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="space-y-1 text-xs font-medium text-muted-foreground">
+      <span>{label}</span>
+      <Input
+        max={100}
+        min={0}
+        onChange={(event) => onChange(clampPercent(Number(event.target.value)))}
+        step={1}
+        type="number"
+        value={Math.round(value)}
+      />
+    </label>
   );
 }
 
@@ -708,18 +775,60 @@ function normalizeDraftActions(draft: Draft): Draft {
     ...draft,
     actions: template.areas.map((area, index) => {
       const current = draft.actions.find((action) => action.id === area.id);
-      return current ?? createAreaAction(area.id, index);
+      return normalizeAreaAction(
+        current ?? createAreaAction(area.id, index, getAreaBounds(area, template)),
+        getAreaBounds(area, template)
+      );
     })
   };
 }
 
-function createAreaAction(id: string, index: number): AreaAction {
+function createAreaAction(
+  id: string,
+  index: number,
+  bounds: Pick<AreaAction, "xPct" | "yPct" | "widthPct" | "heightPct">
+): AreaAction {
   return {
     id,
     label: `ボタン${index + 1}`,
     type: "url",
-    value: ""
+    value: "",
+    ...bounds
   };
+}
+
+function getAreaBounds(area: TemplateItem["areas"][number], template: TemplateItem) {
+  return {
+    xPct: (area.x / template.columns) * 100,
+    yPct: (area.y / template.rows) * 100,
+    widthPct: (area.width / template.columns) * 100,
+    heightPct: (area.height / template.rows) * 100
+  };
+}
+
+function normalizeAreaAction(
+  action: Partial<AreaAction>,
+  fallback: Pick<AreaAction, "xPct" | "yPct" | "widthPct" | "heightPct">
+): AreaAction {
+  return {
+    id: typeof action.id === "string" ? action.id : crypto.randomUUID(),
+    label: typeof action.label === "string" ? action.label : "ボタン",
+    type: isActionType(action.type) ? action.type : "url",
+    value: typeof action.value === "string" ? action.value : "",
+    xPct: Number.isFinite(action.xPct) ? clampPercent(action.xPct as number) : fallback.xPct,
+    yPct: Number.isFinite(action.yPct) ? clampPercent(action.yPct as number) : fallback.yPct,
+    widthPct: Number.isFinite(action.widthPct) ? clampPercent(action.widthPct as number) : fallback.widthPct,
+    heightPct: Number.isFinite(action.heightPct) ? clampPercent(action.heightPct as number) : fallback.heightPct
+  };
+}
+
+function isActionType(value: unknown): value is ActionType {
+  return value === "url" || value === "tel" || value === "message" || value === "survey" || value === "none";
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
 }
 
 function makeGridTemplate(id: string, name: string, columns: number, rows: number): TemplateItem {

@@ -49,7 +49,7 @@ export async function createStaffNotification(
 
   const sentVia = viaLine && viaEmail ? "both" : viaLine ? "line" : "email";
 
-  await supabase.from("notifications").insert({
+  const notificationPayload = {
     staff_id: input.staffId,
     type: preferenceType,
     payload_jsonb: {
@@ -59,7 +59,16 @@ export async function createStaffNotification(
     },
     sent_via: sentVia,
     priority: input.priority ?? inferPriority(input.type, input.title, input.body)
-  });
+  };
+
+  const { error: notificationError } = await supabase
+    .from("notifications")
+    .insert(notificationPayload);
+
+  if (notificationError && isMissingPriorityColumn(notificationError.message)) {
+    const { priority: _priority, ...payloadWithoutPriority } = notificationPayload;
+    await supabase.from("notifications").insert(payloadWithoutPriority);
+  }
 
   if (viaLine && staff.line_user_id) {
     await pushLineMessage(staff.line_user_id, [
@@ -132,6 +141,10 @@ function inferPriority(type: NotificationType, title: string, body: string) {
   if (`${title} ${body}`.includes("至急")) return "urgent";
   if (type === "new_friend") return "info";
   return "normal";
+}
+
+function isMissingPriorityColumn(message: string | undefined) {
+  return Boolean(message && /priority|column .* does not exist/i.test(message));
 }
 
 function getResendFromAddress() {

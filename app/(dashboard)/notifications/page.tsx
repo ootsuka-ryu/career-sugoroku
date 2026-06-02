@@ -38,12 +38,7 @@ export default async function NotificationsPage() {
   } = await supabase.auth.getUser();
 
   const [notificationsResult, preferencesResult, staffResult] = await Promise.all([
-    supabase
-      .from("notifications")
-      .select("id, type, priority, payload_jsonb, sent_via, read_at, created_at")
-      .eq("staff_id", user?.id)
-      .order("created_at", { ascending: false })
-      .limit(50),
+    fetchNotifications(supabase, user?.id),
     supabase
       .from("notification_preferences")
       .select("type, via_line, via_email, is_enabled")
@@ -220,6 +215,38 @@ function SummaryCard({
       </CardContent>
     </Card>
   );
+}
+
+async function fetchNotifications(supabase: any, staffId?: string) {
+  const withPriority = await supabase
+    .from("notifications")
+    .select("id, type, priority, payload_jsonb, sent_via, read_at, created_at")
+    .eq("staff_id", staffId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!withPriority.error || !isMissingPriorityColumn(withPriority.error.message)) {
+    return withPriority;
+  }
+
+  const withoutPriority = await supabase
+    .from("notifications")
+    .select("id, type, payload_jsonb, sent_via, read_at, created_at")
+    .eq("staff_id", staffId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return {
+    ...withoutPriority,
+    data: (withoutPriority.data ?? []).map((notification: any) => ({
+      ...notification,
+      priority: "normal"
+    }))
+  };
+}
+
+function isMissingPriorityColumn(message: string | undefined) {
+  return Boolean(message && /priority|column .* does not exist/i.test(message));
 }
 
 function getPayloadText(payload: unknown, key: "title" | "body") {

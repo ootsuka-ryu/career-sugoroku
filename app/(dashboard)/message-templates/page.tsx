@@ -1,14 +1,13 @@
-import { FolderPlus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import {
-  createTemplateFolder,
   deleteMessageTemplate
 } from "@/app/(dashboard)/message-templates/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { CopyTemplateButton } from "@/components/message-templates/copy-template-button";
 import { MessageTemplateForm } from "@/components/message-templates/message-template-form";
+import { TemplateFolderForm } from "@/components/message-templates/template-folder-form";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MessageTemplatesPage({
@@ -51,13 +50,7 @@ export default async function MessageTemplatesPage({
             <CardTitle>フォルダ</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <form action={createTemplateFolder} className="space-y-2">
-              <Input name="name" placeholder="新しいフォルダ" />
-              <Button className="w-full" type="submit" variant="outline">
-                <FolderPlus className="mr-2 h-4 w-4" />
-                フォルダ作成
-              </Button>
-            </form>
+            <TemplateFolderForm />
             <FolderLink count={templates.length} href="/message-templates" label="すべて" />
             <FolderLink
               count={templates.filter((template: any) => !template.folder_id).length}

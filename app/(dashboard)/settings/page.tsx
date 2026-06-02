@@ -25,57 +25,68 @@ const envItems = [
   {
     key: "NEXT_PUBLIC_SUPABASE_URL",
     label: "Supabase URL",
-    required: true
+    required: true,
+    description: "データベースへ接続するための公開URLです。"
   },
   {
     key: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     label: "Supabase anon key",
-    required: true
+    required: true,
+    description: "ブラウザ側からSupabaseへ接続するための公開キーです。"
   },
   {
     key: "SUPABASE_SERVICE_ROLE_KEY",
     label: "Supabase service role key",
-    required: true
+    required: true,
+    description: "Webhookや管理処理で学生情報を安全に更新するための管理キーです。"
   },
   {
     key: "LINE_CHANNEL_ACCESS_TOKEN",
     label: "LINE Channel access token",
-    required: true
+    required: true,
+    description: "アプリから学生へLINEメッセージを送るために使います。"
   },
   {
     key: "LINE_CHANNEL_SECRET",
     label: "LINE Channel secret",
-    required: true
+    required: true,
+    description: "LINEから届いたWebhookが本物か確認するために使います。"
   },
   {
     key: "ANTHROPIC_API_KEY",
     label: "Claude API key",
-    required: false
+    required: false,
+    description: "録音要約、次アクション提案、AI判断を本格稼働させる時に使います。"
   },
   {
     key: "GROQ_API_KEY",
     label: "Groq Whisper API key",
-    required: false
+    required: false,
+    description: "録音ファイルを自動で文字起こしするために使います。未設定だと自動文字起こしは動きません。"
   },
   {
     key: "OPENAI_API_KEY",
     label: "OpenAI fallback key",
-    required: false
+    required: false,
+    description: "Groqが使えない時の文字起こしやAI処理の予備キーです。"
   },
   {
     key: "RESEND_API_KEY",
     label: "Resend API key",
-    required: false
+    required: false,
+    description: "アンケート回答などを管理者メールへ通知する時に使います。"
   },
   {
     key: "ZOOM_CLIENT_ID",
     label: "Zoom Client ID",
-    required: false
+    required: false,
+    description: "Zoom録画や面談連携を使う場合に必要です。使わないなら未設定で問題ありません。"
   },
   {
     key: "ZOOM_CLIENT_SECRET",
     label: "Zoom Client Secret",
-    required: false
+    required: false,
+    description: "Zoom連携の認証に使います。Zoom連携を使わないなら未設定で問題ありません。"
   }
 ];
 
@@ -258,6 +269,7 @@ export default async function SettingsPage() {
             <div className="grid gap-2">
               {envItems.map((item) => (
                 <EnvStatus
+                  description={item.description}
                   key={item.key}
                   label={item.label}
                   required={item.required}
@@ -455,10 +467,12 @@ function CostRow({
 }
 
 function EnvStatus({
+  description,
   label,
   value,
   required
 }: {
+  description: string;
   label: string;
   value?: string;
   required: boolean;
@@ -468,7 +482,9 @@ function EnvStatus({
     <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
       <div>
         <p className="font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{required ? "必須" : "任意"}</p>
+        <p className="text-xs text-muted-foreground">
+          {required ? "必須" : "任意"}: {description}
+        </p>
       </div>
       <Badge
         className={!configured && required ? "border-destructive text-destructive" : undefined}

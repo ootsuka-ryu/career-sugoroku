@@ -1,6 +1,19 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RECORDINGS_BUCKET = "recordings";
+const RECORDINGS_BUCKET_OPTIONS = {
+  public: false,
+  fileSizeLimit: 1024 * 1024 * 500,
+  allowedMimeTypes: [
+    "audio/webm",
+    "audio/wav",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/ogg",
+    "video/mp4"
+  ]
+};
 
 export async function uploadRecordingFile({
   bytes,
@@ -53,24 +66,19 @@ async function ensureRecordingsBucket(supabase: ReturnType<typeof createAdminCli
   }
 
   if (buckets.some((bucket) => bucket.name === RECORDINGS_BUCKET)) {
+    const { error: updateError } = await supabase.storage.updateBucket(
+      RECORDINGS_BUCKET,
+      RECORDINGS_BUCKET_OPTIONS
+    );
+    if (updateError) {
+      throw updateError;
+    }
     return;
   }
 
   const { error: createError } = await supabase.storage.createBucket(
     RECORDINGS_BUCKET,
-    {
-      public: false,
-      fileSizeLimit: 1024 * 1024 * 500,
-      allowedMimeTypes: [
-        "audio/webm",
-        "audio/wav",
-        "audio/mpeg",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/ogg",
-        "video/mp4"
-      ]
-    }
+    RECORDINGS_BUCKET_OPTIONS
   );
 
   if (createError) {
