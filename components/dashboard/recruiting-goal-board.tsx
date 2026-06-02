@@ -234,7 +234,7 @@ export function RecruitingGoalBoard({
                 <tr>
                   <th className="border px-3 py-2 text-left">区分</th>
                   {visibleMetrics.map((metric) => (
-                    <th className="border px-3 py-2 text-center" key={metric.key}>
+                    <th className="whitespace-nowrap border px-3 py-2 text-center" key={metric.key}>
                       {metric.label}
                     </th>
                   ))}
@@ -297,7 +297,7 @@ export function RecruitingGoalBoard({
                 <tr>
                   <th className="border-b px-3 py-2 text-left">月</th>
                   {visibleMetrics.map((metric) => (
-                    <th className="border-b px-3 py-2 text-center" key={metric.key}>
+                    <th className="whitespace-nowrap border-b px-3 py-2 text-center" key={metric.key}>
                       {metric.label}
                     </th>
                   ))}

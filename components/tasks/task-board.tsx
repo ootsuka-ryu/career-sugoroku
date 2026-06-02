@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { CheckCircle2, Clock, UserRound } from "lucide-react";
 import { completeGeneratedTask, completeManualTask } from "@/app/(dashboard)/tasks/actions";
 import { Badge } from "@/components/ui/badge";
@@ -42,13 +42,21 @@ export function TaskBoard({
   staffUsers: StaffTaskFilter[];
 }) {
   const [excludedStaffIds, setExcludedStaffIds] = useState<string[]>([]);
+  const [completedGeneratedKeys, setCompletedGeneratedKeys] = useState<string[]>([]);
+  const [completedManualIds, setCompletedManualIds] = useState<string[]>([]);
+  const [isPending, startTransition] = useTransition();
   const filteredGeneratedTasks = useMemo(() => {
-    if (excludedStaffIds.length === 0) return generatedTasks;
-    return generatedTasks.filter((task) => {
+    const visibleTasks = generatedTasks.filter((task) => !completedGeneratedKeys.includes(task.key));
+    if (excludedStaffIds.length === 0) return visibleTasks;
+    return visibleTasks.filter((task) => {
       if (task.assigneeIds.length === 0) return true;
       return !task.assigneeIds.some((id) => excludedStaffIds.includes(id));
     });
-  }, [excludedStaffIds, generatedTasks]);
+  }, [completedGeneratedKeys, excludedStaffIds, generatedTasks]);
+  const visibleManualTasks = useMemo(
+    () => manualTasks.filter((task) => !completedManualIds.includes(task.id)),
+    [completedManualIds, manualTasks]
+  );
 
   function toggleStaff(staff: StaffTaskFilter) {
     setExcludedStaffIds((current) => {
@@ -56,6 +64,24 @@ export function TaskBoard({
       return allExcluded
         ? current.filter((id) => !staff.ids.includes(id))
         : Array.from(new Set([...current, ...staff.ids]));
+    });
+  }
+
+  function completeGenerated(key: string) {
+    setCompletedGeneratedKeys((current) => Array.from(new Set([...current, key])));
+    const formData = new FormData();
+    formData.set("task_key", key);
+    startTransition(() => {
+      void completeGeneratedTask(formData);
+    });
+  }
+
+  function completeManual(id: string) {
+    setCompletedManualIds((current) => Array.from(new Set([...current, id])));
+    const formData = new FormData();
+    formData.set("task_id", id);
+    startTransition(() => {
+      void completeManualTask(formData);
     });
   }
 
@@ -89,13 +115,18 @@ export function TaskBoard({
                     <p className="mt-2 text-sm">{task.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{task.reason}</p>
                   </div>
-                  <form action={completeGeneratedTask}>
-                    <input name="task_key" type="hidden" value={task.key} />
-                    <Button size="sm" type="submit" variant="outline">
+                  <div>
+                    <Button
+                      disabled={isPending}
+                      onClick={() => completeGenerated(task.key)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
                       <CheckCircle2 className="mr-2 h-4 w-4" />
                       完了
                     </Button>
-                  </form>
+                  </div>
                 </div>
               </div>
             ))
@@ -118,7 +149,7 @@ export function TaskBoard({
         <CardContent className="space-y-4">
           {staffUsers.map((staff) => {
             const staffExcluded = staff.ids.every((id) => excludedStaffIds.includes(id));
-            const tasks = manualTasks.filter((task) => task.staffId && staff.ids.includes(task.staffId));
+            const tasks = visibleManualTasks.filter((task) => task.staffId && staff.ids.includes(task.staffId));
             return (
               <div
                 key={staff.displayName}
@@ -148,10 +179,16 @@ export function TaskBoard({
                       <p className="text-xs text-muted-foreground">
                         {task.studentName} / 期限 {task.dueDate ?? "-"}
                       </p>
-                      <form action={completeManualTask} className="mt-2">
-                        <input name="task_id" type="hidden" value={task.id} />
-                        <Button size="sm" type="submit" variant="outline">完了</Button>
-                      </form>
+                      <Button
+                        className="mt-2"
+                        disabled={isPending}
+                        onClick={() => completeManual(task.id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        完了
+                      </Button>
                     </div>
                   )) : <p className="text-xs text-muted-foreground">未完了タスクはありません。</p>}
                 </div>

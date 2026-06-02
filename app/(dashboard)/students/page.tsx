@@ -49,7 +49,8 @@ export default async function StudentsPage() {
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
-  const eventParticipants = (eventParticipantsResult.data ?? []).map((row: any) => ({
+  const hasOptionalEventError = isMissingOptionalEventTable(eventParticipantsResult.error);
+  const eventParticipants = (hasOptionalEventError ? [] : eventParticipantsResult.data ?? []).map((row: any) => ({
     student_id: row.student_id,
     status: row.status,
     memo: row.memo,
@@ -95,7 +96,7 @@ export default async function StudentsPage() {
         </div>
       </div>
 
-      {(studentsResult.error || tagsResult.error || staffResult.error || eventParticipantsResult.error) && (
+      {(studentsResult.error || tagsResult.error || staffResult.error || (!hasOptionalEventError && eventParticipantsResult.error)) && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive">データ取得エラー</CardTitle>
@@ -104,7 +105,7 @@ export default async function StudentsPage() {
             <p>{studentsResult.error?.message}</p>
             <p>{tagsResult.error?.message}</p>
             <p>{staffResult.error?.message}</p>
-            <p>{eventParticipantsResult.error?.message}</p>
+            <p>{!hasOptionalEventError ? eventParticipantsResult.error?.message : null}</p>
           </CardContent>
         </Card>
       )}
@@ -135,6 +136,13 @@ export default async function StudentsPage() {
       />
     </div>
   );
+}
+
+function isMissingOptionalEventTable(error: unknown) {
+  const message = typeof error === "object" && error && "message" in error
+    ? String((error as { message?: unknown }).message ?? "")
+    : "";
+  return /event_participants|recruiting_events|schema cache/i.test(message);
 }
 
 function SummaryCard({

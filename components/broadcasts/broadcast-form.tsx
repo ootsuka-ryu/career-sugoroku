@@ -209,7 +209,7 @@ function NoReplyFollowupFields({
               <input name={`followup_enabled_${index}`} type="checkbox" value="yes" />
               {index}通目の追撃を使う
             </label>
-            <div className="mt-3 grid gap-3 md:grid-cols-[10rem_10rem_1fr]">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[9rem_11rem_minmax(0,1fr)]">
               <div className="space-y-1">
                 <Label htmlFor={`followup_delay_days_${index}`}>送るタイミング</Label>
                 <select
@@ -237,7 +237,7 @@ function NoReplyFollowupFields({
                   <option value="and">AND: 両方一致</option>
                 </select>
               </div>
-              <div className="space-y-2 rounded-md bg-secondary/40 p-3">
+              <div className="min-w-0 space-y-2 rounded-md bg-secondary/40 p-3">
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     defaultChecked
@@ -247,7 +247,7 @@ function NoReplyFollowupFields({
                   />
                   返信がない
                 </label>
-                <div className="grid gap-2 md:grid-cols-[9rem_1fr]">
+                <div className="grid gap-2 xl:grid-cols-[10rem_minmax(0,1fr)]">
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       name={`followup_require_survey_unanswered_${index}`}
@@ -257,7 +257,7 @@ function NoReplyFollowupFields({
                     アンケート未回答
                   </label>
                   <select
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-9 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
                     name={`followup_survey_id_${index}`}
                   >
                     <option value="">対象アンケートを選択</option>

@@ -554,7 +554,11 @@ function uniqueSelectableAssignees(staffUsers: StaffSummary[]) {
 
 function buildRecommendedChatText(student: ReturnType<typeof normalizeStudentDetail>) {
   const aiText = localizeSampleText(student.ai_next_action)?.trim();
-  if (aiText) return aiText;
+  const aiNextAction = extractNextAction(aiText);
+  if (aiNextAction) {
+    const name = getStudentChatName(student);
+    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。\n${aiNextAction}\nご都合の良いタイミングでご返信ください。`;
+  }
 
   const manualText = localizeSampleText(student.manual_next_action)?.trim();
   if (manualText) {
@@ -586,6 +590,16 @@ function buildRecommendedChatText(student: ReturnType<typeof normalizeStudentDet
   }
 
   return "";
+}
+
+function extractNextAction(text: string | null | undefined) {
+  if (!text) return "";
+  const match = text.match(
+    /(?:次アクション|提案|送る文面|案内内容)\s*[:：]\s*([\s\S]+?)(?=\s*(?:推奨連絡手段|理由|優先度)\s*[:：]|$)/
+  );
+  if (match?.[1]) return match[1].trim();
+  if (/優先度|理由|推奨連絡手段/.test(text)) return "";
+  return text;
 }
 
 function buildRecommendedChatHref(studentId: string, draftText: string) {

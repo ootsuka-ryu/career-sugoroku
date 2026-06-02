@@ -102,11 +102,11 @@ export function StudentListTable({
   }, [eventParticipants]);
 
   const filteredStudents = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = normalizeSearchQuery(search);
 
     return students.filter((student) => {
       const studentEvents = eventsByStudent.get(student.id) ?? [];
-      const haystack = [
+      const haystack = buildSearchIndex([
         student.display_name,
         localizeSampleText(student.display_name),
         student.real_name,
@@ -133,10 +133,7 @@ export function StudentListTable({
           staff.name,
           getStaffDisplayName(staff)
         ])
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      ]);
 
       if (query && !haystack.includes(query)) return false;
       if (staffId !== "all" && !student.assignees.some((staff) => staff.id === staffId)) {
@@ -380,38 +377,39 @@ export function StudentListTable({
           {filteredStudents.length} / {students.length}名を表示
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[3300px] table-fixed">
+          <Table className="min-w-[2450px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[7rem] whitespace-nowrap">卒業年度</TableHead>
-                <TableHead className="w-[6rem] whitespace-nowrap">志望度</TableHead>
-                <TableHead className="w-[13rem] whitespace-nowrap">氏名</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">担当者</TableHead>
-                <TableHead className="w-[12rem] whitespace-nowrap">大学名</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">地元</TableHead>
-                <TableHead className="w-[11rem] whitespace-nowrap">初回接触方法</TableHead>
-                <TableHead className="w-[13rem] whitespace-nowrap">初回参加イベント</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">母集団日</TableHead>
-                <TableHead className="w-[6rem] whitespace-nowrap">ネクスト</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">姫路ツアー</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">リアルトーク会</TableHead>
-                <TableHead className="w-[12rem] whitespace-nowrap">個別会社説明会</TableHead>
-                <TableHead className="w-[11rem] whitespace-nowrap">社員交流会</TableHead>
-                <TableHead className="w-[12rem] whitespace-nowrap">薬剤師インタビュー</TableHead>
-                <TableHead className="w-[18rem] whitespace-nowrap">ネクストアクション</TableHead>
-                <TableHead className="w-[20rem] whitespace-nowrap">AI判断</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">選考会日程</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">奨学金金額</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">面接官</TableHead>
-                <TableHead className="w-[6rem] whitespace-nowrap">内定</TableHead>
-                <TableHead className="w-[7rem] whitespace-nowrap">内定内諾</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">卒業年度</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">志望度</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">担当者</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">大学名</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">地元</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">初回接触</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">初回イベント</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">母集団日</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">ネクスト</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">姫路</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">リアル</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">会社説明</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">交流会</TableHead>
+                <TableHead className="w-[10rem] whitespace-nowrap">薬剤師面談</TableHead>
+                <TableHead className="w-[14rem] whitespace-nowrap">ネクストアクション</TableHead>
+                <TableHead className="w-[16rem] whitespace-nowrap">AI判断</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">選考会</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">奨学金</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">面接官</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">内定</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">内諾</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => {
                   const studentEvents = eventsByStudent.get(student.id) ?? [];
-                  const aiSuggestion = buildAiSuggestion(student);
+                  const aiJudgement = buildAiJudgement(student);
+                  const chatDraft = buildRecommendedChatDraft(student);
                   return (
                     <TableRow key={student.id}>
                       <TableCell>{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
@@ -448,10 +446,10 @@ export function StudentListTable({
                             : "-"}
                         </div>
                       </TableCell>
-                      <TableCell>{localizeSampleText(student.university) || "-"}</TableCell>
-                      <TableCell>{localizeSampleText(student.desired_area) || "-"}</TableCell>
-                      <TableCell>{localizeSampleText(student.first_contact_method) || "-"}</TableCell>
-                      <TableCell>{getFirstParticipationEvent(studentEvents) || "-"}</TableCell>
+                      <TableCell><Clamp>{localizeSampleText(student.university) || "-"}</Clamp></TableCell>
+                      <TableCell><Clamp>{localizeSampleText(student.desired_area) || "-"}</Clamp></TableCell>
+                      <TableCell><Clamp>{localizeSampleText(student.first_contact_method) || "-"}</Clamp></TableCell>
+                      <TableCell><Clamp>{getFirstParticipationEvent(studentEvents) || "-"}</Clamp></TableCell>
                       <TableCell>{getPopulationDate(student) || "-"}</TableCell>
                       <TableCell className="text-lg">{student.funnel_next ? "✓" : "-"}</TableCell>
                       <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.himejiTour)}</TableCell>
@@ -462,6 +460,7 @@ export function StudentListTable({
                       <TableCell>
                         <p className="line-clamp-3 text-sm">
                           {localizeSampleText(student.manual_next_action) ||
+                            extractNextAction(student.ai_next_action) ||
                             localizeSampleText(student.ai_next_action) ||
                             "-"}
                         </p>
@@ -469,12 +468,12 @@ export function StudentListTable({
                       <TableCell>
                         <div className="space-y-2">
                           <p className="line-clamp-3 text-sm text-muted-foreground">
-                            {localizeSampleText(aiSuggestion) || "-"}
+                            {localizeSampleText(aiJudgement) || "-"}
                           </p>
-                          {aiSuggestion ? (
+                          {chatDraft ? (
                             <Button asChild size="sm" variant="outline">
                               <Link
-                                href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(aiSuggestion)}`}
+                                href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(chatDraft)}`}
                               >
                                 <MessageSquareText className="mr-2 h-4 w-4" />
                                 チャット
@@ -561,6 +560,31 @@ function Select({
   );
 }
 
+function Clamp({ children }: { children: ReactNode }) {
+  return <span className="line-clamp-2 break-words text-sm">{children}</span>;
+}
+
+function normalizeSearchQuery(value: string) {
+  return normalizeSearchText(value);
+}
+
+function buildSearchIndex(values: Array<string | null | undefined>) {
+  return normalizeSearchText(values.filter(Boolean).join(" "));
+}
+
+function normalizeSearchText(value: string) {
+  return toHiragana(value)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s　・.,、。-]/g, "");
+}
+
+function toHiragana(value: string) {
+  return value.replace(/[ァ-ヶ]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0x60)
+  );
+}
+
 function getEventTime(participant: StudentEventSummary) {
   return new Date(
     participant.event?.starts_at ?? participant.created_at ?? "1970-01-01T00:00:00.000Z"
@@ -609,24 +633,52 @@ function formatDateOnly(value: string | null | undefined) {
   }).format(date);
 }
 
-function buildAiSuggestion(student: StudentListItem) {
+function buildAiJudgement(student: StudentListItem) {
   const explicit = localizeSampleText(student.ai_next_action);
   if (explicit) return explicit;
 
+  if (!student.funnel_next) {
+    return "次回イベントやZoom面談の案内候補です。";
+  }
+
+  if (!student.funnel_pharmacist_interview) {
+    return "薬剤師インタビューや個別相談の案内候補です。";
+  }
+
+  return "";
+}
+
+function buildRecommendedChatDraft(student: StudentListItem) {
   const name =
     localizeSampleText(student.real_name) ||
     localizeSampleText(student.display_name) ||
     "学生";
+  const nextAction = extractNextAction(student.ai_next_action) || localizeSampleText(student.manual_next_action);
+
+  if (nextAction) {
+    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。\n${nextAction}\nご都合の良いタイミングでご返信ください。`;
+  }
 
   if (!student.funnel_next) {
-    return `${name}さん、先日はありがとうございました。次回のイベントやZoom面談について、もし興味があればお気軽にご返信ください。`;
+    return `${name}さん、こんにちは。\n先日はありがとうございました。次回のイベントやZoom面談について、もし興味があればお気軽にご返信ください。ご都合に合わせて個別にご案内します。`;
   }
 
   if (!student.funnel_pharmacist_interview) {
-    return `${name}さん、次は薬剤師インタビューや個別相談で、実際の働き方をより具体的にご案内できればと思います。`;
+    return `${name}さん、こんにちは。\n次のご案内として、薬剤師インタビューや個別相談で実際の働き方をより具体的にお伝えできればと思っています。興味があれば日程をご案内します。`;
   }
 
   return "";
+}
+
+function extractNextAction(value: string | null | undefined) {
+  const text = localizeSampleText(value)?.trim();
+  if (!text) return "";
+  const match = text.match(
+    /(?:次アクション|提案|送る文面|案内内容)\s*[:：]\s*([\s\S]+?)(?=\s*(?:推奨連絡手段|理由|優先度)\s*[:：]|$)/
+  );
+  if (match?.[1]) return match[1].trim();
+  if (/優先度|理由|推奨連絡手段/.test(text)) return "";
+  return text;
 }
 
 function extractNoteField(notes: string | null, label: string) {
