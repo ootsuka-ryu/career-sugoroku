@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const RECORDINGS_BUCKET = "recordings";
 const RECORDINGS_BUCKET_OPTIONS = {
   public: false,
-  fileSizeLimit: 1024 * 1024 * 500,
+  fileSizeLimit: 45 * 1024 * 1024,
   allowedMimeTypes: [
     "audio/webm",
     "audio/wav",
