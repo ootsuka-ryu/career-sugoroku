@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { CalendarDays } from "lucide-react";
+import type { ReactNode } from "react";
+import { CalendarDays, MapPin, Users, UserX } from "lucide-react";
 import {
   addEventParticipant,
+  cancelEventParticipant,
+  updateEventParticipant,
   updateEventSurveyLink
 } from "@/app/(dashboard)/events/actions";
 import { EventCreateForm } from "@/components/events/event-create-form";
+import { EventMessageSettingsForm } from "@/components/events/event-message-settings-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,13 +17,38 @@ import { localizeSampleText } from "@/lib/display/localize";
 import { formatDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
+const EVENT_SELECT_WITH_SETTINGS = [
+  "id",
+  "title",
+  "event_type",
+  "starts_at",
+  "location",
+  "description",
+  "survey_id",
+  "next_action",
+  "created_at",
+  "signup_message_enabled",
+  "signup_message_template",
+  "reminder_enabled",
+  "reminder_message_template"
+].join(", ");
+
+const EVENT_SELECT_FALLBACK = [
+  "id",
+  "title",
+  "event_type",
+  "starts_at",
+  "location",
+  "description",
+  "survey_id",
+  "next_action",
+  "created_at"
+].join(", ");
+
 export default async function EventsPage() {
   const supabase = createClient() as any;
-  const [eventsResult, surveysResult, studentsResult, participantsResult] = await Promise.all([
-    supabase
-      .from("recruiting_events")
-      .select("id, title, event_type, starts_at, location, description, survey_id, next_action, created_at")
-      .order("starts_at", { ascending: false, nullsFirst: false }),
+  const [eventsBundle, surveysResult, studentsResult, participantsResult] = await Promise.all([
+    fetchEvents(supabase),
     supabase.from("surveys").select("id, title, admin_title").order("updated_at", { ascending: false }),
     supabase
       .from("students")
@@ -31,7 +60,7 @@ export default async function EventsPage() {
       .select("event_id, student_id, status, memo, created_at, students(id, real_name, display_name, graduation_year, university)")
   ]);
 
-  const events = eventsResult.data ?? [];
+  const events = eventsBundle.events;
   const surveys = surveysResult.data ?? [];
   const students = studentsResult.data ?? [];
   const participants = participantsResult.data ?? [];
@@ -60,31 +89,48 @@ export default async function EventsPage() {
         <div className="space-y-4">
           {events.length > 0 ? events.map((event: any) => {
             const eventParticipants = participants.filter((item: any) => item.event_id === event.id);
-            const attended = eventParticipants.filter((item: any) => item.status === "参加").length;
-            const absent = eventParticipants.filter((item: any) => item.status === "欠席").length;
+            const countByStatus = countParticipants(eventParticipants);
             return (
-              <Card key={event.id}>
-                <CardHeader>
-                  <CardTitle className="flex flex-wrap items-center gap-2">
+              <Card key={event.id} className="border-2">
+                <CardHeader className="border-b bg-muted/30">
+                  <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
                     <CalendarDays className="h-5 w-5 text-primary" />
                     {event.title}
                     <Badge variant="secondary">{event.event_type}</Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2 text-sm md:grid-cols-4">
-                    <p>日時: {formatDateTime(event.starts_at)}</p>
-                    <p>場所: {event.location ?? "-"}</p>
-                    <p>参加: {attended}名</p>
-                    <p>欠席: {absent}名</p>
+                <CardContent className="space-y-5 pt-4">
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <InfoCard
+                      icon={<CalendarDays className="h-5 w-5 text-primary" />}
+                      label="日時"
+                      value={formatDateTime(event.starts_at)}
+                    />
+                    <InfoCard
+                      icon={<MapPin className="h-5 w-5 text-primary" />}
+                      label="場所"
+                      value={event.location ?? "-"}
+                    />
+                    <InfoCard
+                      icon={<Users className="h-5 w-5 text-primary" />}
+                      label="参加・申込"
+                      value={`${countByStatus.signup}名`}
+                    />
+                    <InfoCard
+                      icon={<UserX className="h-5 w-5 text-destructive" />}
+                      label="欠席・キャンセル"
+                      value={`${countByStatus.inactive}名`}
+                    />
                   </div>
-                  {event.description ? <p className="text-sm text-muted-foreground">{event.description}</p> : null}
+
+                  {event.description ? <p className="text-sm leading-6">{event.description}</p> : null}
+
                   <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3 text-sm md:flex-row md:items-center md:justify-between">
                     <div>
                       <span className="font-medium">紐づけアンケート: </span>
                       {event.survey_id ? (
                         <Link
-                          className="text-blue-700 underline-offset-2 hover:underline"
+                          className="text-primary underline-offset-2 hover:underline"
                           href={`/surveys?focus=${event.survey_id}`}
                         >
                           {formatSurveyName(surveyById.get(event.survey_id))}
@@ -113,32 +159,55 @@ export default async function EventsPage() {
                     </form>
                   </div>
 
+                  <EventMessageSettingsForm
+                    event={event}
+                    settingsAvailable={eventsBundle.messageSettingsAvailable}
+                  />
+
                   {eventParticipants.length > 0 ? (
                     <div className="overflow-hidden rounded-md border">
-                      <div className="grid grid-cols-[1.2fr_7rem_1.1fr_7rem_1fr] bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
+                      <div className="grid grid-cols-[1.3fr_7rem_1.1fr_8rem_1.2fr_12rem] bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
                         <span>氏名</span>
                         <span>卒業年度</span>
                         <span>大学名</span>
                         <span>状態</span>
                         <span>メモ</span>
+                        <span>操作</span>
                       </div>
                       {eventParticipants.map((participant: any) => {
                         const student = normalizeJoinedStudent(participant.students);
                         return (
-                          <div
-                            className="grid grid-cols-[1.2fr_7rem_1.1fr_7rem_1fr] border-t px-3 py-2 text-sm"
+                          <form
+                            action={updateEventParticipant}
+                            className="grid grid-cols-[1.3fr_7rem_1.1fr_8rem_1.2fr_12rem] items-center gap-2 border-t px-3 py-2 text-sm"
                             key={`${participant.event_id}-${participant.student_id}`}
                           >
-                            <span className="font-medium">
+                            <input name="event_id" type="hidden" value={participant.event_id} />
+                            <input name="student_id" type="hidden" value={participant.student_id} />
+                            <span className="font-semibold text-primary">
                               {localizeSampleText(student?.real_name) ??
                                 localizeSampleText(student?.display_name) ??
                                 "名前未登録"}
                             </span>
                             <span>{formatGraduationYear(student?.graduation_year)}</span>
                             <span>{localizeSampleText(student?.university) ?? "-"}</span>
-                            <span>{participant.status}</span>
-                            <span className="text-muted-foreground">{participant.memo || "-"}</span>
-                          </div>
+                            <select
+                              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                              defaultValue={participant.status}
+                              name="status"
+                            >
+                              {PARTICIPANT_STATUSES.map((status) => (
+                                <option key={status}>{status}</option>
+                              ))}
+                            </select>
+                            <Input defaultValue={participant.memo ?? ""} name="memo" placeholder="メモ" />
+                            <div className="flex gap-2">
+                              <Button size="sm" type="submit" variant="outline">
+                                保存
+                              </Button>
+                              <CancelParticipantButton />
+                            </div>
+                          </form>
                         );
                       })}
                     </div>
@@ -158,11 +227,9 @@ export default async function EventsPage() {
                       ))}
                     </select>
                     <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" name="status" defaultValue="参加">
-                      <option>申込</option>
-                      <option>参加</option>
-                      <option>欠席</option>
-                      <option>キャンセル</option>
-                      <option>次回案内済み</option>
+                      {PARTICIPANT_STATUSES.map((status) => (
+                        <option key={status}>{status}</option>
+                      ))}
                     </select>
                     <Input name="memo" placeholder="メモ" />
                     <Button type="submit" variant="outline">参加者追加</Button>
@@ -181,6 +248,77 @@ export default async function EventsPage() {
       </section>
     </div>
   );
+}
+
+async function fetchEvents(supabase: any) {
+  const result = await supabase
+    .from("recruiting_events")
+    .select(EVENT_SELECT_WITH_SETTINGS)
+    .order("starts_at", { ascending: false, nullsFirst: false });
+
+  if (!result.error) {
+    return {
+      events: result.data ?? [],
+      messageSettingsAvailable: true
+    };
+  }
+
+  const fallback = await supabase
+    .from("recruiting_events")
+    .select(EVENT_SELECT_FALLBACK)
+    .order("starts_at", { ascending: false, nullsFirst: false });
+
+  return {
+    events: (fallback.data ?? []).map((event: any) => ({
+      ...event,
+      signup_message_enabled: false,
+      signup_message_template: null,
+      reminder_enabled: false,
+      reminder_message_template: null
+    })),
+    messageSettingsAvailable: false
+  };
+}
+
+function InfoCard({
+  icon,
+  label,
+  value
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md border bg-background p-3 shadow-sm">
+      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <p className="mt-2 text-lg font-bold text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function CancelParticipantButton() {
+  return (
+    <button
+      formAction={cancelEventParticipant}
+      className="inline-flex h-8 items-center justify-center rounded-md border border-destructive/40 px-3 text-sm font-medium text-destructive hover:bg-destructive/10"
+      name="cancel"
+      type="submit"
+    >
+      キャンセル
+    </button>
+  );
+}
+
+const PARTICIPANT_STATUSES = ["申込", "参加", "欠席", "キャンセル", "次回案内済み"];
+
+function countParticipants(participants: any[]) {
+  const signup = participants.filter((item) => ["申込", "参加"].includes(item.status)).length;
+  const inactive = participants.filter((item) => ["欠席", "キャンセル"].includes(item.status)).length;
+  return { signup, inactive };
 }
 
 function formatSurveyName(survey: any) {

@@ -15,7 +15,7 @@ type WorkerContext = {
 
 const cronRoutes: Record<string, string[]> = {
   "*/10 * * * *": ["/api/broadcasts/run"],
-  "0 * * * *": ["/api/broadcast-followups/run"],
+  "0 * * * *": ["/api/broadcast-followups/run", "/api/event-reminders/run"],
   "0 22 * * *": ["/api/ai/next-actions/run?limit=100"],
   "55 14 * * *": ["/api/cron/recruiting-monthly-snapshot"]
 };
