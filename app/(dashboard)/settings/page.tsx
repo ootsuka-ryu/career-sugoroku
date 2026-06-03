@@ -336,32 +336,53 @@ export default async function SettingsPage() {
                       <p className="font-medium">{staff.name}</p>
                       <p className="text-sm text-muted-foreground">{staff.email}</p>
                     </div>
-                    <Badge variant={staff.role === "admin" ? "accent" : "secondary"}>
-                      {staff.role === "admin" ? "管理者" : "スタッフ"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={staff.role === "admin" ? "accent" : "secondary"}>
+                        {staff.role === "admin" ? "管理者" : "スタッフ"}
+                      </Badge>
+                    </div>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
                     LINE通知: {staff.line_user_id ? "設定済み" : "未設定"}
                   </p>
-                  <form action={updateStaffUser} className="mt-3 grid gap-2 rounded-md bg-secondary/40 p-3">
-                    <input name="id" type="hidden" value={staff.id} />
-                    <Input defaultValue={staff.name ?? ""} name="name" placeholder="スタッフ名" required />
-                    <Input defaultValue={staff.email ?? ""} name="email" placeholder="メールアドレス" type="email" required />
-                    <Input
-                      defaultValue={staff.line_user_id ?? ""}
-                      name="line_user_id"
-                      placeholder="スタッフ通知用LINE userId"
-                    />
-                    <select
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                      defaultValue={staff.role ?? "staff"}
-                      name="role"
-                    >
-                      <option value="staff">一般スタッフ</option>
-                      <option value="admin">管理者</option>
-                    </select>
-                    <Button size="sm" type="submit">情報を保存</Button>
-                  </form>
+                  <details className="mt-3 rounded-md border bg-secondary/30 p-3">
+                    <summary className="cursor-pointer list-none">
+                      <span className="inline-flex rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
+                        編集する
+                      </span>
+                    </summary>
+                    <form action={updateStaffUser} className="mt-3 grid gap-2">
+                      <input name="id" type="hidden" value={staff.id} />
+                      <label className="grid gap-1 text-sm font-medium">
+                        スタッフ名
+                        <Input defaultValue={staff.name ?? ""} name="name" placeholder="スタッフ名" required />
+                      </label>
+                      <label className="grid gap-1 text-sm font-medium">
+                        メールアドレス
+                        <Input defaultValue={staff.email ?? ""} name="email" placeholder="メールアドレス" type="email" required />
+                      </label>
+                      <label className="grid gap-1 text-sm font-medium">
+                        スタッフ通知用LINE userId
+                        <Input
+                          defaultValue={staff.line_user_id ?? ""}
+                          name="line_user_id"
+                          placeholder="Uから始まるLINE userId"
+                        />
+                      </label>
+                      <label className="grid gap-1 text-sm font-medium">
+                        権限
+                        <select
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                          defaultValue={staff.role ?? "staff"}
+                          name="role"
+                        >
+                          <option value="staff">一般スタッフ</option>
+                          <option value="admin">管理者</option>
+                        </select>
+                      </label>
+                      <Button size="sm" type="submit">変更を保存</Button>
+                    </form>
+                  </details>
                   {staff.is_active ? (
                     <form action={deactivateStaffUser} className="mt-3">
                       <input name="id" type="hidden" value={staff.id} />
