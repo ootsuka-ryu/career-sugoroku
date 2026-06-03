@@ -215,7 +215,7 @@ export function ChatConsole({
               </div>
             </header>
 
-            <div className="min-h-[18rem] flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-4">
               {currentMessages.length > 0 ? (
                 currentMessages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
@@ -433,9 +433,12 @@ function ChatComposer({
 
     try {
       const parsed = JSON.parse(template.body);
-      if (Array.isArray(parsed)) {
-        setCarouselItems(parsed);
+      const items = normalizeCarouselTemplate(parsed);
+      if (items.length > 0) {
+        setCarouselItems(items);
         setTab("carousel");
+        setUploadMessage(`${template.title}をカルーセルに読み込みました。`);
+        return;
       }
     } catch {
       setText(template.body);
@@ -500,7 +503,7 @@ function ChatComposer({
   }
 
   return (
-    <form action={formAction} className="space-y-4 border-t bg-card p-4">
+    <form action={formAction} className="max-h-[42vh] space-y-4 overflow-y-auto border-t bg-card p-4">
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
       <input name="image_url" type="hidden" value={imageUrl} />
@@ -675,6 +678,43 @@ function buildInitialComposerText(initialText: string, initialPdfUrl: string) {
 
   const pdfLine = `PDFはこちら\n${pdfUrl}`;
   return text ? `${text}\n\n${pdfLine}` : pdfLine;
+}
+
+function normalizeCarouselTemplate(value: unknown) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : value &&
+        typeof value === "object" &&
+        "panels" in value &&
+        Array.isArray((value as { panels?: unknown }).panels)
+      ? (value as { panels: unknown[] }).panels
+      : [];
+
+  return rawItems
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return {
+          title: "",
+          description: "",
+          imageUrl: "",
+          url: "",
+          buttonLabel: "詳細を見る"
+        };
+      }
+
+      const record = item as Record<string, any>;
+      const firstButton = Array.isArray(record.buttons) ? record.buttons[0] : null;
+      const action = firstButton?.action ?? {};
+
+      return {
+        title: String(record.title ?? "").trim(),
+        description: String(record.description ?? "").trim(),
+        imageUrl: String(record.imageUrl ?? record.image_url ?? "").trim(),
+        url: String(record.url ?? action.url ?? action.value ?? "").trim(),
+        buttonLabel: String(record.buttonLabel ?? firstButton?.label ?? "詳細を見る").trim()
+      };
+    })
+    .filter((item) => item.title || item.imageUrl || item.url);
 }
 
 function ComposerTab({
