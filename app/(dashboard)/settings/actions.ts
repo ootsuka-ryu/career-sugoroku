@@ -11,6 +11,10 @@ const staffSchema = z.object({
   line_user_id: z.string().trim().optional()
 });
 
+const updateStaffSchema = staffSchema.extend({
+  id: z.string().uuid()
+});
+
 export async function addStaffUser(formData: FormData) {
   const parsed = staffSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return;
@@ -24,6 +28,22 @@ export async function addStaffUser(formData: FormData) {
     line_user_id: parsed.data.line_user_id || null,
     is_active: true
   });
+  revalidatePath("/settings");
+}
+
+export async function updateStaffUser(formData: FormData) {
+  const parsed = updateStaffSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+  const supabase = createClient() as any;
+  await supabase
+    .from("staff_users")
+    .update({
+      email: parsed.data.email,
+      name: parsed.data.name,
+      role: parsed.data.role,
+      line_user_id: parsed.data.line_user_id || null
+    })
+    .eq("id", parsed.data.id);
   revalidatePath("/settings");
 }
 

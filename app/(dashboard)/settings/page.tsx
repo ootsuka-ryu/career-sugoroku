@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Users
 } from "lucide-react";
-import { addStaffUser, deactivateStaffUser } from "@/app/(dashboard)/settings/actions";
+import { addStaffUser, deactivateStaffUser, updateStaffUser } from "@/app/(dashboard)/settings/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -343,6 +343,25 @@ export default async function SettingsPage() {
                   <p className="mt-2 text-sm text-muted-foreground">
                     LINE通知: {staff.line_user_id ? "設定済み" : "未設定"}
                   </p>
+                  <form action={updateStaffUser} className="mt-3 grid gap-2 rounded-md bg-secondary/40 p-3">
+                    <input name="id" type="hidden" value={staff.id} />
+                    <Input defaultValue={staff.name ?? ""} name="name" placeholder="スタッフ名" required />
+                    <Input defaultValue={staff.email ?? ""} name="email" placeholder="メールアドレス" type="email" required />
+                    <Input
+                      defaultValue={staff.line_user_id ?? ""}
+                      name="line_user_id"
+                      placeholder="スタッフ通知用LINE userId"
+                    />
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      defaultValue={staff.role ?? "staff"}
+                      name="role"
+                    >
+                      <option value="staff">一般スタッフ</option>
+                      <option value="admin">管理者</option>
+                    </select>
+                    <Button size="sm" type="submit">情報を保存</Button>
+                  </form>
                   {staff.is_active ? (
                     <form action={deactivateStaffUser} className="mt-3">
                       <input name="id" type="hidden" value={staff.id} />
