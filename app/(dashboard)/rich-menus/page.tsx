@@ -7,10 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function RichMenusPage() {
   const supabase = createClient() as any;
   const [menusResult, tagsResult, surveysResult] = await Promise.all([
-    supabase
-      .from("rich_menus")
-      .select("id, name, layout_jsonb, image_url, is_default, target_tag_ids, created_at, updated_at")
-      .order("updated_at", { ascending: false }),
+    fetchRichMenus(supabase),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
       .from("surveys")
@@ -64,4 +61,29 @@ export default async function RichMenusPage() {
       />
     </div>
   );
+}
+
+async function fetchRichMenus(supabase: any) {
+  const withLineSync = await supabase
+    .from("rich_menus")
+    .select("id, name, layout_jsonb, image_url, is_default, target_tag_ids, line_rich_menu_id, line_synced_at, line_sync_status, line_sync_error, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (!withLineSync.error) return withLineSync;
+
+  const fallback = await supabase
+    .from("rich_menus")
+    .select("id, name, layout_jsonb, image_url, is_default, target_tag_ids, created_at, updated_at")
+    .order("updated_at", { ascending: false });
+
+  return {
+    ...fallback,
+    data: (fallback.data ?? []).map((menu: any) => ({
+      ...menu,
+      line_rich_menu_id: null,
+      line_synced_at: null,
+      line_sync_status: "schema_missing",
+      line_sync_error: null
+    }))
+  };
 }

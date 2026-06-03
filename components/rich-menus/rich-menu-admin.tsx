@@ -10,11 +10,13 @@ import {
   Plus,
   Save,
   Search,
-  Trash2
+  Trash2,
+  UploadCloud
 } from "lucide-react";
 import {
   deleteRichMenu,
   saveRichMenu,
+  syncRichMenu,
   type RichMenuActionState
 } from "@/app/(dashboard)/rich-menus/actions";
 import { SurveyMediaPicker } from "@/components/surveys/survey-media-picker";
@@ -44,6 +46,10 @@ type RichMenuItem = {
   is_default: boolean;
   target_tag_ids: unknown;
   layout_jsonb: unknown;
+  line_rich_menu_id: string | null;
+  line_synced_at: string | null;
+  line_sync_status: string | null;
+  line_sync_error: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -248,18 +254,19 @@ export function RichMenuAdmin({
         </div>
 
         <div className="overflow-x-auto rounded-md border bg-white">
-          <div className="grid min-w-[900px] grid-cols-[2rem_1.5fr_1fr_1fr_1.4fr_1fr] bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+          <div className="grid min-w-[1180px] grid-cols-[2rem_1.4fr_0.8fr_0.8fr_1.2fr_1.1fr_1.5fr] bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
             <span></span>
             <span>リッチメニュー名</span>
             <span>メニュー初期状態</span>
             <span>画像</span>
             <span>対象タグ</span>
+            <span>LINE反映</span>
             <span>操作</span>
           </div>
           {filteredMenus.length > 0 ? (
             filteredMenus.map((menu) => (
               <div
-                className="grid min-w-[900px] grid-cols-[2rem_1.5fr_1fr_1fr_1.4fr_1fr] items-center border-t px-4 py-3 text-sm"
+                className="grid min-w-[1180px] grid-cols-[2rem_1.4fr_0.8fr_0.8fr_1.2fr_1.1fr_1.5fr] items-center border-t px-4 py-3 text-sm"
                 key={menu.id}
               >
                 <input type="checkbox" />
@@ -285,7 +292,9 @@ export function RichMenuAdmin({
                 <span className="truncate" title={formatTargetTags(menu.target_tag_ids, tags, false)}>
                   {formatTargetTags(menu.target_tag_ids, tags)}
                 </span>
+                <LineSyncStatus menu={menu} />
                 <div className="flex gap-2">
+                  <SyncMenuButton menuId={menu.id} />
                   <Button onClick={() => startEdit(menu)} size="sm" type="button" variant="outline">
                     編集
                   </Button>
@@ -643,6 +652,64 @@ function RangeField({
       />
     </label>
   );
+}
+
+function SyncMenuButton({ menuId }: { menuId: string }) {
+  const [state, action] = useFormState(syncRichMenu, initialState);
+  return (
+    <form action={action} className="space-y-1">
+      <input name="rich_menu_id" type="hidden" value={menuId} />
+      <SyncMenuSubmitButton />
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
+function SyncMenuSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button disabled={pending} size="sm" type="submit" variant="outline">
+      <UploadCloud className="mr-1 h-4 w-4" />
+      {pending ? "反映中..." : "LINEに反映"}
+    </Button>
+  );
+}
+
+function LineSyncStatus({ menu }: { menu: RichMenuItem }) {
+  if (menu.line_sync_status === "schema_missing") {
+    return <span className="text-xs text-amber-700">DB準備が必要</span>;
+  }
+
+  if (menu.line_sync_status === "syncing") {
+    return <span className="text-xs text-blue-700">反映中</span>;
+  }
+
+  if (menu.line_sync_status === "failed") {
+    return (
+      <span className="text-xs text-red-700" title={menu.line_sync_error ?? undefined}>
+        反映失敗
+      </span>
+    );
+  }
+
+  if (menu.line_sync_status === "synced" && menu.line_synced_at) {
+    return (
+      <span className="text-xs text-green-700">
+        反映済み {formatDateTime(menu.line_synced_at)}
+      </span>
+    );
+  }
+
+  return <span className="text-xs text-slate-500">未反映</span>;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit"
+  }).format(new Date(value));
 }
 
 function DeleteMenuButton({ menuId }: { menuId: string }) {
