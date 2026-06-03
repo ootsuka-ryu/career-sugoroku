@@ -52,6 +52,7 @@ export async function createTemplateFolder(
 }
 
 const templateSchema = z.object({
+  template_id: z.string().uuid().optional().or(z.literal("")),
   title: z.string().trim().min(1),
   body: z.string().trim().min(1),
   kind: z.string().trim().min(1),
@@ -70,13 +71,25 @@ export async function createMessageTemplate(
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  const { error } = await supabase.from("message_templates").insert({
+  const payload = {
     title: parsed.data.title,
     body: parsed.data.body,
     kind: parsed.data.kind,
     folder_id: parsed.data.folder_id || null,
     created_by: user?.id ?? null
-  });
+  };
+
+  const { error } = parsed.data.template_id
+    ? await supabase
+        .from("message_templates")
+        .update({
+          title: payload.title,
+          body: payload.body,
+          kind: payload.kind,
+          folder_id: payload.folder_id
+        })
+        .eq("id", parsed.data.template_id)
+    : await supabase.from("message_templates").insert(payload);
 
   if (error) {
     return {
@@ -88,7 +101,15 @@ export async function createMessageTemplate(
   }
 
   revalidatePath("/message-templates");
-  return { ok: true, message: "テンプレートを保存しました。" };
+  if (parsed.data.template_id) {
+    revalidatePath(`/message-templates/${parsed.data.template_id}/edit`);
+  }
+  return {
+    ok: true,
+    message: parsed.data.template_id
+      ? "テンプレートを更新しました。"
+      : "テンプレートを保存しました。"
+  };
 }
 
 export async function deleteMessageTemplate(formData: FormData) {

@@ -35,6 +35,14 @@ type CarouselPanel = {
   buttons: CarouselButton[];
 };
 
+type MessageTemplateInitialValue = {
+  id: string;
+  title: string;
+  body: string;
+  kind: string;
+  folder_id: string | null;
+};
+
 const initialState: MessageTemplateActionState = {
   ok: false,
   message: ""
@@ -68,18 +76,28 @@ function createPanel(): CarouselPanel {
   };
 }
 
-export function MessageTemplateForm({ folders }: { folders: FolderOption[] }) {
+export function MessageTemplateForm({
+  folders,
+  initialTemplate
+}: {
+  folders: FolderOption[];
+  initialTemplate?: MessageTemplateInitialValue;
+}) {
   const [state, formAction] = useFormState(createMessageTemplate, initialState);
-  const [kind, setKind] = useState<TemplateKind>("carousel");
-  const [body, setBody] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [mediaMemo, setMediaMemo] = useState("");
-  const [panels, setPanels] = useState<CarouselPanel[]>([createPanel()]);
+  const initialParsed = useMemo(
+    () => parseInitialTemplate(initialTemplate),
+    [initialTemplate]
+  );
+  const [kind, setKind] = useState<TemplateKind>(initialParsed.kind);
+  const [body, setBody] = useState(initialParsed.body);
+  const [imageUrl, setImageUrl] = useState(initialParsed.imageUrl);
+  const [mediaMemo, setMediaMemo] = useState(initialParsed.mediaMemo);
+  const [panels, setPanels] = useState<CarouselPanel[]>(initialParsed.panels);
   const [selectedPanelIndex, setSelectedPanelIndex] = useState(0);
-  const [tapLimit, setTapLimit] = useState("once_all");
-  const [limitTextMode, setLimitTextMode] = useState("default_reply");
-  const [limitActionMode, setLimitActionMode] = useState("same");
-  const [pcAltText, setPcAltText] = useState("");
+  const [tapLimit, setTapLimit] = useState(initialParsed.tapLimit);
+  const [limitTextMode, setLimitTextMode] = useState(initialParsed.limitTextMode);
+  const [limitActionMode, setLimitActionMode] = useState(initialParsed.limitActionMode);
+  const [pcAltText, setPcAltText] = useState(initialParsed.pcAltText);
   const [editingAction, setEditingAction] = useState<{
     panelIndex: number;
     buttonIndex: number;
@@ -197,17 +215,24 @@ export function MessageTemplateForm({ folders }: { folders: FolderOption[] }) {
 
   return (
     <form action={formAction} className="space-y-5">
+      <input name="template_id" type="hidden" value={initialTemplate?.id ?? ""} />
       <div className="grid gap-4 md:grid-cols-[360px_230px]">
         <div className="space-y-2">
           <label className="text-sm font-medium">
             テンプレート名 <span className="rounded bg-destructive px-1 py-0.5 text-xs text-white">必須</span>
           </label>
-          <Input name="title" placeholder="テンプレート名を入力" required />
+          <Input
+            defaultValue={initialTemplate?.title ?? ""}
+            name="title"
+            placeholder="テンプレート名を入力"
+            required
+          />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium">フォルダ</label>
           <select
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            defaultValue={initialTemplate?.folder_id ?? ""}
             name="folder_id"
           >
             <option value="">未分類</option>
@@ -638,6 +663,94 @@ function getActionSummary(action: CarouselAction) {
   if (action.type === "survey") return `回答フォーム: ${action.value || "未入力"}`;
   if (action.type === "text") return `テキスト送信: ${action.value || "未入力"}`;
   return "アクション未設定";
+}
+
+function parseInitialTemplate(initialTemplate?: MessageTemplateInitialValue) {
+  const fallback = {
+    kind: "carousel" as TemplateKind,
+    body: "",
+    imageUrl: "",
+    mediaMemo: "",
+    panels: [createPanel()],
+    tapLimit: "once_all",
+    limitTextMode: "default_reply",
+    limitActionMode: "same",
+    pcAltText: ""
+  };
+
+  if (!initialTemplate) return fallback;
+
+  const kind = isTemplateKind(initialTemplate.kind) ? initialTemplate.kind : "text";
+  if (kind === "text") {
+    return {
+      ...fallback,
+      kind,
+      body: initialTemplate.body
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(initialTemplate.body) as Record<string, any>;
+    if (kind === "carousel" && parsed.type === "carousel") {
+      return {
+        ...fallback,
+        kind,
+        panels: normalizePanels(parsed.panels),
+        tapLimit: String(parsed.options?.tapLimit ?? fallback.tapLimit),
+        limitTextMode: String(parsed.options?.limitTextMode ?? fallback.limitTextMode),
+        limitActionMode: String(parsed.options?.limitActionMode ?? fallback.limitActionMode),
+        pcAltText: String(parsed.options?.pcAltText ?? "")
+      };
+    }
+    if (kind === "image" && parsed.type === "image") {
+      return {
+        ...fallback,
+        kind,
+        imageUrl: String(parsed.imageUrl ?? "")
+      };
+    }
+    return {
+      ...fallback,
+      kind,
+      mediaMemo: String(parsed.memo ?? initialTemplate.body)
+    };
+  } catch {
+    return {
+      ...fallback,
+      kind,
+      body: initialTemplate.body
+    };
+  }
+}
+
+function normalizePanels(value: unknown): CarouselPanel[] {
+  if (!Array.isArray(value) || value.length === 0) return [createPanel()];
+  return value.slice(0, 10).map((panel: any) => ({
+    title: String(panel?.title ?? ""),
+    description: String(panel?.description ?? ""),
+    imageUrl: String(panel?.imageUrl ?? ""),
+    buttons: normalizeButtons(panel?.buttons)
+  }));
+}
+
+function normalizeButtons(value: unknown): CarouselButton[] {
+  if (!Array.isArray(value) || value.length === 0) return createPanel().buttons;
+  return value.slice(0, 4).map((button: any) => ({
+    label: String(button?.label ?? ""),
+    action: {
+      type: isCarouselActionType(button?.action?.type) ? button.action.type : "none",
+      value: String(button?.action?.value ?? ""),
+      timing: button?.action?.timing === "after_reply" ? "after_reply" : "now"
+    }
+  }));
+}
+
+function isTemplateKind(value: string): value is TemplateKind {
+  return tabs.some((tab) => tab.value === value);
+}
+
+function isCarouselActionType(value: unknown): value is CarouselAction["type"] {
+  return value === "text" || value === "url" || value === "survey" || value === "none";
 }
 
 function SubmitButton() {

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyTemplateButton } from "@/components/message-templates/copy-template-button";
 import { MessageTemplateForm } from "@/components/message-templates/message-template-form";
 import { TemplateFolderForm } from "@/components/message-templates/template-folder-form";
+import { TemplatePreview } from "@/components/message-templates/template-preview";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MessageTemplatesPage({
@@ -82,30 +83,55 @@ export default async function MessageTemplatesPage({
             <CardHeader>
               <CardTitle>保存済みテンプレート</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {visibleTemplates.length > 0 ? visibleTemplates.map((template: any) => (
-                <div className="rounded-md border p-4" key={template.id}>
-                  <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">{template.title}</p>
-                        <Badge variant="secondary">{template.kind}</Badge>
-                      </div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{template.body}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <CopyTemplateButton body={template.body} />
-                      <form action={deleteMessageTemplate}>
-                        <input name="id" type="hidden" value={template.id} />
-                        <Button size="sm" type="submit" variant="outline">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          削除
-                        </Button>
-                      </form>
-                    </div>
+            <CardContent>
+              {visibleTemplates.length > 0 ? (
+                <div className="overflow-hidden rounded-md border">
+                  <div className="grid grid-cols-[2rem_1fr_9rem_11rem] items-center bg-muted px-3 py-2 text-sm font-medium text-muted-foreground">
+                    <span></span>
+                    <span>テンプレート名</span>
+                    <span>登録日</span>
+                    <span>操作</span>
                   </div>
+                  {visibleTemplates.map((template: any) => (
+                    <div
+                      className="grid grid-cols-[2rem_1fr_9rem_11rem] items-center border-t px-3 py-3 text-sm"
+                      key={template.id}
+                    >
+                      <input type="checkbox" />
+                      <div className="min-w-0">
+                        <a
+                          className="font-semibold text-blue-700 underline-offset-2 hover:underline"
+                          href={`/message-templates/${template.id}/edit`}
+                        >
+                          {template.title}
+                        </a>
+                        <div className="mt-1">
+                          <TemplatePreview body={template.body} compact kind={template.kind} />
+                        </div>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {formatDate(template.updated_at)}
+                      </span>
+                      <div className="flex gap-2">
+                        <a
+                          className="rounded-md border px-3 py-2 text-xs hover:bg-muted"
+                          href={`/message-templates/${template.id}/edit`}
+                        >
+                          プレビュー
+                        </a>
+                        <CopyTemplateButton body={template.body} />
+                        <form action={deleteMessageTemplate}>
+                          <input name="id" type="hidden" value={template.id} />
+                          <Button size="sm" type="submit" variant="outline">
+                            <Trash2 className="mr-1 h-4 w-4" />
+                            削除
+                          </Button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )) : (
+              ) : (
                 <p className="text-sm text-muted-foreground">テンプレートはまだありません。</p>
               )}
             </CardContent>
@@ -114,6 +140,14 @@ export default async function MessageTemplatesPage({
       </section>
     </div>
   );
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
 }
 
 function FolderLink({ href, label, count }: { href: string; label: string; count: number }) {
