@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import {
   Edit3,
   Folder,
+  FolderPlus,
   GripVertical,
   Plus,
   Save,
@@ -12,7 +13,12 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { deleteTag, saveTag, type TagActionState } from "@/app/(dashboard)/tags/actions";
+import {
+  createTagFolder,
+  deleteTag,
+  saveTag,
+  type TagActionState
+} from "@/app/(dashboard)/tags/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { localizeSampleText } from "@/lib/display/localize";
@@ -48,6 +54,7 @@ export function TagAdmin({
   const [selectedFolderId, setSelectedFolderId] = useState(folders[0]?.id ?? "");
   const [editing, setEditing] = useState<TagItem | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showFolderForm, setShowFolderForm] = useState(false);
   const normalizedQuery = query.trim().toLowerCase();
 
   useEffect(() => {
@@ -81,13 +88,23 @@ export function TagAdmin({
     setShowForm(false);
   }
 
+  function startCreateFolder() {
+    setShowForm(false);
+    setEditing(null);
+    setShowFolderForm(true);
+  }
+
+  function closeFolderForm() {
+    setShowFolderForm(false);
+  }
+
   return (
     <div className="grid min-h-[560px] gap-4 lg:grid-cols-[216px_1fr]">
       <aside className="border-r bg-secondary/30">
         <div className="p-3">
-          <Button className="w-full justify-start" onClick={startCreate} size="sm" type="button" variant="outline">
-            <Plus className="mr-2 h-4 w-4" />
-            新しいタグ
+          <Button className="w-full justify-start" onClick={startCreateFolder} size="sm" type="button" variant="outline">
+            <FolderPlus className="mr-2 h-4 w-4" />
+            新しいフォルダ
           </Button>
         </div>
         <nav className="space-y-0.5 px-2 pb-3">
@@ -134,6 +151,8 @@ export function TagAdmin({
             </div>
           </div>
         </div>
+
+        {showFolderForm ? <TagFolderForm onCancel={closeFolderForm} /> : null}
 
         {showForm ? <TagForm editing={editing} onCancel={closeForm} /> : null}
 
@@ -188,6 +207,23 @@ export function TagAdmin({
         </div>
       </section>
     </div>
+  );
+}
+
+function TagFolderForm({ onCancel }: { onCancel: () => void }) {
+  const [state, action] = useFormState(createTagFolder, initialState);
+
+  return (
+    <form action={action} className="mb-3 grid gap-2 border bg-muted/30 p-3 md:grid-cols-[1fr_1fr_auto_auto]">
+      <Input name="name" placeholder="フォルダ名" required />
+      <Input name="description" placeholder="説明（任意）" />
+      <FolderSubmitButton />
+      <Button onClick={onCancel} type="button" variant="outline">
+        <X className="mr-2 h-4 w-4" />
+        閉じる
+      </Button>
+      <FormMessage state={state} />
+    </form>
   );
 }
 
@@ -264,6 +300,16 @@ function SubmitButton({ editing }: { editing: boolean }) {
     <Button disabled={pending} type="submit">
       {editing ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
       {pending ? "保存中..." : editing ? "更新" : "作成"}
+    </Button>
+  );
+}
+
+function FolderSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button disabled={pending} type="submit">
+      <FolderPlus className="mr-2 h-4 w-4" />
+      {pending ? "作成中..." : "フォルダ作成"}
     </Button>
   );
 }
