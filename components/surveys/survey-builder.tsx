@@ -421,7 +421,13 @@ function SectionEditor({
             >
               <input name="survey_id" type="hidden" value={surveyId} />
               <input name="section_id" type="hidden" value={section?.id ?? ""} />
-              <Button disabled={!section} size="sm" type="submit" variant="outline">
+              <Button
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={!section}
+                size="sm"
+                type="submit"
+                variant="outline"
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 セクション削除
               </Button>
