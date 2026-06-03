@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildStudentProfileUpdateFromSurveyAnswers } from "@/lib/surveys/profile-updates";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -108,91 +109,11 @@ async function applyProfileUpdates(
   answers: Record<string, Json>,
   respondentName?: string | null
 ) {
-  const update: Record<string, unknown> = {};
-
-  if (respondentName) {
-    update.real_name = respondentName;
-    update.display_name = respondentName;
-  }
-
-  for (const question of questions) {
-    const label = String(question.label ?? "");
-    const lowerLabel = label.toLowerCase();
-    const answer = answers[question.id];
-
-    if (
-      (label.includes("氏名") || label.includes("名前") || lowerLabel.includes("name")) &&
-      typeof answer === "string" &&
-      answer
-    ) {
-      update.real_name = answer;
-      update.display_name = answer;
-    }
-
-    if (
-      (label.includes("ふりがな") ||
-        label.includes("フリガナ") ||
-        label.includes("カナ") ||
-        lowerLabel.includes("kana")) &&
-      typeof answer === "string" &&
-      answer
-    ) {
-      update.kana = answer;
-    }
-
-    if (
-      (label.includes("大学") || lowerLabel.includes("university") || lowerLabel.includes("college")) &&
-      typeof answer === "string" &&
-      answer
-    ) {
-      update.university = answer;
-    }
-
-    if (
-      (label.includes("卒業年") ||
-        label.includes("卒業年度") ||
-        label.includes("卒業予定") ||
-        lowerLabel.includes("graduation")) &&
-      answer
-    ) {
-      const graduationYear = parseGraduationYear(answer);
-      if (graduationYear) update.graduation_year = graduationYear;
-    }
-
-    if (
-      (question.validation_type === "email" ||
-        label.includes("メール") ||
-        lowerLabel.includes("email")) &&
-      typeof answer === "string" &&
-      answer
-    ) {
-      update.email = answer;
-    }
-
-    if (
-      (question.validation_type === "phone" ||
-        label.includes("電話") ||
-        lowerLabel.includes("phone") ||
-        lowerLabel.includes("tel")) &&
-      typeof answer === "string" &&
-      answer
-    ) {
-      update.phone = answer;
-    }
-  }
+  const update = buildStudentProfileUpdateFromSurveyAnswers(questions, answers, respondentName);
 
   if (Object.keys(update).length > 0) {
     await supabase.from("students").update(update).eq("id", studentId);
   }
-}
-
-function parseGraduationYear(answer: Json) {
-  const value = Array.isArray(answer) ? String(answer[0] ?? "") : String(answer ?? "");
-  const match = value.match(/20\d{2}/);
-  if (!match) return null;
-
-  const year = Number(match[0]);
-  return year >= 2000 && year <= 2100 ? year : null;
 }
 
 async function applyTagRules(
