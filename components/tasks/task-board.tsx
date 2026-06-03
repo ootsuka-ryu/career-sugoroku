@@ -17,6 +17,7 @@ export type GeneratedTaskView = {
   university: string;
   priority: number;
   assigneeIds: string[];
+  assignees: Array<{ id: string; displayName: string }>;
 };
 
 export type ManualTaskView = {
@@ -25,6 +26,7 @@ export type ManualTaskView = {
   dueDate: string | null;
   studentName: string;
   staffId: string | null;
+  staffName: string | null;
 };
 
 export type StaffTaskFilter = {
@@ -112,6 +114,18 @@ export function TaskBoard({
                       </Link>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{task.university}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">担当:</span>
+                      {task.assignees.length > 0 ? (
+                        task.assignees.map((staff) => (
+                          <Badge key={staff.id} variant="outline">
+                            {staff.displayName}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="secondary">未設定</Badge>
+                      )}
+                    </div>
                     <p className="mt-2 text-sm">{task.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{task.reason}</p>
                   </div>
@@ -178,6 +192,9 @@ export function TaskBoard({
                       <p className="font-medium">{task.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {task.studentName} / 期限 {task.dueDate ?? "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        担当: {task.staffName ?? "未設定"}
                       </p>
                       <Button
                         className="mt-2"

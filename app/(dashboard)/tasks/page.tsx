@@ -38,7 +38,8 @@ export default async function TasksPage() {
     title: task.title,
     dueDate: task.due_date,
     studentName: task.students?.real_name ?? task.students?.display_name ?? "学生未指定",
-    staffId: task.staff_users?.id ?? null
+    staffId: task.staff_users?.id ?? null,
+    staffName: task.staff_users ? getStaffDisplayName(task.staff_users) : null
   })) as ManualTaskView[];
   const staffUsers = uniqueVisibleStaff(staffResult.data ?? []);
 
@@ -77,6 +78,13 @@ function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
     const assigneeIds = (student.student_assignees ?? [])
       .map((relation: any) => relation.staff_users?.id)
       .filter(Boolean) as string[];
+    const assignees = (student.student_assignees ?? [])
+      .map((relation: any) => relation.staff_users)
+      .filter(Boolean)
+      .map((staff: any) => ({
+        id: staff.id,
+        displayName: getStaffDisplayName(staff)
+      }));
 
     if (student.last_outbound_at && !inboundAfterOutbound && outboundDays !== null && outboundDays >= 3) {
       tasks.push({
@@ -87,7 +95,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
         studentName,
         university,
         priority: outboundDays >= 14 ? 95 : outboundDays >= 7 ? 85 : 70,
-        assigneeIds
+        assigneeIds,
+        assignees
       });
     }
 
@@ -101,7 +110,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
         studentName,
         university,
         priority: 90,
-        assigneeIds
+        assigneeIds,
+        assignees
       });
     }
 
@@ -114,7 +124,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
         studentName,
         university,
         priority: 80,
-        assigneeIds
+        assigneeIds,
+        assignees
       });
     }
   }

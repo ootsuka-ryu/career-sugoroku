@@ -36,7 +36,8 @@ export default async function ChatPage({
         line_user_id,
         last_inbound_at,
         last_outbound_at,
-        student_tags(tags(id, name, color))
+        student_tags(tags(id, name, color)),
+        student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
       `
       )
       .order("last_inbound_at", { ascending: false, nullsFirst: false }),
@@ -70,6 +71,9 @@ export default async function ChatPage({
     last_outbound_at: row.last_outbound_at,
     tags: (row.student_tags ?? [])
       .map((relation: any) => relation.tags)
+      .filter(Boolean),
+    assignees: (row.student_assignees ?? [])
+      .map((relation: any) => relation.staff_users)
       .filter(Boolean)
   })) as ChatStudent[];
 

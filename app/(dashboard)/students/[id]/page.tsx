@@ -29,6 +29,7 @@ import { getStaffDisplayName, uniqueStaffByDisplayName } from "@/lib/staff/displ
 import { createClient } from "@/lib/supabase/server";
 import { getCandidateStageLabel, getMotivationRankLabel } from "@/lib/students/options";
 import { normalizeStudentDetail } from "@/lib/students/normalize";
+import { buildRecommendedChatDraft } from "@/lib/students/recommended-chat";
 import type {
   StaffSummary,
   StudentActionItem,
@@ -174,7 +175,7 @@ export default async function StudentDetailPage({
     recordings,
     eventParticipants
   });
-  const recommendedChatText = buildRecommendedChatText(student);
+  const recommendedChatText = buildRecommendedChatDraft(student);
   const recommendedChatHref = buildRecommendedChatHref(student.id, recommendedChatText);
 
   return (
@@ -552,76 +553,11 @@ function uniqueSelectableAssignees(staffUsers: StaffSummary[]) {
   return uniqueStaffByDisplayName(staffUsers.filter(isSelectableAssignee));
 }
 
-function buildRecommendedChatText(student: ReturnType<typeof normalizeStudentDetail>) {
-  const aiText = localizeSampleText(student.ai_next_action)?.trim();
-  const aiNextAction = extractNextAction(aiText);
-  if (aiNextAction) {
-    const name = getStudentChatName(student);
-    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。\n${aiNextAction}\nご都合の良いタイミングでご返信ください。`;
-  }
-
-  const manualText = localizeSampleText(student.manual_next_action)?.trim();
-  if (manualText) {
-    const name = getStudentChatName(student);
-    return `${name}さん、こんにちは。\n${manualText}\nご都合の良いタイミングでご返信ください。`;
-  }
-
-  const name = getStudentChatName(student);
-  const daysSinceOutbound = getDaysSince(student.last_outbound_at);
-  const lastOutboundIsNewer =
-    student.last_outbound_at &&
-    (!student.last_inbound_at ||
-      new Date(student.last_outbound_at).getTime() > new Date(student.last_inbound_at).getTime());
-
-  if (lastOutboundIsNewer && daysSinceOutbound !== null && daysSinceOutbound >= 5) {
-    return `${name}さん、こんにちは。\n先日お送りしたご案内について、もしご興味があればお気軽にご返信ください。ご都合に合わせて個別にご案内します。`;
-  }
-
-  const isHighMotivation =
-    ["A", "B"].includes(String(student.motivation_rank ?? "").toUpperCase()) ||
-    Number(student.motivation_level ?? 0) >= 4;
-
-  if (isHighMotivation && !student.funnel_next) {
-    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。先日はありがとうございました。次のステップとして、Zoom面談や店舗見学の日程をご相談できればと思っています。ご都合の良い日程があれば教えてください。`;
-  }
-
-  if (student.funnel_next && !student.funnel_pharmacist_interview) {
-    return `${name}さん、こんにちは。\n次のご案内として、薬剤師インタビューや個別相談で実際の働き方をより具体的にお伝えできればと思っています。興味があれば日程をご案内します。`;
-  }
-
-  return "";
-}
-
-function extractNextAction(text: string | null | undefined) {
-  if (!text) return "";
-  const match = text.match(
-    /(?:次アクション|提案|送る文面|案内内容)\s*[:：]\s*([\s\S]+?)(?=\s*(?:推奨連絡手段|理由|優先度)\s*[:：]|$)/
-  );
-  if (match?.[1]) return match[1].trim();
-  if (/優先度|理由|推奨連絡手段/.test(text)) return "";
-  return text;
-}
-
 function buildRecommendedChatHref(studentId: string, draftText: string) {
   return {
     pathname: "/chat",
     query: draftText ? { studentId, draft: draftText, tab: "text" } : { studentId }
   };
-}
-
-function getStudentChatName(student: ReturnType<typeof normalizeStudentDetail>) {
-  return (
-    localizeSampleText(student.real_name) ||
-    localizeSampleText(student.display_name) ||
-    "学生"
-  );
-}
-
-function getDaysSince(value: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
 function buildTimeline({

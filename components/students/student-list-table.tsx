@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { FilterX, MessageSquareText } from "lucide-react";
+import { FilterX, MessageSquareText, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,10 @@ import {
   getMotivationRankLabel,
   motivationRanks
 } from "@/lib/students/options";
+import {
+  buildRecommendedChatDraft,
+  extractNextAction
+} from "@/lib/students/recommended-chat";
 import type { StaffSummary, StudentListItem, TagSummary } from "@/lib/students/types";
 import {
   UNIVERSITY_CLASSIFICATION_TAG_NAMES,
@@ -382,6 +386,7 @@ export function StudentListTable({
               <TableRow>
                 <TableHead className="w-[6rem] whitespace-nowrap">卒業年度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">志望度</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">写真</TableHead>
                 <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>
                 <TableHead className="w-[8rem] whitespace-nowrap">担当者</TableHead>
                 <TableHead className="w-[10rem] whitespace-nowrap">大学名</TableHead>
@@ -415,6 +420,9 @@ export function StudentListTable({
                       <TableCell>{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
                       <TableCell className="font-medium">
                         {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
+                      </TableCell>
+                      <TableCell>
+                        <StudentPhoto student={student} />
                       </TableCell>
                       <TableCell>
                         <div className="min-w-0">
@@ -492,7 +500,7 @@ export function StudentListTable({
                 })
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={22}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={23}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>
@@ -562,6 +570,29 @@ function Select({
 
 function Clamp({ children }: { children: ReactNode }) {
   return <span className="line-clamp-2 break-words text-sm">{children}</span>;
+}
+
+function StudentPhoto({ student }: { student: StudentListItem }) {
+  const name =
+    localizeSampleText(student.real_name) ||
+    localizeSampleText(student.display_name) ||
+    "学生";
+
+  if (student.photo_url) {
+    return (
+      <img
+        alt={`${name}の写真`}
+        className="h-10 w-10 rounded-full border object-cover"
+        src={student.photo_url}
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-secondary text-muted-foreground">
+      <UserRound className="h-5 w-5" />
+    </div>
+  );
 }
 
 function normalizeSearchQuery(value: string) {
@@ -646,39 +677,6 @@ function buildAiJudgement(student: StudentListItem) {
   }
 
   return "";
-}
-
-function buildRecommendedChatDraft(student: StudentListItem) {
-  const name =
-    localizeSampleText(student.real_name) ||
-    localizeSampleText(student.display_name) ||
-    "学生";
-  const nextAction = extractNextAction(student.ai_next_action) || localizeSampleText(student.manual_next_action);
-
-  if (nextAction) {
-    return `${name}さん、こんにちは。\nゴダイ薬局の採用担当です。\n${nextAction}\nご都合の良いタイミングでご返信ください。`;
-  }
-
-  if (!student.funnel_next) {
-    return `${name}さん、こんにちは。\n先日はありがとうございました。次回のイベントやZoom面談について、もし興味があればお気軽にご返信ください。ご都合に合わせて個別にご案内します。`;
-  }
-
-  if (!student.funnel_pharmacist_interview) {
-    return `${name}さん、こんにちは。\n次のご案内として、薬剤師インタビューや個別相談で実際の働き方をより具体的にお伝えできればと思っています。興味があれば日程をご案内します。`;
-  }
-
-  return "";
-}
-
-function extractNextAction(value: string | null | undefined) {
-  const text = localizeSampleText(value)?.trim();
-  if (!text) return "";
-  const match = text.match(
-    /(?:次アクション|提案|送る文面|案内内容)\s*[:：]\s*([\s\S]+?)(?=\s*(?:推奨連絡手段|理由|優先度)\s*[:：]|$)/
-  );
-  if (match?.[1]) return match[1].trim();
-  if (/優先度|理由|推奨連絡手段/.test(text)) return "";
-  return text;
 }
 
 function extractNoteField(notes: string | null, label: string) {

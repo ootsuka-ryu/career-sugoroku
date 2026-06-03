@@ -29,6 +29,7 @@ export type ChatStudent = {
   last_inbound_at: string | null;
   last_outbound_at: string | null;
   tags: Array<{ id: string; name: string; color: string }>;
+  assignees: Array<{ id: string; name: string; email: string }>;
 };
 
 export type ChatMessage = {
@@ -102,6 +103,7 @@ export function ChatConsole({
         student.real_name,
         student.display_name,
         localizeSampleText(student.university),
+        ...student.assignees.map((staff) => getStaffDisplayName(staff)),
         ...student.tags.map((tag) => localizeSampleText(tag.name))
       ]
         .filter(Boolean)
@@ -148,6 +150,12 @@ export function ChatConsole({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {localizeSampleText(student.university) || "大学未登録"}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      担当:{" "}
+                      {student.assignees.length > 0
+                        ? student.assignees.map((staff) => getStaffDisplayName(staff)).join(" / ")
+                        : "未設定"}
+                    </p>
                   </div>
                   {!student.line_user_id ? (
                     <Badge variant="outline">LINE未連携</Badge>
@@ -183,6 +191,12 @@ export function ChatConsole({
                 <p className="text-sm text-muted-foreground">
                   受信 {formatDateTime(currentStudent.last_inbound_at)} / 送信{" "}
                   {formatDateTime(currentStudent.last_outbound_at)}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  担当:{" "}
+                  {currentStudent.assignees.length > 0
+                    ? currentStudent.assignees.map((staff) => getStaffDisplayName(staff)).join(" / ")
+                    : "未設定"}
                 </p>
               </div>
               <div className="flex gap-2">
