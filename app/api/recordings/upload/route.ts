@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { processRecording } from "@/lib/recordings/process";
 import { uploadRecordingFile } from "@/lib/recordings/storage";
 
+const MAX_RECORDING_UPLOAD_BYTES = 45 * 1024 * 1024;
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -36,6 +38,17 @@ export async function POST(request: Request) {
     );
   }
 
+  if (audio.size > MAX_RECORDING_UPLOAD_BYTES) {
+    return NextResponse.json(
+      {
+        error:
+          `音声ファイルが大きすぎます。現在 ${formatBytes(audio.size)} です。` +
+          `保存できる目安は ${formatBytes(MAX_RECORDING_UPLOAD_BYTES)} までなので、短く録音するか、mp3/m4a/webmに圧縮してからアップロードしてください。`
+      },
+      { status: 413 }
+    );
+  }
+
   if (!["browser", "upload"].includes(source)) {
     return NextResponse.json({ error: "Invalid source" }, { status: 400 });
   }
@@ -50,8 +63,19 @@ export async function POST(request: Request) {
       studentId
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("maximum allowed size")) {
+      return NextResponse.json(
+        {
+          error:
+            `Supabaseの保存上限を超えています。現在の音声サイズは ${formatBytes(audio.size)} です。` +
+            "Storage全体の上限、またはrecordingsバケットの上限を確認してください。"
+        },
+        { status: 413 }
+      );
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "音声ファイルを保存できませんでした。" },
+      { error: message || "音声ファイルを保存できませんでした。" },
       { status: 500 }
     );
   }
@@ -105,4 +129,17 @@ function isUploadedFile(value: FormDataEntryValue | null): value is File {
       "size" in value &&
       Number(value.size) > 0
   );
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 MB";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  const precision = unitIndex === 0 ? 0 : size >= 10 ? 1 : 2;
+  return `${size.toFixed(precision)} ${units[unitIndex]}`;
 }

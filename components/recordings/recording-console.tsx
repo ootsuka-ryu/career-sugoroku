@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+const MAX_RECORDING_UPLOAD_BYTES = 45 * 1024 * 1024;
+
 type StudentOption = {
   id: string;
   name: string;
@@ -66,10 +68,16 @@ export function RecordingConsole({
     return file;
   }, [browserBlob, file]);
 
+  const selectedAudioSize = selectedAudio ? formatBytes(selectedAudio.size) : null;
+
   async function startRecording() {
     setStatus("");
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
+    const mimeType = getSupportedRecordingMimeType();
+    const recorder = new MediaRecorder(stream, {
+      ...(mimeType ? { mimeType } : {}),
+      audioBitsPerSecond: 32000
+    });
     const started = Date.now();
     chunksRef.current = [];
     recorderRef.current = recorder;
@@ -82,7 +90,7 @@ export function RecordingConsole({
 
     recorder.onstop = () => {
       stream.getTracks().forEach((track) => track.stop());
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
       const recordedDurationSec = Math.max(1, Math.round((Date.now() - started) / 1000));
       const audioFile = new File([blob], "browser-recording.webm", {
         type: blob.type || "audio/webm"
@@ -122,6 +130,14 @@ export function RecordingConsole({
   ) {
     if (!studentId) {
       setStatus("学生を選んでください。");
+      return;
+    }
+
+    if (audioFile.size > MAX_RECORDING_UPLOAD_BYTES) {
+      setStatus(
+        `音声ファイルが大きすぎます。現在 ${formatBytes(audioFile.size)} です。` +
+          `保存できる目安は ${formatBytes(MAX_RECORDING_UPLOAD_BYTES)} までなので、録音を短くするか、mp3/m4a/webmに圧縮してからアップロードしてください。`
+      );
       return;
     }
 
@@ -228,6 +244,12 @@ export function RecordingConsole({
             <audio className="w-full" controls src={browserUrl}>
               <track kind="captions" />
             </audio>
+          ) : null}
+
+          {selectedAudioSize ? (
+            <p className="rounded-md bg-secondary/60 px-3 py-2 text-sm text-muted-foreground">
+              選択中の音声サイズ: {selectedAudioSize}
+            </p>
           ) : null}
 
           <div className="space-y-2">
@@ -358,4 +380,28 @@ function formatDateTime(value: string | null) {
     dateStyle: "short",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function getSupportedRecordingMimeType() {
+  if (typeof MediaRecorder === "undefined") return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4"
+  ];
+  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 MB";
+  const units = ["B", "KB", "MB", "GB"];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  const precision = unitIndex === 0 ? 0 : size >= 10 ? 1 : 2;
+  return `${size.toFixed(precision)} ${units[unitIndex]}`;
 }
