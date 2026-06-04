@@ -7,6 +7,7 @@ import {
   Play,
   RotateCw,
   Square,
+  Trash2,
   Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ export function RecordingConsole({
   const [status, setStatus] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingRecordingId, setDeletingRecordingId] = useState("");
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [durationSec, setDurationSec] = useState<number | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -193,6 +195,38 @@ export function RecordingConsole({
     window.location.reload();
   }
 
+  async function deleteRecording(recordingId: string) {
+    if (!confirm("この録音・文字起こし・AI要約を削除します。元に戻せません。よろしいですか？")) {
+      return;
+    }
+
+    setDeletingRecordingId(recordingId);
+    setStatus("録音を削除しています。");
+
+    try {
+      const response = await fetch(`/api/recordings/${recordingId}`, {
+        method: "DELETE"
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setStatus(result.error ?? "録音の削除に失敗しました。");
+        return;
+      }
+
+      setStatus(
+        result.storageWarning
+          ? `録音一覧から削除しました。${result.storageWarning}`
+          : "録音を削除しました。"
+      );
+      window.setTimeout(() => window.location.reload(), 400);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "録音の削除に失敗しました。");
+    } finally {
+      setDeletingRecordingId("");
+    }
+  }
+
   return (
     <div className="grid gap-4 xl:grid-cols-[0.42fr_0.58fr]">
       <Card>
@@ -328,15 +362,32 @@ export function RecordingConsole({
                       {recording.source} / {formatDateTime(recording.recorded_at)}
                     </p>
                   </div>
-                  <Button
-                    onClick={() => processExisting(recording.id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <RotateCw className="mr-2 h-4 w-4" />
-                    AI処理
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      disabled={deletingRecordingId === recording.id}
+                      onClick={() => processExisting(recording.id)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <RotateCw className="mr-2 h-4 w-4" />
+                      AI処理
+                    </Button>
+                    <Button
+                      disabled={deletingRecordingId === recording.id}
+                      onClick={() => deleteRecording(recording.id)}
+                      size="sm"
+                      type="button"
+                      variant="destructive"
+                    >
+                      {deletingRecordingId === recording.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-4 w-4" />
+                      )}
+                      削除
+                    </Button>
+                  </div>
                 </div>
                 <audio className="w-full" controls src={recording.audio_url}>
                   <track kind="captions" />

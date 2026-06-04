@@ -58,6 +58,17 @@ export async function uploadRecordingFile({
   };
 }
 
+export async function removeRecordingFileByUrl(audioUrl: string | null | undefined) {
+  const path = getRecordingPathFromUrl(audioUrl);
+  if (!path) return;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.storage.from(RECORDINGS_BUCKET).remove([path]);
+  if (error) {
+    throw error;
+  }
+}
+
 async function ensureRecordingsBucket(supabase: ReturnType<typeof createAdminClient>) {
   const { data: buckets, error } = await supabase.storage.listBuckets();
 
@@ -111,4 +122,19 @@ function normalizeContentType(fileName: string, contentType: string) {
   if (lowerName.endsWith(".m4a")) return "audio/x-m4a";
   if (lowerName.endsWith(".ogg")) return "audio/ogg";
   return "audio/webm";
+}
+
+function getRecordingPathFromUrl(audioUrl: string | null | undefined) {
+  if (!audioUrl) return "";
+
+  try {
+    const url = new URL(audioUrl);
+    const marker = `/storage/v1/object/sign/${RECORDINGS_BUCKET}/`;
+    const markerIndex = url.pathname.indexOf(marker);
+    if (markerIndex === -1) return "";
+
+    return decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+  } catch {
+    return "";
+  }
 }
