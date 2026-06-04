@@ -7,10 +7,12 @@ export type RecordingSummary = {
 
 export async function summarizeRecordingWithClaude({
   transcript,
-  companyContext
+  companyContext,
+  studentContext
 }: {
   transcript: string;
   companyContext: string;
+  studentContext: string;
 }): Promise<RecordingSummary> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
@@ -36,6 +38,10 @@ export async function summarizeRecordingWithClaude({
           "あなたは薬学生の新卒採用を支援する採用担当者です。",
           "録音の文字起こしから、事実と推測を混同せず、日本語で実務に使える要約を作成してください。",
           "学生の関心、希望条件、懸念、温度感、約束事項を優先して抽出してください。",
+          "次アクションは、対象学生のプロフィール、過去チャット、アンケート、参加イベント、対応履歴、過去録音をすべて考慮してください。",
+          "既に完了した対応や、学生が断った内容を再提案しないでください。",
+          "対象学生に送る・確認する・案内するなど、対象学生に対する具体的な次アクションだけを最大3件作成してください。",
+          "録音が一般的な会議・市場観察・別の学生についての内容で、対象学生との関連が確認できない場合は、無理に推測せずnextActionsを空配列にしてください。",
           "次アクションは、誰が・いつまでに・何をするか分かる具体的な内容にしてください。",
           "必ずMarkdownのコード枠を付けず、JSONだけを返してください。",
           "形式は {\"summary\":\"要約\",\"nextActions\":[\"担当者が期限までに行う具体的な対応\"],\"tagCandidates\":[\"タグ候補\"],\"urgent\":false} としてください。",
@@ -47,7 +53,12 @@ export async function summarizeRecordingWithClaude({
             content: [
               {
                 type: "text",
-                text: `会社・採用方針:\n${companyContext || "(未登録)"}\n\n録音の文字起こし:\n${transcript}`
+                text: [
+                  `現在日時: ${new Date().toISOString()}`,
+                  `会社・採用方針:\n${companyContext || "(未登録)"}`,
+                  `対象学生の情報とこれまでの履歴:\n${studentContext || "(取得できる学生情報なし)"}`,
+                  `今回の録音の文字起こし:\n${transcript}`
+                ].join("\n\n")
               }
             ]
           }
