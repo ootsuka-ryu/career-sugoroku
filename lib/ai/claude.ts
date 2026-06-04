@@ -37,7 +37,9 @@ export async function summarizeRecordingWithClaude({
           "録音の文字起こしから、事実と推測を混同せず、日本語で実務に使える要約を作成してください。",
           "学生の関心、希望条件、懸念、温度感、約束事項を優先して抽出してください。",
           "次アクションは、誰が・いつまでに・何をするか分かる具体的な内容にしてください。",
-          "必ずJSONだけを返し、キーはsummary, nextActions, tagCandidates, urgentにしてください。"
+          "必ずMarkdownのコード枠を付けず、JSONだけを返してください。",
+          "形式は {\"summary\":\"要約\",\"nextActions\":[\"担当者が期限までに行う具体的な対応\"],\"tagCandidates\":[\"タグ候補\"],\"urgent\":false} としてください。",
+          "nextActionsとtagCandidatesは必ず文字列の配列にしてください。"
         ].join("\n"),
         messages: [
           {
@@ -66,23 +68,80 @@ export async function summarizeRecordingWithClaude({
     content?: Array<{ type: string; text?: string }>;
   };
   const text = data.content?.find((item) => item.type === "text")?.text ?? "";
+  const jsonText = extractJsonText(text);
 
   try {
-    const parsed = JSON.parse(text) as RecordingSummary;
+    const parsed = JSON.parse(jsonText) as Record<string, unknown>;
     return {
-      summary: parsed.summary ?? "",
-      nextActions: Array.isArray(parsed.nextActions) ? parsed.nextActions : [],
-      tagCandidates: Array.isArray(parsed.tagCandidates) ? parsed.tagCandidates : [],
+      summary: typeof parsed.summary === "string" ? parsed.summary.trim() : "",
+      nextActions: normalizeNextActions(parsed.nextActions),
+      tagCandidates: normalizeStringArray(parsed.tagCandidates),
       urgent: Boolean(parsed.urgent)
     };
   } catch {
     return {
-      summary: text || "Claude returned an empty response.",
+      summary: jsonText || "Claudeから要約が返されませんでした。",
       nextActions: [],
       tagCandidates: [],
       urgent: false
     };
   }
+}
+
+function extractJsonText(text: string) {
+  const trimmed = text.trim();
+  const withoutFence = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+  const firstBrace = withoutFence.indexOf("{");
+  const lastBrace = withoutFence.lastIndexOf("}");
+
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return withoutFence.slice(firstBrace, lastBrace + 1);
+  }
+
+  return withoutFence;
+}
+
+function normalizeNextActions(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      if (!item || typeof item !== "object") return "";
+
+      const action = item as Record<string, unknown>;
+      const who = getStringValue(action, ["who", "owner", "担当", "担当者"]);
+      const by = getStringValue(action, ["by", "deadline", "期限"]);
+      const what = getStringValue(action, ["what", "action", "内容", "対応"]);
+      const parts = [
+        who ? `担当: ${who}` : "",
+        by ? `期限: ${by}` : "",
+        what ? `内容: ${what}` : ""
+      ].filter(Boolean);
+
+      return parts.join(" / ");
+    })
+    .filter(Boolean);
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getStringValue(value: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    if (typeof value[key] === "string" && value[key].trim()) {
+      return value[key].trim();
+    }
+  }
+  return "";
 }
 
 async function buildClaudeApiError(response: Response) {
