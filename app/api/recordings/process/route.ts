@@ -46,14 +46,21 @@ export async function POST(request: Request) {
     }
   }
 
-  const result = await processRecording({
-    supabase: admin,
-    recordingId,
-    audioFile,
-    transcriptOverride: recording.transcript ?? undefined
-  }).catch((error) => ({
-    error: error instanceof Error ? error.message : "AI処理に失敗しました。"
-  }));
+  try {
+    const result = await processRecording({
+      supabase: admin,
+      recordingId,
+      audioFile,
+      transcriptOverride: recording.transcript ?? undefined
+    });
 
-  return NextResponse.json(result);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "AI処理に失敗しました。"
+      },
+      { status: 502 }
+    );
+  }
 }

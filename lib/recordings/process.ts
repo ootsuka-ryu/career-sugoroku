@@ -27,6 +27,13 @@ export async function processRecording({
     };
   }
 
+  const { error: transcriptUpdateError } = await supabase
+    .from("recordings")
+    .update({ transcript })
+    .eq("id", recordingId);
+
+  if (transcriptUpdateError) throw transcriptUpdateError;
+
   const companyContext = await fetchCompanyContext(supabase);
   const summary = await summarizeRecordingWithClaude({
     transcript,
@@ -43,7 +50,6 @@ export async function processRecording({
   await supabase
     .from("recordings")
     .update({
-      transcript,
       ai_summary: summary.summary,
       ai_next_action: nextAction,
       ai_tag_candidates: summary.tagCandidates

@@ -15,52 +15,51 @@ export async function summarizeRecordingWithClaude({
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey || apiKey.startsWith("your-")) {
-    return {
-      summary:
-        "Claude API is not configured yet. This is a placeholder summary for the uploaded recording.",
-      nextActions: [
-        "面談内容を確認する",
-        "学生の希望条件をプロフィールに反映する",
-        "次回連絡日を設定する"
-      ],
-      tagCandidates: ["Needs Review"],
-      urgent: false
-    };
+    throw new Error(
+      "Claude APIキーが設定されていません。CloudflareのSecretにANTHROPIC_API_KEYを登録し、再デプロイしてください。"
+    );
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01"
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5",
-      max_tokens: 900,
-      system:
-        "You summarize Japanese pharmacist recruiting interviews. Return strict JSON with keys summary, nextActions, tagCandidates, urgent.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Company context:\n${companyContext || "(none)"}\n\nTranscript:\n${transcript}`
-            }
-          ]
-        }
-      ]
-    })
-  }).catch(() => null);
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+        max_tokens: 1200,
+        system: [
+          "あなたは薬学生の新卒採用を支援する採用担当者です。",
+          "録音の文字起こしから、事実と推測を混同せず、日本語で実務に使える要約を作成してください。",
+          "学生の関心、希望条件、懸念、温度感、約束事項を優先して抽出してください。",
+          "次アクションは、誰が・いつまでに・何をするか分かる具体的な内容にしてください。",
+          "必ずJSONだけを返し、キーはsummary, nextActions, tagCandidates, urgentにしてください。"
+        ].join("\n"),
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `会社・採用方針:\n${companyContext || "(未登録)"}\n\n録音の文字起こし:\n${transcript}`
+              }
+            ]
+          }
+        ]
+      })
+    });
+  } catch {
+    throw new Error(
+      "Claude APIに接続できませんでした。少し待ってから再実行してください。"
+    );
+  }
 
-  if (!response?.ok) {
-    return {
-      summary: "Claude summarization failed. Please retry after checking the API key.",
-      nextActions: ["要約を再実行する"],
-      tagCandidates: [],
-      urgent: false
-    };
+  if (!response.ok) {
+    throw new Error(await buildClaudeApiError(response));
   }
 
   const data = (await response.json()) as {
@@ -83,5 +82,28 @@ export async function summarizeRecordingWithClaude({
       tagCandidates: [],
       urgent: false
     };
+  }
+}
+
+async function buildClaudeApiError(response: Response) {
+  const data = (await response.json().catch(() => null)) as {
+    error?: { message?: string; type?: string };
+  } | null;
+  const detail = data?.error?.message?.trim();
+  const suffix = detail ? ` 詳細: ${detail}` : "";
+
+  switch (response.status) {
+    case 400:
+      return `Claudeへのリクエスト内容が不正です。モデル設定などを確認してください。${suffix}`;
+    case 401:
+      return `Claude APIキーが無効です。CloudflareのANTHROPIC_API_KEYを新しいキーへ更新してください。${suffix}`;
+    case 403:
+      return `Claude APIを利用する権限がありません。Anthropicの利用設定・組織・APIキーを確認してください。${suffix}`;
+    case 404:
+      return `指定したClaudeモデルを利用できません。ANTHROPIC_MODELの設定を確認してください。${suffix}`;
+    case 429:
+      return `Claude APIの利用上限に達したか、Anthropicのクレジット残高が不足しています。Anthropic ConsoleのUsageとBillingを確認してください。${suffix}`;
+    default:
+      return `Claudeによる要約に失敗しました（HTTP ${response.status}）。${suffix}`;
   }
 }
