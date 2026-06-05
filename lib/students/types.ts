@@ -41,6 +41,9 @@ export type StudentListItem = {
   manual_next_action: string | null;
   notes: string | null;
   photo_url: string | null;
+  photo_position_x: number;
+  photo_position_y: number;
+  photo_scale: number;
   status: string;
   created_at: string;
   updated_at: string;

@@ -605,11 +605,17 @@ function StudentPhoto({ student }: { student: StudentListItem }) {
 
   if (student.photo_url) {
     return (
-      <img
-        alt={`${name}の写真`}
-        className="h-10 w-10 rounded-full border object-cover"
-        src={student.photo_url}
-      />
+      <div className="h-10 w-10 overflow-hidden rounded-full border">
+        <img
+          alt={`${name}の写真`}
+          className="h-full w-full object-cover"
+          src={student.photo_url}
+          style={{
+            objectPosition: `${student.photo_position_x}% ${student.photo_position_y}%`,
+            transform: `scale(${student.photo_scale / 100})`
+          }}
+        />
+      </div>
     );
   }
 

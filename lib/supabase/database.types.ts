@@ -92,6 +92,9 @@ export type Database = {
           manual_next_action: string | null;
           notes: string | null;
           photo_url: string | null;
+          photo_position_x: number;
+          photo_position_y: number;
+          photo_scale: number;
           status: string;
           funnel_entry: boolean;
           funnel_uncontacted: boolean;

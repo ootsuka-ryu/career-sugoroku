@@ -189,6 +189,13 @@ const photoSchema = z.object({
   student_id: z.string().uuid()
 });
 
+const photoPositionSchema = z.object({
+  student_id: z.string().uuid(),
+  photo_position_x: z.coerce.number().int().min(0).max(100),
+  photo_position_y: z.coerce.number().int().min(0).max(100),
+  photo_scale: z.coerce.number().int().min(100).max(200)
+});
+
 export async function uploadStudentPhoto(
   _prevState: StudentActionState = emptyState,
   formData: FormData
@@ -231,10 +238,25 @@ export async function uploadStudentPhoto(
       .eq("id", parsed.data.student_id)
       .maybeSingle();
 
-    const { error } = await supabase
+    const photoPayload = {
+      photo_url: photoUrl,
+      photo_position_x: 50,
+      photo_position_y: 50,
+      photo_scale: 100
+    };
+
+    let { error } = await supabase
       .from("students")
-      .update({ photo_url: photoUrl })
+      .update(photoPayload)
       .eq("id", parsed.data.student_id);
+
+    if (error && isMissingPhotoPositionColumnError(error)) {
+      const retry = await supabase
+        .from("students")
+        .update({ photo_url: photoUrl })
+        .eq("id", parsed.data.student_id);
+      error = retry.error;
+    }
 
     if (error) {
       if (error.message?.includes("photo_url")) {
@@ -253,7 +275,7 @@ export async function uploadStudentPhoto(
       targetTable: "students",
       targetId: parsed.data.student_id,
       before,
-      after: { photo_url: photoUrl }
+      after: photoPayload
     });
 
     revalidatePath("/students");
@@ -265,6 +287,72 @@ export async function uploadStudentPhoto(
       message: error instanceof Error ? error.message : "顔写真をアップロードできませんでした。"
     };
   }
+}
+
+export async function updateStudentPhotoPosition(
+  _prevState: StudentActionState = emptyState,
+  formData: FormData
+): Promise<StudentActionState> {
+  const parsed = photoPositionSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return { ok: false, message: "写真位置の値を確認してください。" };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, message: "ログインが必要です。" };
+
+  const input = parsed.data;
+  const { data: before } = await supabase
+    .from("students")
+    .select("*")
+    .eq("id", input.student_id)
+    .maybeSingle();
+
+  const payload = {
+    photo_position_x: input.photo_position_x,
+    photo_position_y: input.photo_position_y,
+    photo_scale: input.photo_scale
+  };
+
+  const { error } = await supabase
+    .from("students")
+    .update(payload)
+    .eq("id", input.student_id);
+
+  if (error) {
+    if (isMissingPhotoPositionColumnError(error)) {
+      return {
+        ok: false,
+        message: "Supabaseで 18_student_photo_position.sql を先に実行してください。"
+      };
+    }
+    return { ok: false, message: error.message };
+  }
+
+  await writeAuditLog(supabase, {
+    actorStaffId: user.id,
+    action: "学生顔写真位置更新",
+    targetTable: "students",
+    targetId: input.student_id,
+    before,
+    after: payload
+  });
+
+  revalidatePath("/students");
+  revalidatePath(`/students/${input.student_id}`);
+  return { ok: true, message: "顔写真の表示位置を保存しました。" };
+}
+
+function isMissingPhotoPositionColumnError(error: any) {
+  if (!error?.message) return false;
+  return ["photo_position_x", "photo_position_y", "photo_scale"].some((column) =>
+    error.message.includes(column)
+  );
 }
 
 const assigneeSchema = z.object({

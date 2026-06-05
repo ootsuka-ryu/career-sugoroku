@@ -270,7 +270,13 @@ export default async function StudentDetailPage({
               <CardTitle>顔写真</CardTitle>
             </CardHeader>
             <CardContent>
-              <StudentPhotoCard photoUrl={student.photo_url} studentId={student.id} />
+              <StudentPhotoCard
+                photoPositionX={student.photo_position_x}
+                photoPositionY={student.photo_position_y}
+                photoScale={student.photo_scale}
+                photoUrl={student.photo_url}
+                studentId={student.id}
+              />
             </CardContent>
           </Card>
 
