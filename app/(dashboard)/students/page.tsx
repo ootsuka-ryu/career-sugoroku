@@ -13,7 +13,11 @@ import { isHighMotivationRank } from "@/lib/students/options";
 import { normalizeStudentListItem } from "@/lib/students/normalize";
 import type { StaffSummary, TagSummary } from "@/lib/students/types";
 
-export default async function StudentsPage() {
+export default async function StudentsPage({
+  searchParams
+}: {
+  searchParams?: { graduationYear?: string };
+}) {
   const supabase = createClient();
 
   const [studentsResult, tagsResult, staffResult, eventParticipantsResult] = await Promise.all([
@@ -47,6 +51,13 @@ export default async function StudentsPage() {
   ]);
 
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
+  const selectedGraduationYear = Number(searchParams?.graduationYear);
+  const scopedStudents = Number.isFinite(selectedGraduationYear)
+    ? students.filter(
+        (student) =>
+          !student.graduation_year || student.graduation_year === selectedGraduationYear
+      )
+    : students;
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const hasOptionalEventError = isMissingOptionalEventTable(eventParticipantsResult.error);
@@ -59,12 +70,12 @@ export default async function StudentsPage() {
       ? row.recruiting_events[0] ?? null
       : row.recruiting_events
   })) as StudentEventSummary[];
-  const waitingReplyCount = students.filter((student) => {
+  const waitingReplyCount = scopedStudents.filter((student) => {
     if (!student.last_outbound_at) return false;
     if (!student.last_inbound_at) return true;
     return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
   }).length;
-  const highMotivationCount = students.filter(
+  const highMotivationCount = scopedStudents.filter(
     (student) =>
       isHighMotivationRank(student.motivation_rank) ||
       (!student.motivation_rank && (student.motivation_level ?? 0) >= 4)
@@ -114,7 +125,7 @@ export default async function StudentsPage() {
         <SummaryCard
           description="現在Supabaseに登録されている学生"
           label="学生数"
-          value={`${students.length}名`}
+          value={`${scopedStudents.length}名`}
         />
         <SummaryCard
           description="専願、併願、A、B または旧志望度4以上"
@@ -131,7 +142,7 @@ export default async function StudentsPage() {
       <StudentListTable
         eventParticipants={eventParticipants}
         staffUsers={staffUsers}
-        students={students}
+        students={scopedStudents}
         tags={tags}
       />
     </div>
