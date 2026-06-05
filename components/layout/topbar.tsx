@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,11 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedGraduationYear = searchParams.get("graduationYear") ?? "all";
+  const [studentSearch, setStudentSearch] = useState(searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    setStudentSearch(searchParams.get("q") ?? "");
+  }, [searchParams]);
 
   function updateGraduationYear(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -26,6 +32,18 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
     }
     const query = params.toString();
     router.push((query ? `${pathname}?${query}` : pathname) as any);
+  }
+
+  function submitStudentSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    const trimmed = studentSearch.trim();
+    if (trimmed) params.set("q", trimmed);
+    if (selectedGraduationYear !== "all") {
+      params.set("graduationYear", selectedGraduationYear);
+    }
+    const query = params.toString();
+    router.push((query ? `/students?${query}` : "/students") as any);
   }
 
   return (
@@ -52,13 +70,15 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
             </option>
           ))}
         </select>
-        <div className="relative flex-1">
+        <form className="relative flex-1" onSubmit={submitStudentSearch}>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
           <Input
             className="border-white/30 bg-white pl-9 text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-white"
+            onChange={(event) => setStudentSearch(event.target.value)}
             placeholder="学生名・大学・タグで検索"
+            value={studentSearch}
           />
-        </div>
+        </form>
       </div>
       <Button
         asChild

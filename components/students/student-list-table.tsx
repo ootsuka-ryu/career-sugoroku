@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FilterX, MessageSquareText, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,9 +80,12 @@ export function StudentListTable({
   staffUsers,
   eventParticipants = []
 }: StudentListTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const routeSearchParams = useSearchParams();
   const selectedGraduationYear = routeSearchParams.get("graduationYear");
-  const [search, setSearch] = useState("");
+  const routeSearchQuery = routeSearchParams.get("q") ?? "";
+  const [search, setSearch] = useState(routeSearchQuery);
   const [tagSearch, setTagSearch] = useState("");
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [activeTagGroupId, setActiveTagGroupId] = useState<string | null>(null);
@@ -92,6 +95,10 @@ export function StudentListTable({
   const [motivationRank, setMotivationRank] = useState("all");
   const [candidateStage, setCandidateStage] = useState("all");
   const [noReplyDays, setNoReplyDays] = useState("off");
+
+  useEffect(() => {
+    setSearch(routeSearchQuery);
+  }, [routeSearchQuery]);
 
   const eventsByStudent = useMemo(() => {
     const map = new Map<string, StudentEventSummary[]>();
@@ -219,6 +226,10 @@ export function StudentListTable({
 
   function resetFilters() {
     setSearch("");
+    const params = new URLSearchParams(routeSearchParams.toString());
+    params.delete("q");
+    const query = params.toString();
+    router.replace((query ? `${pathname}?${query}` : pathname) as any);
     setTagSearch("");
     setTagPickerOpen(false);
     setActiveTagGroupId(null);
