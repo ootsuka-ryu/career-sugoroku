@@ -406,12 +406,13 @@ export function StudentListTable({
           {filteredStudents.length} / {students.length}名を表示
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[2450px] table-fixed">
+          <Table className="min-w-[2510px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[6rem] whitespace-nowrap">卒業年度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">志望度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">写真</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">LINE</TableHead>
                 <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>
                 <TableHead className="w-[8rem] whitespace-nowrap">担当者</TableHead>
                 <TableHead className="w-[10rem] whitespace-nowrap">大学名</TableHead>
@@ -448,6 +449,9 @@ export function StudentListTable({
                       </TableCell>
                       <TableCell>
                         <StudentPhoto student={student} />
+                      </TableCell>
+                      <TableCell>
+                        <StudentLinePhoto student={student} />
                       </TableCell>
                       <TableCell>
                         <div className="min-w-0">
@@ -525,7 +529,7 @@ export function StudentListTable({
                 })
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={23}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={24}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>
@@ -621,6 +625,36 @@ function StudentPhoto({ student }: { student: StudentListItem }) {
 
   return (
     <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-secondary text-muted-foreground">
+      <UserRound className="h-5 w-5" />
+    </div>
+  );
+}
+
+function StudentLinePhoto({ student }: { student: StudentListItem }) {
+  const name =
+    localizeSampleText(student.real_name) ||
+    localizeSampleText(student.display_name) ||
+    "学生";
+
+  if (student.line_picture_url) {
+    return (
+      <img
+        alt={`${name}のLINE画像`}
+        className="h-10 w-10 rounded-full border object-cover"
+        src={student.line_picture_url}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={
+        student.line_user_id
+          ? "flex h-10 w-10 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700"
+          : "flex h-10 w-10 items-center justify-center rounded-full border bg-secondary text-muted-foreground opacity-50"
+      }
+      title={student.line_user_id ? "LINE連携済み・画像未取得" : "LINE未連携"}
+    >
       <UserRound className="h-5 w-5" />
     </div>
   );

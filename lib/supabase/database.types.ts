@@ -91,6 +91,7 @@ export type Database = {
           ai_next_action: string | null;
           manual_next_action: string | null;
           notes: string | null;
+          line_picture_url: string | null;
           photo_url: string | null;
           photo_position_x: number;
           photo_position_y: number;

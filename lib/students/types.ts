@@ -21,6 +21,7 @@ export type TagSummary = {
 
 export type StudentListItem = {
   id: string;
+  line_user_id: string | null;
   display_name: string | null;
   real_name: string | null;
   kana: string | null;
@@ -40,6 +41,7 @@ export type StudentListItem = {
   ai_next_action: string | null;
   manual_next_action: string | null;
   notes: string | null;
+  line_picture_url: string | null;
   photo_url: string | null;
   photo_position_x: number;
   photo_position_y: number;
@@ -62,7 +64,6 @@ export type StudentListItem = {
 };
 
 export type StudentDetail = StudentListItem & {
-  line_user_id: string | null;
   phone: string | null;
   email: string | null;
   desired_job_type: string | null;

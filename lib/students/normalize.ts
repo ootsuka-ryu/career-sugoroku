@@ -18,6 +18,7 @@ type StudentAssigneeRelation = {
 export function normalizeStudentListItem(row: any): StudentListItem {
   return {
     id: row.id,
+    line_user_id: row.line_user_id ?? null,
     display_name: row.display_name,
     real_name: row.real_name,
     kana: row.kana,
@@ -37,6 +38,7 @@ export function normalizeStudentListItem(row: any): StudentListItem {
     ai_next_action: row.ai_next_action,
     manual_next_action: row.manual_next_action,
     notes: row.notes ?? null,
+    line_picture_url: row.line_picture_url ?? null,
     photo_url: row.photo_url ?? null,
     photo_position_x: row.photo_position_x ?? 50,
     photo_position_y: row.photo_position_y ?? 50,
@@ -64,7 +66,6 @@ export function normalizeStudentListItem(row: any): StudentListItem {
 export function normalizeStudentDetail(row: any): StudentDetail {
   return {
     ...normalizeStudentListItem(row),
-    line_user_id: row.line_user_id,
     phone: row.phone,
     email: row.email,
     desired_job_type: row.desired_job_type,

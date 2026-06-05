@@ -203,39 +203,81 @@ async function findOrCreateStudent(
   lineUserId: string,
   supabase: any
 ) {
-  const { data: existing, error: findError } = await supabase
+  let { data: existing, error: findError } = await supabase
     .from("students")
-    .select("id, display_name")
+    .select("id, display_name, line_picture_url")
     .eq("line_user_id", lineUserId)
     .maybeSingle();
+
+  if (findError && isMissingLinePictureColumnError(findError)) {
+    const retry = await supabase
+      .from("students")
+      .select("id, display_name")
+      .eq("line_user_id", lineUserId)
+      .maybeSingle();
+    existing = retry.data;
+    findError = retry.error;
+  }
 
   if (findError) {
     throw findError;
   }
 
   if (existing) {
+    const profile = await getLineProfile(lineUserId);
+    if (profile?.pictureUrl && profile.pictureUrl !== existing.line_picture_url) {
+      await updateLinePictureUrl(supabase, existing.id, profile.pictureUrl);
+    }
     return existing;
   }
 
   const profile = await getLineProfile(lineUserId);
   const displayName = profile?.displayName ?? "LINE User";
+  const insertPayload = {
+    line_user_id: lineUserId,
+    display_name: displayName,
+    real_name: displayName,
+    line_picture_url: profile?.pictureUrl ?? null,
+    status: "active",
+    first_contact_method: "LINE follow",
+    first_contact_date: new Date().toISOString().slice(0, 10)
+  };
 
-  const { data: created, error: createError } = await supabase
+  let { data: created, error: createError } = await supabase
     .from("students")
-    .insert({
-      line_user_id: lineUserId,
-      display_name: displayName,
-      real_name: displayName,
-      status: "active",
-      first_contact_method: "LINE follow",
-      first_contact_date: new Date().toISOString().slice(0, 10)
-    })
+    .insert(insertPayload)
     .select("id, display_name")
     .single();
+
+  if (createError && isMissingLinePictureColumnError(createError)) {
+    const { line_picture_url: _linePictureUrl, ...legacyInsertPayload } = insertPayload;
+    const retry = await supabase
+      .from("students")
+      .insert(legacyInsertPayload)
+      .select("id, display_name")
+      .single();
+    created = retry.data;
+    createError = retry.error;
+  }
 
   if (createError) {
     throw createError;
   }
 
   return created;
+}
+
+async function updateLinePictureUrl(supabase: any, studentId: string, pictureUrl: string) {
+  const { error } = await supabase
+    .from("students")
+    .update({ line_picture_url: pictureUrl })
+    .eq("id", studentId);
+
+  if (error && !isMissingLinePictureColumnError(error)) {
+    throw error;
+  }
+}
+
+function isMissingLinePictureColumnError(error: any) {
+  return Boolean(error?.message?.includes("line_picture_url"));
 }
