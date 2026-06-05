@@ -57,7 +57,6 @@ export default async function ChatPage({
     (supabase as any)
       .from("message_templates")
       .select("id, title, body, kind, folder_id, message_template_folders(id, name)")
-      .eq("kind", "カルーセル")
       .order("updated_at", { ascending: false })
   ]);
 
@@ -98,14 +97,16 @@ export default async function ChatPage({
   const templateTableMissing =
     templatesResult.error?.message?.includes("message_templates") ||
     templatesResult.error?.message?.includes("schema cache");
-  const templates = (templateTableMissing ? [] : templatesResult.data ?? []).map((row: any) => ({
-    id: row.id,
-    title: row.title,
-    body: row.body,
-    kind: row.kind,
-    folderId: row.folder_id,
-    folderName: row.message_template_folders?.name ?? "未分類"
-  })) as ChatTemplate[];
+  const templates = (templateTableMissing ? [] : templatesResult.data ?? [])
+    .filter((row: any) => isCarouselTemplate(row))
+    .map((row: any) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      kind: row.kind,
+      folderId: row.folder_id,
+      folderName: row.message_template_folders?.name ?? "未分類"
+    })) as ChatTemplate[];
   const initialComposerTab = getInitialComposerTab(searchParams.tab);
 
   return (
@@ -149,6 +150,23 @@ export default async function ChatPage({
       />
     </div>
   );
+}
+
+function isCarouselTemplate(row: { kind?: string | null; body?: string | null }) {
+  if (row.kind === "carousel" || row.kind === "カルーセル") return true;
+  if (!row.body) return false;
+
+  try {
+    const parsed = JSON.parse(row.body);
+    return Boolean(
+      parsed &&
+        typeof parsed === "object" &&
+        "type" in parsed &&
+        (parsed as { type?: unknown }).type === "carousel"
+    );
+  } catch {
+    return false;
+  }
 }
 
 function getInitialComposerTab(value?: string) {
