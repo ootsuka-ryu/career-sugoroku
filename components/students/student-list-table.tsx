@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { FilterX, MessageSquareText, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,8 @@ export function StudentListTable({
   staffUsers,
   eventParticipants = []
 }: StudentListTableProps) {
+  const routeSearchParams = useSearchParams();
+  const selectedGraduationYear = routeSearchParams.get("graduationYear");
   const [search, setSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
@@ -140,6 +143,16 @@ export function StudentListTable({
       ]);
 
       if (query && !haystack.includes(query)) return false;
+      if (selectedGraduationYear) {
+        const graduationYear = Number(selectedGraduationYear);
+        if (
+          Number.isFinite(graduationYear) &&
+          student.graduation_year &&
+          student.graduation_year !== graduationYear
+        ) {
+          return false;
+        }
+      }
       if (staffId !== "all" && !student.assignees.some((staff) => staff.id === staffId)) {
         return false;
       }
@@ -182,6 +195,7 @@ export function StudentListTable({
     noReplyDays,
     search,
     selectedTagIds,
+    selectedGraduationYear,
     staffId,
     students,
     tagMode

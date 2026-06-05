@@ -13,12 +13,12 @@ export default async function RecordingsPage({
   const [studentsResult, recordingsResult] = await Promise.all([
     supabase
       .from("students")
-      .select("id, display_name, real_name, university")
+      .select("id, display_name, real_name, university, graduation_year")
       .order("updated_at", { ascending: false }),
     supabase
       .from("recordings")
       .select(
-        "id, student_id, source, audio_url, duration_sec, transcript, ai_summary, ai_next_action, recorded_at, students(id, display_name, real_name, university)"
+        "id, student_id, source, audio_url, duration_sec, transcript, ai_summary, ai_next_action, recorded_at, students(id, display_name, real_name, university, graduation_year)"
       )
       .order("recorded_at", { ascending: false })
       .limit(50)
@@ -27,7 +27,8 @@ export default async function RecordingsPage({
   const students = (studentsResult.data ?? []).map((student: any) => ({
     id: student.id,
     name: student.real_name || student.display_name || "名前未設定",
-    university: student.university
+    university: student.university,
+    graduationYear: student.graduation_year
   }));
 
   const recordings = (recordingsResult.data ?? []).map((recording: any) => ({
@@ -47,7 +48,8 @@ export default async function RecordingsPage({
             recording.students.real_name ||
             recording.students.display_name ||
             "名前未設定",
-          university: recording.students.university
+          university: recording.students.university,
+          graduationYear: recording.students.graduation_year
         }
       : null
   }));

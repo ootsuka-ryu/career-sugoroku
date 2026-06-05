@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentCascadePicker } from "@/components/students/student-cascade-picker";
 
 const MAX_RECORDING_UPLOAD_BYTES = 45 * 1024 * 1024;
 
@@ -22,6 +23,7 @@ type StudentOption = {
   id: string;
   name: string;
   university: string | null;
+  graduationYear?: number | null;
 };
 
 type RecordingItem = {
@@ -239,19 +241,12 @@ export function RecordingConsole({
         <CardContent className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="student_id">学生</Label>
-            <select
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            <StudentCascadePicker
               id="student_id"
-              onChange={(event) => setStudentId(event.target.value)}
+              onChange={setStudentId}
+              students={students}
               value={studentId}
-            >
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name}
-                  {student.university ? ` / ${student.university}` : ""}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
