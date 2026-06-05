@@ -144,6 +144,52 @@ export async function createSurveyFolder(
   return { ok: true, message: "フォルダを作成しました。" };
 }
 
+export async function moveSurveysToFolder(
+  _prevState: SurveyActionState = initialState,
+  formData: FormData
+): Promise<SurveyActionState> {
+  const surveyIds = formData
+    .getAll("survey_ids")
+    .map((value) => String(value))
+    .filter((value) => z.string().uuid().safeParse(value).success);
+  const folderIdRaw = String(formData.get("folder_id") ?? "");
+  const folderId = folderIdRaw === "none" ? "" : folderIdRaw;
+
+  if (surveyIds.length === 0) {
+    return { ok: false, message: "移動する回答フォームを選択してください。" };
+  }
+  if (folderId && !z.string().uuid().safeParse(folderId).success) {
+    return { ok: false, message: "移動先フォルダを選択してください。" };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, message: "ログインが必要です。" };
+
+  const { error } = await supabase
+    .from("surveys")
+    .update({ folder_id: folderId || null })
+    .in("id", surveyIds);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/surveys");
+  for (const surveyId of surveyIds) {
+    revalidatePath(`/surveys/${surveyId}/builder`);
+  }
+
+  return {
+    ok: true,
+    message:
+      folderId
+        ? `${surveyIds.length}件の回答フォームを移動しました。`
+        : `${surveyIds.length}件の回答フォームを未分類に移動しました。`
+  };
+}
+
 export async function toggleSurveyActive(
   _prevState: SurveyActionState = initialState,
   formData: FormData

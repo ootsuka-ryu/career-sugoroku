@@ -27,6 +27,7 @@ import {
 import {
   createSurvey,
   createSurveyFolder,
+  moveSurveysToFolder,
   toggleSurveyActive,
   type SurveyActionState
 } from "@/app/(dashboard)/surveys/actions";
@@ -293,6 +294,7 @@ export function SurveyAdmin({
   const [isCreating, setIsCreating] = useState(false);
   const [tab, setTab] = useState<"options" | "design" | "auto">("options");
   const [responseSurvey, setResponseSurvey] = useState<SurveyItem | null>(null);
+  const [selectedSurveyIds, setSelectedSurveyIds] = useState<string[]>([]);
   const [createDefaults, setCreateDefaults] = useState<CreateDefaults>(emptyCreateDefaults);
   const [createFormKey, setCreateFormKey] = useState("new");
   const [draftSections, setDraftSections] = useState<DraftSection[]>([
@@ -337,6 +339,28 @@ export function SurveyAdmin({
       }),
     [draftSections]
   );
+  const selectedSurveyIdSet = useMemo(() => new Set(selectedSurveyIds), [selectedSurveyIds]);
+
+  useEffect(() => {
+    setSelectedSurveyIds((current) =>
+      current.filter((surveyId) => surveys.some((survey) => survey.id === surveyId))
+    );
+  }, [surveys]);
+
+  function toggleSurveySelection(surveyId: string, checked: boolean) {
+    setSelectedSurveyIds((current) => {
+      if (checked) return current.includes(surveyId) ? current : [...current, surveyId];
+      return current.filter((id) => id !== surveyId);
+    });
+  }
+
+  function toggleVisibleSurveySelection(checked: boolean) {
+    const visibleIds = filteredSurveys.map((survey) => survey.id);
+    setSelectedSurveyIds((current) => {
+      if (checked) return Array.from(new Set([...current, ...visibleIds]));
+      return current.filter((surveyId) => !visibleIds.includes(surveyId));
+    });
+  }
 
   function resetCreateForm() {
     setIsCreating(false);
@@ -535,10 +559,18 @@ export function SurveyAdmin({
 
       <section className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Button onClick={startNewSurvey} type="button">
-            <Plus className="mr-2 h-4 w-4" />
-            新しい回答フォーム
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button onClick={startNewSurvey} type="button">
+              <Plus className="mr-2 h-4 w-4" />
+              新しい回答フォーム
+            </Button>
+            <BulkSurveyFolderMove
+              folders={folders}
+              onMoved={() => setSelectedSurveyIds([])}
+              selectedCount={selectedSurveyIds.length}
+              selectedSurveyIds={selectedSurveyIds}
+            />
+          </div>
           <div className="flex flex-1 gap-2 md:max-w-xl">
             <Button size="sm" type="button" variant="outline">
               <ListFilter className="mr-2 h-4 w-4" />
@@ -644,6 +676,9 @@ export function SurveyAdmin({
           <SurveyTable
             onCopySurvey={startCopySurvey}
             onViewResponses={setResponseSurvey}
+            onSelectAllVisible={toggleVisibleSurveySelection}
+            onToggleSelection={toggleSurveySelection}
+            selectedSurveyIds={selectedSurveyIdSet}
             surveys={filteredSurveys}
           />
         )}
@@ -1077,22 +1112,96 @@ function FolderButton({
   );
 }
 
+function BulkSurveyFolderMove({
+  folders,
+  selectedSurveyIds,
+  selectedCount,
+  onMoved
+}: {
+  folders: FolderItem[];
+  selectedSurveyIds: string[];
+  selectedCount: number;
+  onMoved: () => void;
+}) {
+  const [state, formAction] = useFormState(moveSurveysToFolder, initialState);
+
+  useEffect(() => {
+    if (state.ok) onMoved();
+  }, [onMoved, state.ok]);
+
+  if (selectedCount === 0) return null;
+
+  return (
+    <form action={formAction} className="flex flex-col gap-1 sm:min-w-64">
+      {selectedSurveyIds.map((surveyId) => (
+        <input key={surveyId} name="survey_ids" type="hidden" value={surveyId} />
+      ))}
+      <select
+        className="h-10 rounded-md border border-green-600 bg-background px-3 text-sm font-medium text-green-800"
+        defaultValue=""
+        name="folder_id"
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      >
+        <option value="" disabled>
+          {selectedCount}件をフォルダへ移動
+        </option>
+        <option value="none">未分類へ移動</option>
+        {folders.map((folder) => (
+          <option key={folder.id} value={folder.id}>
+            {folder.name}へ移動
+          </option>
+        ))}
+      </select>
+      <BulkMoveMessage state={state} />
+    </form>
+  );
+}
+
+function BulkMoveMessage({ state }: { state: SurveyActionState }) {
+  const { pending } = useFormStatus();
+  if (pending) return <p className="text-xs text-muted-foreground">移動しています...</p>;
+  if (!state.message) return null;
+  return (
+    <p className={`text-xs ${state.ok ? "text-green-700" : "text-destructive"}`}>
+      {state.message}
+    </p>
+  );
+}
+
 function SurveyTable({
   surveys,
   onViewResponses,
-  onCopySurvey
+  onCopySurvey,
+  selectedSurveyIds,
+  onToggleSelection,
+  onSelectAllVisible
 }: {
   surveys: SurveyItem[];
   onViewResponses: (survey: SurveyItem) => void;
   onCopySurvey: (survey: SurveyItem) => void;
+  selectedSurveyIds: Set<string>;
+  onToggleSelection: (surveyId: string, checked: boolean) => void;
+  onSelectAllVisible: (checked: boolean) => void;
 }) {
+  const allVisibleSelected =
+    surveys.length > 0 && surveys.every((survey) => selectedSurveyIds.has(survey.id));
+  const someVisibleSelected = surveys.some((survey) => selectedSurveyIds.has(survey.id));
+
   return (
     <section className="rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/60">
             <TableHead className="w-10">
-              <input type="checkbox" />
+              <input
+                aria-label="表示中の回答フォームをすべて選択"
+                checked={allVisibleSelected}
+                ref={(element) => {
+                  if (element) element.indeterminate = someVisibleSelected && !allVisibleSelected;
+                }}
+                onChange={(event) => onSelectAllVisible(event.target.checked)}
+                type="checkbox"
+              />
             </TableHead>
             <TableHead>フォーム名</TableHead>
             <TableHead>フォルダ</TableHead>
@@ -1108,7 +1217,9 @@ function SurveyTable({
               <SurveyRow
                 key={survey.id}
                 onCopySurvey={() => onCopySurvey(survey)}
+                onSelectedChange={(checked) => onToggleSelection(survey.id, checked)}
                 onViewResponses={() => onViewResponses(survey)}
+                selected={selectedSurveyIds.has(survey.id)}
                 survey={survey}
               />
             ))
@@ -1128,11 +1239,15 @@ function SurveyTable({
 function SurveyRow({
   survey,
   onViewResponses,
-  onCopySurvey
+  onCopySurvey,
+  selected,
+  onSelectedChange
 }: {
   survey: SurveyItem;
   onViewResponses: () => void;
   onCopySurvey: () => void;
+  selected: boolean;
+  onSelectedChange: (checked: boolean) => void;
 }) {
   const [state, formAction] = useFormState(toggleSurveyActive, initialState);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1187,9 +1302,14 @@ function SurveyRow({
   }
 
   return (
-    <TableRow>
+    <TableRow className={selected ? "bg-green-50" : undefined}>
       <TableCell>
-        <input type="checkbox" />
+        <input
+          aria-label={`${survey.admin_title || survey.title}を選択`}
+          checked={selected}
+          onChange={(event) => onSelectedChange(event.target.checked)}
+          type="checkbox"
+        />
       </TableCell>
       <TableCell>
         <Link
