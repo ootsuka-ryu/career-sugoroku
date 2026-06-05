@@ -92,7 +92,10 @@ export function StudentCascadePicker({
       </button>
 
       {open ? (
-        <div className="absolute left-0 top-full z-50 mt-2 w-[min(920px,calc(100vw-3rem))] overflow-hidden rounded-md border bg-white shadow-lg">
+        <div
+          className="absolute left-0 top-full z-50 mt-2 flex w-[min(920px,calc(100vw-3rem))] flex-col overflow-hidden rounded-md border bg-white shadow-lg"
+          style={{ maxHeight: "min(560px, calc(100vh - 7rem))" }}
+        >
           <div className="border-b p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
@@ -104,8 +107,11 @@ export function StudentCascadePicker({
               />
             </div>
           </div>
-          <div className="grid max-h-[420px] grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden">
-            <div className="overflow-auto border-r bg-secondary/40 p-2">
+          <div
+            className="grid min-h-0 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
+            style={{ height: "min(460px, calc(100vh - 12rem))" }}
+          >
+            <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
               {groups.map((group) => (
                 <button
                   className={
@@ -125,7 +131,7 @@ export function StudentCascadePicker({
                 </button>
               ))}
             </div>
-            <div className="overflow-auto border-r p-2">
+            <div className="min-h-0 overflow-y-auto overscroll-contain border-r p-2">
               {regionGroup?.universities.map((group) => (
                 <button
                   className={
@@ -143,7 +149,7 @@ export function StudentCascadePicker({
                 </button>
               ))}
             </div>
-            <div className="overflow-auto p-2">
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-2">
               {universityGroup ? (
                 <div className="space-y-1">
                   <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
