@@ -1,8 +1,51 @@
+export type RecordingEventUpdate = {
+  eventTitle: string;
+  eventDate: string | null;
+  status: "申込" | "参加" | "欠席" | "キャンセル";
+  memo: string | null;
+};
+
+export type RecordingScheduleUpdate = {
+  title: string;
+  dueAt: string | null;
+  memo: string | null;
+};
+
+export type RecordingProfileUpdates = {
+  real_name?: string | null;
+  kana?: string | null;
+  university?: string | null;
+  grade?: string | null;
+  graduation_year?: number | null;
+  phone?: string | null;
+  email?: string | null;
+  desired_job_type?: string | null;
+  desired_area?: string | null;
+  motivation_rank?: string | null;
+  candidate_stage?: string | null;
+  first_contact_method?: string | null;
+  first_contact_date?: string | null;
+  manual_next_action?: string | null;
+  funnel_next?: boolean;
+  funnel_is?: boolean;
+  funnel_pharmacist_interview?: boolean;
+  funnel_selection?: boolean;
+  funnel_offer?: boolean;
+  funnel_offer_accepted?: boolean;
+  funnel_hired?: boolean;
+};
+
 export type RecordingSummary = {
   summary: string;
   nextActions: string[];
   tagCandidates: string[];
   urgent: boolean;
+  profileUpdates: RecordingProfileUpdates;
+  eventUpdates: RecordingEventUpdate[];
+  scheduleUpdates: RecordingScheduleUpdate[];
+  needsStudentConfirmation: boolean;
+  confirmationReason: string;
+  mentionedStudentName: string | null;
 };
 
 export async function summarizeRecordingWithClaude({
@@ -33,19 +76,18 @@ export async function summarizeRecordingWithClaude({
       },
       body: JSON.stringify({
         model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
-        max_tokens: 1200,
+        max_tokens: 2200,
         system: [
-          "あなたは薬学生の新卒採用を支援する採用担当者です。",
-          "録音の文字起こしから、事実と推測を混同せず、日本語で実務に使える要約を作成してください。",
-          "学生の関心、希望条件、懸念、温度感、約束事項を優先して抽出してください。",
-          "次アクションは、対象学生のプロフィール、過去チャット、アンケート、参加イベント、対応履歴、過去録音をすべて考慮してください。",
-          "既に完了した対応や、学生が断った内容を再提案しないでください。",
-          "対象学生に送る・確認する・案内するなど、対象学生に対する具体的な次アクションだけを最大3件作成してください。",
-          "録音が一般的な会議・市場観察・別の学生についての内容で、対象学生との関連が確認できない場合は、無理に推測せずnextActionsを空配列にしてください。",
-          "次アクションは、誰が・いつまでに・何をするか分かる具体的な内容にしてください。",
-          "必ずMarkdownのコード枠を付けず、JSONだけを返してください。",
-          "形式は {\"summary\":\"要約\",\"nextActions\":[\"担当者が期限までに行う具体的な対応\"],\"tagCandidates\":[\"タグ候補\"],\"urgent\":false} としてください。",
-          "nextActionsとtagCandidatesは必ず文字列の配列にしてください。"
+          "あなたは薬学生採用CRMの面談・音声メモを処理する採用アシスタントです。",
+          "文字起こし、学生プロフィール、過去チャット、過去アンケート、イベント参加履歴、会社資料を見て、実務で使える要約と次アクションを日本語で作ります。",
+          "録音内容だけで断定できないことは推測で反映しないでください。",
+          "対象学生が曖昧な場合、needsStudentConfirmationをtrueにして、変更候補は空にしてください。",
+          "学生から返信をもらうための次アクションは、相手の大学、卒年、興味、過去の接触、参加イベントに合わせて具体的にしてください。",
+          "参加イベント、タグ、予定、プロフィールに反映できるものは構造化して返してください。",
+          "返答はMarkdownやコードフェンスを付けず、JSONオブジェクトだけにしてください。",
+          "JSON形式: {\"summary\":\"短い要約\",\"nextActions\":[\"誰がいつ何をするか\"],\"tagCandidates\":[\"追加タグ\"],\"urgent\":false,\"profileUpdates\":{},\"eventUpdates\":[{\"eventTitle\":\"店舗見学\",\"eventDate\":\"2026-06-10\",\"status\":\"参加\",\"memo\":\"\"}],\"scheduleUpdates\":[{\"title\":\"電話する\",\"dueAt\":\"2026-06-07T10:00:00+09:00\",\"memo\":\"\"}],\"needsStudentConfirmation\":false,\"confirmationReason\":\"\",\"mentionedStudentName\":null}",
+          "profileUpdatesで使えるキー: real_name,kana,university,grade,graduation_year,phone,email,desired_job_type,desired_area,motivation_rank,candidate_stage,first_contact_method,first_contact_date,manual_next_action,funnel_next,funnel_is,funnel_pharmacist_interview,funnel_selection,funnel_offer,funnel_offer_accepted,funnel_hired。",
+          "eventUpdates.statusは必ず 申込,参加,欠席,キャンセル のどれかにしてください。"
         ].join("\n"),
         messages: [
           {
@@ -57,7 +99,7 @@ export async function summarizeRecordingWithClaude({
                   `現在日時: ${new Date().toISOString()}`,
                   `会社・採用方針:\n${companyContext || "(未登録)"}`,
                   `対象学生の情報とこれまでの履歴:\n${studentContext || "(取得できる学生情報なし)"}`,
-                  `今回の録音の文字起こし:\n${transcript}`
+                  `今回の録音文字起こし:\n${transcript}`
                 ].join("\n\n")
               }
             ]
@@ -66,9 +108,7 @@ export async function summarizeRecordingWithClaude({
       })
     });
   } catch {
-    throw new Error(
-      "Claude APIに接続できませんでした。少し待ってから再実行してください。"
-    );
+    throw new Error("Claude APIに接続できませんでした。少し待ってから再実行してください。");
   }
 
   if (!response.ok) {
@@ -82,21 +122,138 @@ export async function summarizeRecordingWithClaude({
   const jsonText = extractJsonText(text);
 
   try {
-    const parsed = JSON.parse(jsonText) as Record<string, unknown>;
-    return {
-      summary: typeof parsed.summary === "string" ? parsed.summary.trim() : "",
-      nextActions: normalizeNextActions(parsed.nextActions),
-      tagCandidates: normalizeStringArray(parsed.tagCandidates),
-      urgent: Boolean(parsed.urgent)
-    };
+    return normalizeRecordingSummary(JSON.parse(jsonText));
   } catch {
     return {
       summary: jsonText || "Claudeから要約が返されませんでした。",
       nextActions: [],
       tagCandidates: [],
-      urgent: false
+      urgent: false,
+      profileUpdates: {},
+      eventUpdates: [],
+      scheduleUpdates: [],
+      needsStudentConfirmation: false,
+      confirmationReason: "",
+      mentionedStudentName: null
     };
   }
+}
+
+function normalizeRecordingSummary(value: unknown): RecordingSummary {
+  const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    summary: cleanString(row.summary),
+    nextActions: normalizeStringArray(row.nextActions),
+    tagCandidates: normalizeStringArray(row.tagCandidates),
+    urgent: Boolean(row.urgent),
+    profileUpdates: normalizeProfileUpdates(row.profileUpdates),
+    eventUpdates: normalizeEventUpdates(row.eventUpdates),
+    scheduleUpdates: normalizeScheduleUpdates(row.scheduleUpdates),
+    needsStudentConfirmation: Boolean(row.needsStudentConfirmation),
+    confirmationReason: cleanString(row.confirmationReason),
+    mentionedStudentName: cleanString(row.mentionedStudentName) || null
+  };
+}
+
+function normalizeProfileUpdates(value: unknown): RecordingProfileUpdates {
+  if (!value || typeof value !== "object") return {};
+  const row = value as Record<string, unknown>;
+  const output: RecordingProfileUpdates = {};
+  const stringKeys: Array<keyof RecordingProfileUpdates> = [
+    "real_name",
+    "kana",
+    "university",
+    "grade",
+    "phone",
+    "email",
+    "desired_job_type",
+    "desired_area",
+    "motivation_rank",
+    "candidate_stage",
+    "first_contact_method",
+    "first_contact_date",
+    "manual_next_action"
+  ];
+  for (const key of stringKeys) {
+    const text = cleanString(row[key]);
+    if (text) output[key] = text as never;
+  }
+  const graduationYear = Number(row.graduation_year);
+  if (Number.isInteger(graduationYear) && graduationYear >= 2020 && graduationYear <= 2040) {
+    output.graduation_year = graduationYear;
+  }
+  const booleanKeys: Array<keyof RecordingProfileUpdates> = [
+    "funnel_next",
+    "funnel_is",
+    "funnel_pharmacist_interview",
+    "funnel_selection",
+    "funnel_offer",
+    "funnel_offer_accepted",
+    "funnel_hired"
+  ];
+  for (const key of booleanKeys) {
+    if (typeof row[key] === "boolean") output[key] = row[key] as never;
+  }
+  return output;
+}
+
+function normalizeEventUpdates(value: unknown): RecordingEventUpdate[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const eventTitle = cleanString(row.eventTitle);
+      const rawStatus = cleanString(row.status);
+      const status = normalizeEventStatus(rawStatus);
+      if (!eventTitle || !status) return null;
+      return {
+        eventTitle,
+        eventDate: cleanString(row.eventDate) || null,
+        status,
+        memo: cleanString(row.memo) || null
+      };
+    })
+    .filter((item): item is RecordingEventUpdate => Boolean(item))
+    .slice(0, 8);
+}
+
+function normalizeScheduleUpdates(value: unknown): RecordingScheduleUpdate[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const title = cleanString(row.title);
+      if (!title) return null;
+      return {
+        title,
+        dueAt: cleanString(row.dueAt) || null,
+        memo: cleanString(row.memo) || null
+      };
+    })
+    .filter((item): item is RecordingScheduleUpdate => Boolean(item))
+    .slice(0, 8);
+}
+
+function normalizeEventStatus(value: string): RecordingEventUpdate["status"] | null {
+  if (/キャンセル|取消/.test(value)) return "キャンセル";
+  if (/欠席|不参加/.test(value)) return "欠席";
+  if (/参加|来る|出席/.test(value)) return "参加";
+  if (/申込|申し込み|予約/.test(value)) return "申込";
+  return null;
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function extractJsonText(text: string) {
@@ -113,46 +270,6 @@ function extractJsonText(text: string) {
   }
 
   return withoutFence;
-}
-
-function normalizeNextActions(value: unknown) {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      if (!item || typeof item !== "object") return "";
-
-      const action = item as Record<string, unknown>;
-      const who = getStringValue(action, ["who", "owner", "担当", "担当者"]);
-      const by = getStringValue(action, ["by", "deadline", "期限"]);
-      const what = getStringValue(action, ["what", "action", "内容", "対応"]);
-      const parts = [
-        who ? `担当: ${who}` : "",
-        by ? `期限: ${by}` : "",
-        what ? `内容: ${what}` : ""
-      ].filter(Boolean);
-
-      return parts.join(" / ");
-    })
-    .filter(Boolean);
-}
-
-function normalizeStringArray(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function getStringValue(value: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    if (typeof value[key] === "string" && value[key].trim()) {
-      return value[key].trim();
-    }
-  }
-  return "";
 }
 
 async function buildClaudeApiError(response: Response) {
