@@ -15,6 +15,12 @@ import { isHighMotivationRank } from "@/lib/students/options";
 import { normalizeStudentListItem } from "@/lib/students/normalize";
 import type { StaffSummary, TagSummary } from "@/lib/students/types";
 
+const STUDENTS_SELECT = `
+  *,
+  student_tags(tags(id, name, color)),
+  student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
+`;
+
 export default async function StudentsPage({
   searchParams
 }: {
@@ -30,16 +36,7 @@ export default async function StudentsPage({
     messagesResult,
     recordingsResult
   ] = await Promise.all([
-    supabase
-      .from("students")
-      .select(
-        `
-        *,
-        student_tags(tags(id, name, color)),
-        student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
-      `
-      )
-      .order("updated_at", { ascending: false }),
+    fetchAllStudents(supabase),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
       .from("staff_users")
@@ -180,6 +177,31 @@ export default async function StudentsPage({
       />
     </div>
   );
+}
+
+async function fetchAllStudents(supabase: ReturnType<typeof createClient>) {
+  const pageSize = 1000;
+  const rows: any[] = [];
+
+  for (let from = 0; from < 10000; from += pageSize) {
+    const { data, error } = await supabase
+      .from("students")
+      .select(STUDENTS_SELECT)
+      .order("updated_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      return { data: rows, error };
+    }
+
+    rows.push(...(data ?? []));
+
+    if (!data || data.length < pageSize) {
+      return { data: rows, error: null };
+    }
+  }
+
+  return { data: rows, error: null };
 }
 
 function extractMessageText(payload: unknown) {
