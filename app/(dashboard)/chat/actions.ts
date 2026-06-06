@@ -105,7 +105,7 @@ export async function sendChatMessage(
   const { error: messageError } = await supabase.from("messages").insert({
     student_id,
     direction: "out",
-    type: messageKind,
+    type: getStoredMessageType(messageKind),
     payload: buildStoredPayload(personalizedInput),
     status,
     sent_at: new Date().toISOString(),
@@ -290,6 +290,10 @@ function buildStoredPayload(input: z.infer<typeof sendMessageSchema>) {
     preview_image_url: input.preview_image_url ?? "",
     carousel: parseCarouselItems(input.carousel_json)
   };
+}
+
+function getStoredMessageType(messageKind: z.infer<typeof sendMessageSchema>["message_kind"]) {
+  return messageKind === "carousel" ? "flex" : messageKind;
 }
 
 function parseCarouselItems(value?: string) {
