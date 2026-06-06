@@ -718,23 +718,36 @@ function normalizeCarouselTemplate(value: unknown) {
           description: "",
           imageUrl: "",
           url: "",
-          buttonLabel: "詳細を見る"
+          buttonLabel: "詳細を見る",
+          buttons: []
         };
       }
 
       const record = item as Record<string, any>;
-      const firstButton = Array.isArray(record.buttons) ? record.buttons[0] : null;
-      const action = firstButton?.action ?? {};
+      const buttons = Array.isArray(record.buttons)
+        ? record.buttons
+            .map((button) => {
+              const action = button?.action ?? {};
+              return {
+                label: String(button?.label ?? "詳細を見る").trim(),
+                type: String(action.type ?? "url").trim(),
+                value: String(action.url ?? action.value ?? "").trim()
+              };
+            })
+            .filter((button) => button.label || button.value)
+        : [];
+      const firstButton = buttons[0] ?? null;
 
       return {
         title: String(record.title ?? "").trim(),
         description: String(record.description ?? "").trim(),
         imageUrl: String(record.imageUrl ?? record.image_url ?? "").trim(),
-        url: String(record.url ?? action.url ?? action.value ?? "").trim(),
-        buttonLabel: String(record.buttonLabel ?? firstButton?.label ?? "詳細を見る").trim()
+        url: String(record.url ?? firstButton?.value ?? "").trim(),
+        buttonLabel: String(record.buttonLabel ?? firstButton?.label ?? "詳細を見る").trim(),
+        buttons
       };
     })
-    .filter((item) => item.title || item.imageUrl || item.url);
+    .filter((item) => item.title || item.imageUrl || item.url || item.buttons.length > 0);
 }
 
 function ComposerTab({

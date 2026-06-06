@@ -35,6 +35,21 @@ const externalLineMessageSchema = z.object({
   sent_at: z.string().optional()
 });
 
+type LineCarouselButton = {
+  label: string;
+  type: string;
+  value: string;
+};
+
+type LineCarouselItem = {
+  title: string;
+  description: string;
+  imageUrl: string;
+  url: string;
+  buttonLabel: string;
+  buttons: LineCarouselButton[];
+};
+
 export async function sendChatMessage(
   _prevState: ChatActionState = initialState,
   formData: FormData
@@ -215,7 +230,7 @@ function buildLineMessages(input: z.infer<typeof sendMessageSchema>) {
       contents: {
         type: "carousel",
           contents: items.map((item) => {
-            const action = buildCarouselAction(item);
+            const actions = buildCarouselActions(item);
 
             return {
               type: "bubble",
@@ -250,17 +265,18 @@ function buildLineMessages(input: z.infer<typeof sendMessageSchema>) {
                     : undefined
                 ].filter(Boolean)
               },
-              footer: action
+              footer: actions.length > 0
                 ? {
                     type: "box",
                     layout: "vertical",
-                    contents: [
-                      {
-                        type: "button",
-                        style: "primary",
-                        action
-                      }
-                    ]
+                    spacing: "sm",
+                    separator: true,
+                    contents: actions.map((action) => ({
+                      type: "button",
+                      style: "link",
+                      height: "sm",
+                      action
+                    }))
                   }
                 : undefined
             };
@@ -296,10 +312,34 @@ function getStoredMessageType(messageKind: z.infer<typeof sendMessageSchema>["me
   return messageKind === "carousel" ? "flex" : messageKind;
 }
 
-function buildCarouselAction(item: ReturnType<typeof parseCarouselItems>[number]) {
-  const label = truncateLineText(item.buttonLabel || "詳細を見る", 40);
-  const uri = normalizeCarouselUri(item.url);
+function buildCarouselActions(item: LineCarouselItem) {
+  const buttons =
+    item.buttons.length > 0
+      ? item.buttons
+      : item.url
+        ? [{ label: item.buttonLabel || "詳細を見る", type: "url", value: item.url }]
+        : [];
 
+  return buttons
+    .map((button: LineCarouselButton) => buildCarouselAction(button))
+    .filter((action): action is NonNullable<ReturnType<typeof buildCarouselAction>> => Boolean(action))
+    .slice(0, 4);
+}
+
+function buildCarouselAction(button: LineCarouselButton) {
+  const label = truncateLineText(button.label || "詳細を見る", 40);
+  const value = button.value.trim();
+  if (!value) return null;
+
+  if (button.type === "text") {
+    return {
+      type: "message" as const,
+      label,
+      text: truncateLineText(value, 300)
+    };
+  }
+
+  const uri = normalizeCarouselUri(value);
   if (uri) {
     return {
       type: "uri" as const,
@@ -308,15 +348,11 @@ function buildCarouselAction(item: ReturnType<typeof parseCarouselItems>[number]
     };
   }
 
-  if (item.url) {
-    return {
-      type: "message" as const,
-      label,
-      text: truncateLineText(item.url, 300)
-    };
-  }
-
-  return null;
+  return {
+    type: "message" as const,
+    label,
+    text: truncateLineText(value, 300)
+  };
 }
 
 function normalizeCarouselUri(value: string) {
@@ -339,20 +375,33 @@ function truncateLineText(value: string, maxLength: number) {
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
 }
 
-function parseCarouselItems(value?: string) {
+function parseCarouselItems(value?: string): LineCarouselItem[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .map((item) => ({
-        title: String(item.title ?? "").trim(),
-        description: String(item.description ?? "").trim(),
-        imageUrl: String(item.imageUrl ?? "").trim(),
-        url: String(item.url ?? "").trim(),
-        buttonLabel: String(item.buttonLabel ?? "").trim()
-      }))
-      .filter((item) => item.title || item.imageUrl || item.url);
+      .map((item) => {
+        const buttons = Array.isArray(item.buttons)
+          ? item.buttons
+              .map((button: any) => ({
+                label: String(button.label ?? "詳細を見る").trim(),
+                type: String(button.type ?? button.action?.type ?? "url").trim(),
+                value: String(button.value ?? button.action?.url ?? button.action?.value ?? "").trim()
+              }))
+              .filter((button: LineCarouselButton) => button.label || button.value)
+          : [];
+
+        return {
+          title: String(item.title ?? "").trim(),
+          description: String(item.description ?? "").trim(),
+          imageUrl: String(item.imageUrl ?? "").trim(),
+          url: String(item.url ?? "").trim(),
+          buttonLabel: String(item.buttonLabel ?? "").trim(),
+          buttons
+        };
+      })
+      .filter((item) => item.title || item.imageUrl || item.url || item.buttons.length > 0);
   } catch {
     return [];
   }
