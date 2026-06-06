@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  buildJapaneseSearchIndex,
+  matchesJapaneseSearchQuery,
+  normalizeJapaneseSearchText
+} from "@/lib/search/japanese";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -11,7 +16,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const query = normalize(new URL(request.url).searchParams.get("q"));
+  const rawQuery = new URL(request.url).searchParams.get("q") ?? "";
+  const query = normalizeJapaneseSearchText(rawQuery);
   if (!query) {
     return NextResponse.json({ students: [] });
   }
@@ -37,10 +43,10 @@ export async function GET(request: Request) {
         student.line_user_id
       ];
       const score = fields.reduce((total, field) => {
-        const normalized = normalize(field);
+        const normalized = buildJapaneseSearchIndex([field]);
         if (!normalized) return total;
         if (normalized === query) return total + 4;
-        if (normalized.includes(query)) return total + 2;
+        if (matchesJapaneseSearchQuery(normalized, rawQuery)) return total + 2;
         return total;
       }, 0);
 
@@ -51,11 +57,4 @@ export async function GET(request: Request) {
     .slice(0, 20);
 
   return NextResponse.json({ students });
-}
-
-function normalize(value: string | null | undefined) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[()\[\]\s　・･\-ー]/g, "");
 }

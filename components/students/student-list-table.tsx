@@ -32,6 +32,11 @@ import {
   buildRecommendedChatDraft,
   extractNextAction
 } from "@/lib/students/recommended-chat";
+import {
+  buildJapaneseSearchIndex,
+  matchesJapaneseSearchQuery,
+  normalizeJapaneseSearchText
+} from "@/lib/search/japanese";
 import type { StaffSummary, StudentListItem, TagSummary } from "@/lib/students/types";
 import {
   UNIVERSITY_CLASSIFICATION_TAG_NAMES,
@@ -709,44 +714,15 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
 }
 
 function normalizeSearchQuery(value: string) {
-  return normalizeSearchText(value);
+  return normalizeJapaneseSearchText(value);
 }
 
 function buildSearchIndex(values: Array<string | null | undefined>) {
-  return normalizeSearchText(values.filter(Boolean).join(" "));
+  return buildJapaneseSearchIndex(values);
 }
 
 function matchesSearchQuery(index: string, rawQuery: string) {
-  const query = normalizeSearchQuery(rawQuery);
-  if (!query) return true;
-  if (index.includes(query)) return true;
-
-  const tokens = splitSearchTokens(rawQuery);
-  return tokens.length > 0 && tokens.every((token) => index.includes(token));
-}
-
-function splitSearchTokens(value: string) {
-  const simplified = toHiragana(value)
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/話し?した人|話してた人|話した|話し|話題|について|のこと|の人|した人|人/g, " ");
-  const matches = simplified.match(/[一-龯々〆ヵヶ]+|[ぁ-んー]+|[a-z0-9]+/g) ?? [];
-  return matches
-    .map(normalizeSearchText)
-    .filter((token) => token.length >= 2);
-}
-
-function normalizeSearchText(value: string) {
-  return toHiragana(value)
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[\s　・.,、。-]/g, "");
-}
-
-function toHiragana(value: string) {
-  return value.replace(/[ァ-ヶ]/g, (char) =>
-    String.fromCharCode(char.charCodeAt(0) - 0x60)
-  );
+  return matchesJapaneseSearchQuery(index, rawQuery);
 }
 
 function getEventTime(participant: StudentEventSummary) {

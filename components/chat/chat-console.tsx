@@ -17,6 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { localizeSampleText } from "@/lib/display/localize";
 import { formatDateTime } from "@/lib/format";
+import {
+  buildJapaneseSearchIndex,
+  matchesJapaneseSearchQuery
+} from "@/lib/search/japanese";
 import { getStaffDisplayName } from "@/lib/staff/display";
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -24,6 +28,7 @@ export type ChatStudent = {
   id: string;
   real_name: string | null;
   display_name: string | null;
+  kana: string | null;
   university: string | null;
   line_user_id: string | null;
   last_inbound_at: string | null;
@@ -95,21 +100,21 @@ export function ChatConsole({
   const currentStudent = students.find((student) => student.id === currentStudentId);
 
   const filteredStudents = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
+    const keyword = query.trim();
     if (!keyword) return students;
 
     return students.filter((student) =>
-      [
-        student.real_name,
-        student.display_name,
-        localizeSampleText(student.university),
-        ...student.assignees.map((staff) => getStaffDisplayName(staff)),
-        ...student.tags.map((tag) => localizeSampleText(tag.name))
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword)
+      matchesJapaneseSearchQuery(
+        buildJapaneseSearchIndex([
+          student.real_name,
+          student.display_name,
+          student.kana,
+          localizeSampleText(student.university),
+          ...student.assignees.map((staff) => getStaffDisplayName(staff)),
+          ...student.tags.map((tag) => localizeSampleText(tag.name))
+        ]),
+        keyword
+      )
     );
   }, [query, students]);
 
