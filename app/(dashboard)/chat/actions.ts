@@ -214,57 +214,57 @@ function buildLineMessages(input: z.infer<typeof sendMessageSchema>) {
       altText: "ご案内",
       contents: {
         type: "carousel",
-        contents: items.map((item) => ({
-          type: "bubble",
-          hero: item.imageUrl
-            ? {
-                type: "image",
-                url: item.imageUrl,
-                size: "full",
-                aspectRatio: "20:13",
-                aspectMode: "cover"
-              }
-            : undefined,
-          body: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "text",
-                text: item.title || "ご案内",
-                weight: "bold",
-                wrap: true
-              },
-              item.description
+          contents: items.map((item) => {
+            const action = buildCarouselAction(item);
+
+            return {
+              type: "bubble",
+              hero: item.imageUrl
                 ? {
-                    type: "text",
-                    text: item.description,
-                    size: "sm",
-                    color: "#666666",
-                    wrap: true,
-                    margin: "md"
+                    type: "image",
+                    url: item.imageUrl,
+                    size: "full",
+                    aspectRatio: "20:13",
+                    aspectMode: "cover"
                   }
-                : undefined
-            ].filter(Boolean)
-          },
-          footer: item.url
-            ? {
+                : undefined,
+              body: {
                 type: "box",
                 layout: "vertical",
                 contents: [
                   {
-                    type: "button",
-                    style: "primary",
-                    action: {
-                      type: "uri",
-                      label: item.buttonLabel || "詳細を見る",
-                      uri: item.url
-                    }
+                    type: "text",
+                    text: item.title || "ご案内",
+                    weight: "bold",
+                    wrap: true
+                  },
+                  item.description
+                    ? {
+                        type: "text",
+                        text: item.description,
+                        size: "sm",
+                        color: "#666666",
+                        wrap: true,
+                        margin: "md"
+                      }
+                    : undefined
+                ].filter(Boolean)
+              },
+              footer: action
+                ? {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                      {
+                        type: "button",
+                        style: "primary",
+                        action
+                      }
+                    ]
                   }
-                ]
-              }
-            : undefined
-        }))
+                : undefined
+            };
+          })
       }
     });
     return messages;
@@ -294,6 +294,49 @@ function buildStoredPayload(input: z.infer<typeof sendMessageSchema>) {
 
 function getStoredMessageType(messageKind: z.infer<typeof sendMessageSchema>["message_kind"]) {
   return messageKind === "carousel" ? "flex" : messageKind;
+}
+
+function buildCarouselAction(item: ReturnType<typeof parseCarouselItems>[number]) {
+  const label = truncateLineText(item.buttonLabel || "詳細を見る", 40);
+  const uri = normalizeCarouselUri(item.url);
+
+  if (uri) {
+    return {
+      type: "uri" as const,
+      label,
+      uri
+    };
+  }
+
+  if (item.url) {
+    return {
+      type: "message" as const,
+      label,
+      text: truncateLineText(item.url, 300)
+    };
+  }
+
+  return null;
+}
+
+function normalizeCarouselUri(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(trimmed)) {
+      return `https://${trimmed}`;
+    }
+    return "";
+  }
+}
+
+function truncateLineText(value: string, maxLength: number) {
+  const trimmed = value.trim();
+  return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
 }
 
 function parseCarouselItems(value?: string) {
