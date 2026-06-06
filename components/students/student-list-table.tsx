@@ -52,11 +52,27 @@ export type StudentEventSummary = {
   } | null;
 };
 
+export type StudentMessageSearchSummary = {
+  student_id: string;
+  text: string | null;
+  sent_at: string | null;
+};
+
+export type StudentRecordingSearchSummary = {
+  student_id: string;
+  transcript: string | null;
+  ai_summary: string | null;
+  ai_next_action: string | null;
+  recorded_at: string | null;
+};
+
 type StudentListTableProps = {
   students: StudentListItem[];
   tags: TagSummary[];
   staffUsers: StaffSummary[];
   eventParticipants?: StudentEventSummary[];
+  messageSearchItems?: StudentMessageSearchSummary[];
+  recordingSearchItems?: StudentRecordingSearchSummary[];
 };
 
 type TagGroup = {
@@ -78,7 +94,9 @@ export function StudentListTable({
   students,
   tags,
   staffUsers,
-  eventParticipants = []
+  eventParticipants = [],
+  messageSearchItems = [],
+  recordingSearchItems = []
 }: StudentListTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -115,11 +133,33 @@ export function StudentListTable({
     return map;
   }, [eventParticipants]);
 
+  const messagesByStudent = useMemo(() => {
+    const map = new Map<string, StudentMessageSearchSummary[]>();
+    for (const message of messageSearchItems) {
+      const list = map.get(message.student_id) ?? [];
+      list.push(message);
+      map.set(message.student_id, list);
+    }
+    return map;
+  }, [messageSearchItems]);
+
+  const recordingsByStudent = useMemo(() => {
+    const map = new Map<string, StudentRecordingSearchSummary[]>();
+    for (const recording of recordingSearchItems) {
+      const list = map.get(recording.student_id) ?? [];
+      list.push(recording);
+      map.set(recording.student_id, list);
+    }
+    return map;
+  }, [recordingSearchItems]);
+
   const filteredStudents = useMemo(() => {
     const query = normalizeSearchQuery(search);
 
     return students.filter((student) => {
       const studentEvents = eventsByStudent.get(student.id) ?? [];
+      const studentMessages = messagesByStudent.get(student.id) ?? [];
+      const studentRecordings = recordingsByStudent.get(student.id) ?? [];
       const haystack = buildSearchIndex([
         student.display_name,
         localizeSampleText(student.display_name),
@@ -143,13 +183,19 @@ export function StudentListTable({
           participant.event?.location,
           participant.memo
         ]),
+        ...studentMessages.map((message) => message.text),
+        ...studentRecordings.flatMap((recording) => [
+          recording.transcript,
+          recording.ai_summary,
+          recording.ai_next_action
+        ]),
         ...student.assignees.flatMap((staff) => [
           staff.name,
           getStaffDisplayName(staff)
         ])
       ]);
 
-      if (query && !haystack.includes(query)) return false;
+      if (query && !matchesSearchQuery(haystack, search)) return false;
       if (selectedGraduationYear) {
         const graduationYear = Number(selectedGraduationYear);
         if (
@@ -198,8 +244,10 @@ export function StudentListTable({
   }, [
     candidateStage,
     eventsByStudent,
+    messagesByStudent,
     motivationRank,
     noReplyDays,
+    recordingsByStudent,
     search,
     selectedTagIds,
     selectedGraduationYear,
@@ -666,6 +714,26 @@ function normalizeSearchQuery(value: string) {
 
 function buildSearchIndex(values: Array<string | null | undefined>) {
   return normalizeSearchText(values.filter(Boolean).join(" "));
+}
+
+function matchesSearchQuery(index: string, rawQuery: string) {
+  const query = normalizeSearchQuery(rawQuery);
+  if (!query) return true;
+  if (index.includes(query)) return true;
+
+  const tokens = splitSearchTokens(rawQuery);
+  return tokens.length > 0 && tokens.every((token) => index.includes(token));
+}
+
+function splitSearchTokens(value: string) {
+  const simplified = toHiragana(value)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/話し?した人|話してた人|話した|話し|話題|について|のこと|の人|した人|人/g, " ");
+  const matches = simplified.match(/[一-龯々〆ヵヶ]+|[ぁ-んー]+|[a-z0-9]+/g) ?? [];
+  return matches
+    .map(normalizeSearchText)
+    .filter((token) => token.length >= 2);
 }
 
 function normalizeSearchText(value: string) {

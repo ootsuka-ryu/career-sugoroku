@@ -514,6 +514,10 @@ async function resolveRecordingStudentIdentity(
     };
   }
 
+  if (selectedStudentId) {
+    return { requiresConfirmation: false, reason: "" };
+  }
+
   if (matches.length > 1) {
     const candidateIds = new Set(matches.map((match) => match.student.id));
     if (candidateIds.size > 1) {

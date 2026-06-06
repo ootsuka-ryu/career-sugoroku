@@ -22,6 +22,7 @@ const MAX_RECORDING_UPLOAD_BYTES = 45 * 1024 * 1024;
 type StudentOption = {
   id: string;
   name: string;
+  kana?: string | null;
   university: string | null;
   graduationYear?: number | null;
 };

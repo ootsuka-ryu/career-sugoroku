@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Download, Plus, Users } from "lucide-react";
 import {
   StudentListTable,
-  type StudentEventSummary
+  type StudentEventSummary,
+  type StudentMessageSearchSummary,
+  type StudentRecordingSearchSummary
 } from "@/components/students/student-list-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,14 @@ export default async function StudentsPage({
 }) {
   const supabase = createClient();
 
-  const [studentsResult, tagsResult, staffResult, eventParticipantsResult] = await Promise.all([
+  const [
+    studentsResult,
+    tagsResult,
+    staffResult,
+    eventParticipantsResult,
+    messagesResult,
+    recordingsResult
+  ] = await Promise.all([
     supabase
       .from("students")
       .select(
@@ -47,7 +56,17 @@ export default async function StudentsPage({
         created_at,
         recruiting_events(id, title, event_type, starts_at, location)
       `
-      )
+      ),
+    (supabase as any)
+      .from("messages")
+      .select("student_id, payload, sent_at")
+      .order("sent_at", { ascending: false })
+      .limit(5000),
+    (supabase as any)
+      .from("recordings")
+      .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
+      .order("recorded_at", { ascending: false })
+      .limit(3000)
   ]);
 
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
@@ -70,6 +89,18 @@ export default async function StudentsPage({
       ? row.recruiting_events[0] ?? null
       : row.recruiting_events
   })) as StudentEventSummary[];
+  const messageSearchItems = (messagesResult.data ?? []).map((row: any) => ({
+    student_id: row.student_id,
+    text: extractMessageText(row.payload),
+    sent_at: row.sent_at
+  })) as StudentMessageSearchSummary[];
+  const recordingSearchItems = (recordingsResult.data ?? []).map((row: any) => ({
+    student_id: row.student_id,
+    transcript: row.transcript,
+    ai_summary: row.ai_summary,
+    ai_next_action: row.ai_next_action,
+    recorded_at: row.recorded_at
+  })) as StudentRecordingSearchSummary[];
   const waitingReplyCount = scopedStudents.filter((student) => {
     if (!student.last_outbound_at) return false;
     if (!student.last_inbound_at) return true;
@@ -141,12 +172,27 @@ export default async function StudentsPage({
 
       <StudentListTable
         eventParticipants={eventParticipants}
+        messageSearchItems={messageSearchItems}
+        recordingSearchItems={recordingSearchItems}
         staffUsers={staffUsers}
         students={scopedStudents}
         tags={tags}
       />
     </div>
   );
+}
+
+function extractMessageText(payload: unknown) {
+  if (typeof payload === "string") return payload;
+  if (!payload || typeof payload !== "object") return "";
+  const record = payload as Record<string, unknown>;
+  const directText = record.text ?? record.body ?? record.message;
+  if (typeof directText === "string") return directText;
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return "";
+  }
 }
 
 function isMissingOptionalEventTable(error: unknown) {

@@ -2,12 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CalendarDays, MapPin, Users, UserX } from "lucide-react";
 import {
-  addEventParticipant,
   cancelEventParticipant,
   updateEventParticipant,
   updateEventSurveyLink
 } from "@/app/(dashboard)/events/actions";
 import { EventCreateForm } from "@/components/events/event-create-form";
+import { EventParticipantForm } from "@/components/events/event-participant-form";
 import { EventMessageSettingsForm } from "@/components/events/event-message-settings-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,9 +52,9 @@ export default async function EventsPage() {
     supabase.from("surveys").select("id, title, admin_title").order("updated_at", { ascending: false }),
     supabase
       .from("students")
-      .select("id, real_name, display_name, graduation_year, university")
+      .select("id, real_name, display_name, kana, graduation_year, university")
       .order("updated_at", { ascending: false })
-      .limit(200),
+      .limit(3000),
     supabase
       .from("event_participants")
       .select("event_id, student_id, status, memo, created_at, students(id, real_name, display_name, graduation_year, university)")
@@ -63,6 +63,16 @@ export default async function EventsPage() {
   const events = eventsBundle.events;
   const surveys = surveysResult.data ?? [];
   const students = studentsResult.data ?? [];
+  const studentOptions = students.map((student: any) => ({
+    id: student.id,
+    name:
+      localizeSampleText(student.real_name) ??
+      localizeSampleText(student.display_name) ??
+      "名前未登録",
+    kana: localizeSampleText(student.kana) ?? student.kana ?? null,
+    university: localizeSampleText(student.university) ?? student.university ?? null,
+    graduationYear: student.graduation_year
+  }));
   const participants = participantsResult.data ?? [];
   const surveyById = new Map(surveys.map((survey: any) => [survey.id, survey]));
 
@@ -184,11 +194,14 @@ export default async function EventsPage() {
                           >
                             <input name="event_id" type="hidden" value={participant.event_id} />
                             <input name="student_id" type="hidden" value={participant.student_id} />
-                            <span className="font-semibold text-primary">
+                            <Link
+                              className="font-semibold text-primary underline-offset-2 hover:underline"
+                              href={`/students/${participant.student_id}`}
+                            >
                               {localizeSampleText(student?.real_name) ??
                                 localizeSampleText(student?.display_name) ??
                                 "名前未登録"}
-                            </span>
+                            </Link>
                             <span>{formatGraduationYear(student?.graduation_year)}</span>
                             <span>{localizeSampleText(student?.university) ?? "-"}</span>
                             <select
@@ -217,23 +230,11 @@ export default async function EventsPage() {
                     </p>
                   )}
 
-                  <form action={addEventParticipant} className="grid gap-2 md:grid-cols-[1fr_140px_1fr_auto]">
-                    <input name="event_id" type="hidden" value={event.id} />
-                    <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" name="student_id">
-                      {students.map((student: any) => (
-                        <option key={student.id} value={student.id}>
-                          {localizeSampleText(student.real_name) ?? localizeSampleText(student.display_name) ?? "名前未登録"} / {formatGraduationYear(student.graduation_year)} / {localizeSampleText(student.university) ?? "-"}
-                        </option>
-                      ))}
-                    </select>
-                    <select className="h-10 rounded-md border border-input bg-background px-3 text-sm" name="status" defaultValue="参加">
-                      {PARTICIPANT_STATUSES.map((status) => (
-                        <option key={status}>{status}</option>
-                      ))}
-                    </select>
-                    <Input name="memo" placeholder="メモ" />
-                    <Button type="submit" variant="outline">参加者追加</Button>
-                  </form>
+                  <EventParticipantForm
+                    eventId={event.id}
+                    statuses={PARTICIPANT_STATUSES}
+                    students={studentOptions}
+                  />
                 </CardContent>
               </Card>
             );

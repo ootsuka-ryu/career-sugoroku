@@ -13,12 +13,12 @@ export default async function RecordingsPage({
   const [studentsResult, recordingsResult] = await Promise.all([
     supabase
       .from("students")
-      .select("id, display_name, real_name, university, graduation_year")
+      .select("id, display_name, real_name, kana, university, graduation_year")
       .order("updated_at", { ascending: false }),
     supabase
       .from("recordings")
       .select(
-        "id, student_id, source, audio_url, duration_sec, transcript, ai_summary, ai_next_action, recorded_at, students(id, display_name, real_name, university, graduation_year)"
+        "id, student_id, source, audio_url, duration_sec, transcript, ai_summary, ai_next_action, recorded_at, students(id, display_name, real_name, kana, university, graduation_year)"
       )
       .order("recorded_at", { ascending: false })
       .limit(50)
@@ -27,32 +27,34 @@ export default async function RecordingsPage({
   const students = (studentsResult.data ?? []).map((student: any) => ({
     id: student.id,
     name: student.real_name || student.display_name || "名前未設定",
+    kana: student.kana,
     university: student.university,
     graduationYear: student.graduation_year
   }));
 
-  const recordings = (recordingsResult.data ?? []).map((recording: any) => ({
-    id: recording.id,
-    student_id: recording.student_id,
-    source: recording.source,
-    audio_url: recording.audio_url,
-    duration_sec: recording.duration_sec,
-    transcript: recording.transcript,
-    ai_summary: recording.ai_summary,
-    ai_next_action: recording.ai_next_action,
-    recorded_at: recording.recorded_at,
-    student: recording.students
-      ? {
-          id: recording.students.id,
-          name:
-            recording.students.real_name ||
-            recording.students.display_name ||
-            "名前未設定",
-          university: recording.students.university,
-          graduationYear: recording.students.graduation_year
-        }
-      : null
-  }));
+  const recordings = (recordingsResult.data ?? []).map((recording: any) => {
+    const student = normalizeJoinedStudent(recording.students);
+    return {
+      id: recording.id,
+      student_id: recording.student_id,
+      source: recording.source,
+      audio_url: recording.audio_url,
+      duration_sec: recording.duration_sec,
+      transcript: recording.transcript,
+      ai_summary: recording.ai_summary,
+      ai_next_action: recording.ai_next_action,
+      recorded_at: recording.recorded_at,
+      student: student
+        ? {
+            id: student.id,
+            name: student.real_name || student.display_name || "名前未設定",
+            kana: student.kana,
+            university: student.university,
+            graduationYear: student.graduation_year
+          }
+        : null
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -88,4 +90,9 @@ export default async function RecordingsPage({
       />
     </div>
   );
+}
+
+function normalizeJoinedStudent(value: any) {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }

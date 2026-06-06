@@ -12,8 +12,10 @@ import {
 export type StudentCascadeOption = {
   id: string;
   name: string;
+  kana?: string | null;
   university: string | null;
   graduationYear?: number | null;
+  searchText?: string | null;
 };
 
 type UniversityGroup = {
@@ -188,7 +190,6 @@ export function StudentCascadePicker({
 }
 
 function buildRegionGroups(students: StudentCascadeOption[], query: string): RegionGroup[] {
-  const normalizedQuery = normalize(query);
   const buckets = new Map<UniversityRegion, Map<string, StudentCascadeOption[]>>();
 
   for (const region of UNIVERSITY_REGION_ORDER) {
@@ -197,8 +198,14 @@ function buildRegionGroups(students: StudentCascadeOption[], query: string): Reg
 
   for (const student of students) {
     const university = student.university?.trim() || "大学未登録";
-    const haystack = normalize(`${student.name} ${university} ${student.graduationYear ?? ""}`);
-    if (normalizedQuery && !haystack.includes(normalizedQuery)) continue;
+    const haystack = buildSearchIndex([
+      student.name,
+      student.kana,
+      university,
+      student.graduationYear?.toString(),
+      student.searchText
+    ]);
+    if (!matchesSearchQuery(haystack, query)) continue;
 
     const region = getUniversityRegion(student.university);
     const universityMap = buckets.get(region) ?? new Map<string, StudentCascadeOption[]>();
@@ -227,9 +234,39 @@ function formatStudentLabel(student: StudentCascadeOption) {
   return parts.join(" / ");
 }
 
-function normalize(value: string) {
-  return value
+function matchesSearchQuery(index: string, rawQuery: string) {
+  const query = normalizeSearchText(rawQuery);
+  if (!query) return true;
+  if (index.includes(query)) return true;
+
+  const tokens = splitSearchTokens(rawQuery);
+  return tokens.length > 0 && tokens.every((token) => index.includes(token));
+}
+
+function splitSearchTokens(value: string) {
+  const simplified = toHiragana(value)
     .normalize("NFKC")
     .toLowerCase()
-    .replace(/\s/g, "");
+    .replace(/話し?した人|話してた人|話した|話し|について|のこと|の人|した人|人/g, " ");
+  const matches = simplified.match(/[一-龯々〆ヵヶ]+|[ぁ-んー]+|[a-z0-9]+/g) ?? [];
+  return matches
+    .map(normalizeSearchText)
+    .filter((token) => token.length >= 2);
+}
+
+function buildSearchIndex(values: Array<string | null | undefined>) {
+  return normalizeSearchText(values.filter(Boolean).join(" "));
+}
+
+function normalizeSearchText(value: string) {
+  return toHiragana(value)
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[\s　・.,、。]/g, "");
+}
+
+function toHiragana(value: string) {
+  return value.replace(/[ァ-ヶ]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) - 0x60)
+  );
 }
