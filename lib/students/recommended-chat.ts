@@ -22,38 +22,60 @@ type RecommendedChatStudent = {
   assignees?: StaffSummary[];
 };
 
+type ChatTopic = "reply" | "zoom" | "visit" | "event" | "interview" | "internship" | "general";
+
 export function buildRecommendedChatDraft(student: RecommendedChatStudent) {
   const action = extractNextAction(student.ai_next_action) || clean(student.manual_next_action);
+  const inferred = inferAction(student);
+  if (!action && !inferred) return "";
+
   const name = getStudentChatName(student);
   const context = buildStudentContext(student);
-  const actionText = action || inferAction(student);
-
-  if (!actionText) return "";
+  const topic = classifyTopic(`${action}\n${inferred}\n${buildTagText(student)}`);
+  const body = buildStudentFacingBody(topic, context);
 
   return [
     `${name}さん、こんにちは！ゴダイ薬局の採用担当です😊`,
-    context
-      ? `${context}を見て、今のタイミングなら${actionText}が一番イメージしやすいかなと思ってご連絡しました✨`
-      : `今のタイミングなら${actionText}が一番イメージしやすいかなと思ってご連絡しました✨`,
+    "",
+    body,
+    "",
     "無理に決めなくて大丈夫なので、",
     "①日程を見たい",
     "②まず内容だけ聞きたい",
     "③今回は見送り",
-    "この中だとどれが近いですか？"
+    "",
+    "この中だとどれが近いですか？✨"
   ].join("\n");
+}
+
+export function buildRecommendedChatReason(student: RecommendedChatStudent) {
+  const aiAction = clean(student.ai_next_action);
+  const manualAction = clean(student.manual_next_action);
+  const context = buildStudentContext(student);
+  const fallback = inferAction(student);
+
+  return [
+    context ? `学生情報: ${context}` : "",
+    aiAction ? `AI判断: ${aiAction}` : "",
+    manualAction ? `手動ネクストアクション: ${manualAction}` : "",
+    !aiAction && !manualAction && fallback ? `判断材料: ${fallback}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function extractNextAction(value: string | null | undefined) {
   const text = clean(value);
   if (!text) return "";
 
-  const nextActionMatch = text.match(
-    /(?:次アクション|提案[：: ]|送る文章[：: ]|案内内容[：: ])\s*([\s\S]+?)(?=\s*(?:推奨連絡手段|理由|優先度|$)[：: ]|$)/
+  const normalized = text.replace(/\r\n/g, "\n");
+  const nextActionMatch = normalized.match(
+    /(?:次アクション|次にやること|送る文章|案内内容)\s*[：:\-]?\s*([\s\S]+?)(?=\n\s*(?:推奨連絡手段|理由|優先度|タグ候補|$)|$)/
   );
   if (nextActionMatch?.[1]) return polishAction(nextActionMatch[1]);
 
-  if (/優先度|理由|推奨連絡手段/.test(text)) return "";
-  return polishAction(text);
+  if (/優先度|理由|推奨連絡手段/.test(normalized)) return "";
+  return polishAction(normalized);
 }
 
 function inferAction(student: RecommendedChatStudent) {
@@ -63,12 +85,12 @@ function inferAction(student: RecommendedChatStudent) {
 
   if (!student.funnel_next) {
     return isHighMotivation
-      ? "次のZoom面談や店舗見学の候補日を一緒に見ていくこと"
-      : "まずは短い説明会や店舗見学の雰囲気だけ知ってもらうこと";
+      ? "次のZoom面談や店舗見学の候補日を一緒に見てもらうこと"
+      : "まずは短い説明会や店舗見学の雰囲気を知ってもらうこと";
   }
 
   if (!student.funnel_pharmacist_interview) {
-    return "若手薬剤師と話せる機会や個別相談で、働き方をもう少し具体的に知ってもらうこと";
+    return "若手薬剤師と話せる機会や個別相談で、不安や希望を具体的に確認すること";
   }
 
   if (isHighMotivation) {
@@ -76,6 +98,37 @@ function inferAction(student: RecommendedChatStudent) {
   }
 
   return "";
+}
+
+function classifyTopic(text: string): ChatTopic {
+  if (/返信|リマインド|返事|未返信/.test(text)) return "reply";
+  if (/Zoom|zoom|面談|相談|個別/.test(text)) return "zoom";
+  if (/店舗|見学/.test(text)) return "visit";
+  if (/薬剤師|インタビュー|若手/.test(text)) return "interview";
+  if (/インターン|IS|実習/.test(text)) return "internship";
+  if (/説明会|セミナー|イベント|交流会|BBQ|案内/.test(text)) return "event";
+  return "general";
+}
+
+function buildStudentFacingBody(topic: ChatTopic, context: string) {
+  const prefix = context ? `${context}の状況を見て、` : "";
+
+  switch (topic) {
+    case "reply":
+      return `${prefix}先日お送りした案内について、気になる点があれば気軽に聞いてもらえたらと思って連絡しました。日程が合うかだけでも大丈夫です！`;
+    case "zoom":
+      return `${prefix}一度15〜20分くらいでZoom面談できたらと思って連絡しました。就活の進め方や気になっていることを聞きながら、合いそうなイベントも一緒に整理できます。`;
+    case "visit":
+      return `${prefix}店舗見学をご案内できたらと思って連絡しました。実際の働き方や雰囲気を見てもらえるので、就活の判断材料にしやすいと思います。`;
+    case "interview":
+      return `${prefix}若手薬剤師と話せる機会をご案内したいと思って連絡しました。現場の雰囲気や入社後の働き方をかなり具体的に聞けます。`;
+    case "internship":
+      return `${prefix}インターンシップや実務に近い体験の案内が合いそうだと思って連絡しました。薬局で働くイメージをつかみやすい内容です。`;
+    case "event":
+      return `${prefix}次のイベント案内が合いそうだと思って連絡しました。まだ迷っている段階でも参加しやすい内容なので、興味があれば候補日を送ります。`;
+    default:
+      return `${prefix}今後のイベントや個別相談について、合いそうな案内を一度お送りできたらと思って連絡しました。気になる内容だけ確認でも大丈夫です！`;
+  }
 }
 
 function buildStudentContext(student: RecommendedChatStudent) {
@@ -92,6 +145,10 @@ function buildStudentContext(student: RecommendedChatStudent) {
   if (area) pieces.push(`${area}エリア希望`);
 
   return pieces.slice(0, 3).join("・");
+}
+
+function buildTagText(student: RecommendedChatStudent) {
+  return (student.tags ?? []).map((tag) => clean(tag.name)).join(" ");
 }
 
 function getStudentChatName(student: RecommendedChatStudent) {

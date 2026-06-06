@@ -30,6 +30,7 @@ import {
 } from "@/lib/students/options";
 import {
   buildRecommendedChatDraft,
+  buildRecommendedChatReason,
   extractNextAction
 } from "@/lib/students/recommended-chat";
 import {
@@ -494,6 +495,7 @@ export function StudentListTable({
                   const studentEvents = eventsByStudent.get(student.id) ?? [];
                   const aiJudgement = buildAiJudgement(student);
                   const chatDraft = buildRecommendedChatDraft(student);
+                  const chatReason = buildRecommendedChatReason(student) || aiJudgement;
                   return (
                     <TableRow key={student.id}>
                       <TableCell>{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
@@ -563,7 +565,7 @@ export function StudentListTable({
                           {chatDraft ? (
                             <Button asChild size="sm" variant="outline">
                               <Link
-                                href={`/chat?studentId=${student.id}&draft=${encodeURIComponent(chatDraft)}`}
+                                href={buildChatHref(student.id, chatDraft, chatReason)}
                               >
                                 <MessageSquareText className="mr-2 h-4 w-4" />
                                 チャット
@@ -648,6 +650,15 @@ function Select({
       {children}
     </select>
   );
+}
+
+function buildChatHref(studentId: string, draftText: string, reasonText: string) {
+  return {
+    pathname: "/chat",
+    query: reasonText
+      ? { studentId, draft: draftText, reason: reasonText, tab: "text" }
+      : { studentId, draft: draftText, tab: "text" }
+  };
 }
 
 function Clamp({ children }: { children: ReactNode }) {

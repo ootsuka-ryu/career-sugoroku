@@ -79,6 +79,7 @@ export function ChatConsole({
   templates,
   selectedStudentId,
   draftText = "",
+  draftReason = "",
   initialComposerTab = "text",
   initialImageUrl = "",
   initialPdfUrl = "",
@@ -90,6 +91,7 @@ export function ChatConsole({
   templates: ChatTemplate[];
   selectedStudentId: string | null;
   draftText?: string;
+  draftReason?: string;
   initialComposerTab?: ComposerTabType;
   initialImageUrl?: string;
   initialPdfUrl?: string;
@@ -234,6 +236,7 @@ export function ChatConsole({
 
             <ChatComposer
               initialText={draftText}
+              initialReason={draftReason}
               initialComposerTab={initialComposerTab}
               initialImageUrl={initialImageUrl}
               initialPdfUrl={initialPdfUrl}
@@ -340,6 +343,7 @@ function ExternalLogSubmitButton() {
 
 function ChatComposer({
   initialText = "",
+  initialReason = "",
   initialComposerTab = "text",
   initialImageUrl = "",
   initialPdfUrl = "",
@@ -350,6 +354,7 @@ function ChatComposer({
   templates
 }: {
   initialText?: string;
+  initialReason?: string;
   initialComposerTab?: ComposerTabType;
   initialImageUrl?: string;
   initialPdfUrl?: string;
@@ -363,6 +368,7 @@ function ChatComposer({
   const initialTextWithPdf = buildInitialComposerText(initialText, initialPdfUrl);
   const [tab, setTab] = useState<ComposerTabType>(initialComposerTab);
   const [text, setText] = useState(initialTextWithPdf);
+  const [reason, setReason] = useState(initialReason);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [videoUrl, setVideoUrl] = useState("");
@@ -377,6 +383,7 @@ function ChatComposer({
   useEffect(() => {
     setTab(initialComposerTab);
     setText(buildInitialComposerText(initialText, initialPdfUrl));
+    setReason(initialReason);
     setImageUrl(initialImageUrl);
     setPreviewImageUrl(initialPreviewImageUrl || initialImageUrl);
     setVideoUrl("");
@@ -386,6 +393,7 @@ function ChatComposer({
     initialImageUrl,
     initialPdfUrl,
     initialPreviewImageUrl,
+    initialReason,
     initialText,
     studentId
   ]);
@@ -551,6 +559,13 @@ function ChatComposer({
             </optgroup>
           ))}
         </select>
+      ) : null}
+
+      {reason ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          <p className="font-semibold">AI判断メモ</p>
+          <p className="mt-1 whitespace-pre-wrap">{reason}</p>
+        </div>
       ) : null}
 
       <Textarea

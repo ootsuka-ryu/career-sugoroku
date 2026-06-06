@@ -16,6 +16,7 @@ export default async function ChatPage({
   searchParams: {
     studentId?: string;
     draft?: string;
+    reason?: string;
     tab?: string;
     imageUrl?: string;
     pdfUrl?: string;
@@ -145,6 +146,7 @@ export default async function ChatPage({
         initialPreviewImageUrl={searchParams.previewImageUrl ?? ""}
         messages={messages}
         draftText={searchParams.draft ?? ""}
+        draftReason={searchParams.reason ?? ""}
         selectedStudentId={searchParams.studentId ?? null}
         students={students}
         surveys={surveys}

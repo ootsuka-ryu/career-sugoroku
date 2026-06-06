@@ -29,7 +29,10 @@ import { getStaffDisplayName, uniqueStaffByDisplayName } from "@/lib/staff/displ
 import { createClient } from "@/lib/supabase/server";
 import { getCandidateStageLabel, getMotivationRankLabel } from "@/lib/students/options";
 import { normalizeStudentDetail } from "@/lib/students/normalize";
-import { buildRecommendedChatDraft } from "@/lib/students/recommended-chat";
+import {
+  buildRecommendedChatDraft,
+  buildRecommendedChatReason
+} from "@/lib/students/recommended-chat";
 import type {
   StaffSummary,
   StudentActionItem,
@@ -176,7 +179,12 @@ export default async function StudentDetailPage({
     eventParticipants
   });
   const recommendedChatText = buildRecommendedChatDraft(student);
-  const recommendedChatHref = buildRecommendedChatHref(student.id, recommendedChatText);
+  const recommendedChatReason = buildRecommendedChatReason(student);
+  const recommendedChatHref = buildRecommendedChatHref(
+    student.id,
+    recommendedChatText,
+    recommendedChatReason
+  );
 
   return (
     <div className="space-y-6">
@@ -559,10 +567,12 @@ function uniqueSelectableAssignees(staffUsers: StaffSummary[]) {
   return uniqueStaffByDisplayName(staffUsers.filter(isSelectableAssignee));
 }
 
-function buildRecommendedChatHref(studentId: string, draftText: string) {
+function buildRecommendedChatHref(studentId: string, draftText: string, reasonText = "") {
   return {
     pathname: "/chat",
-    query: draftText ? { studentId, draft: draftText, tab: "text" } : { studentId }
+    query: draftText
+      ? { studentId, draft: draftText, reason: reasonText, tab: "text" }
+      : { studentId }
   };
 }
 
