@@ -296,37 +296,39 @@ function ExternalLineLogForm({ studentId }: { studentId: string }) {
   );
 
   return (
-    <form action={formAction} className="space-y-3 border-t bg-secondary/30 p-4">
-      <input name="student_id" type="hidden" value={studentId} />
-      <div className="flex items-center gap-2 text-sm font-medium">
+    <details className="border-t bg-secondary/30">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-secondary/60">
         <NotebookPen className="h-4 w-4 text-primary" />
         公式LINEから直接送った連絡を記録
-      </div>
-      <div className="grid gap-3 md:grid-cols-[1fr_12rem]">
-        <Textarea
-          name="text"
-          placeholder="公式LINE管理画面から送った内容やメモ"
-          required
-          rows={2}
-        />
-        <Input name="sent_at" type="datetime-local" />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p
-          className={
-            state.message
-              ? state.ok
-                ? "text-sm text-accent"
-                : "text-sm text-destructive"
-              : "text-sm text-muted-foreground"
-          }
-        >
-          {state.message ||
-            "ここに記録すると最終送信として扱われ、返信がなければ「返信なし」に出ます。"}
-        </p>
-        <ExternalLogSubmitButton />
-      </div>
-    </form>
+      </summary>
+      <form action={formAction} className="space-y-3 px-4 pb-4">
+        <input name="student_id" type="hidden" value={studentId} />
+        <div className="grid gap-3 md:grid-cols-[1fr_12rem]">
+          <Textarea
+            name="text"
+            placeholder="公式LINE管理画面から送った内容やメモ"
+            required
+            rows={2}
+          />
+          <Input name="sent_at" type="datetime-local" />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p
+            className={
+              state.message
+                ? state.ok
+                  ? "text-sm text-accent"
+                  : "text-sm text-destructive"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {state.message ||
+              "ここに記録すると最終送信として扱われ、返信がなければ「返信なし」に出ます。"}
+          </p>
+          <ExternalLogSubmitButton />
+        </div>
+      </form>
+    </details>
   );
 }
 
@@ -516,7 +518,7 @@ function ChatComposer({
   }
 
   return (
-    <form action={formAction} className="max-h-[42vh] space-y-4 overflow-y-auto border-t bg-card p-4">
+    <form action={formAction} className="max-h-[42vh] space-y-4 overflow-y-auto border-t bg-card p-4 pb-0">
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
       <input name="image_url" type="hidden" value={imageUrl} />
@@ -673,7 +675,7 @@ function ChatComposer({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-card p-4 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
         <p
           className={
             state.message
