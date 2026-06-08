@@ -270,7 +270,6 @@ function buildLineMessages(input: z.infer<typeof sendMessageSchema>) {
                     type: "box",
                     layout: "vertical",
                     spacing: "sm",
-                    separator: true,
                     contents: actions.map((action) => ({
                       type: "button",
                       style: "link",
