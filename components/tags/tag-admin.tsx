@@ -318,15 +318,25 @@ function BulkMoveMessage({ state }: { state: TagActionState }) {
 function TagFolderForm({ onCancel }: { onCancel: () => void }) {
   const [state, action] = useFormState(createTagFolder, initialState);
 
+  useEffect(() => {
+    if (state.ok) onCancel();
+  }, [onCancel, state.ok]);
+
   return (
-    <form action={action} className="mb-3 grid gap-2 border bg-muted/30 p-3 md:grid-cols-[1fr_1fr_auto_auto]">
-      <Input name="name" placeholder="フォルダ名" required />
-      <Input name="description" placeholder="説明（任意）" />
-      <FolderSubmitButton />
-      <Button onClick={onCancel} type="button" variant="outline">
-        <X className="mr-2 h-4 w-4" />
-        閉じる
-      </Button>
+    <form action={action} className="mb-3 space-y-2 border border-amber-200 bg-amber-50/40 p-3">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <FolderPlus className="h-4 w-4 text-amber-600" />
+        新しいフォルダを作成
+      </div>
+      <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+        <Input name="name" placeholder="フォルダ名" required />
+        <Input name="description" placeholder="説明（任意）" />
+        <FolderSubmitButton />
+        <Button onClick={onCancel} type="button" variant="outline">
+          <X className="mr-2 h-4 w-4" />
+          閉じる
+        </Button>
+      </div>
       <FormMessage state={state} />
     </form>
   );
@@ -346,34 +356,44 @@ function TagForm({
     setColor(editing?.color ?? "#0ea5e9");
   }, [editing]);
 
+  useEffect(() => {
+    if (state.ok) onCancel();
+  }, [onCancel, state.ok]);
+
   return (
     <form
       action={action}
-      className="mb-3 grid gap-2 border bg-muted/30 p-3 md:grid-cols-[1fr_160px_auto_auto]"
+      className="mb-3 space-y-2 border border-green-200 bg-green-50/40 p-3"
       key={editing?.id ?? "new"}
     >
       <input name="tag_id" type="hidden" value={editing?.id ?? ""} />
-      <Input
-        defaultValue={editing ? localizeSampleText(editing.name) ?? editing.name : ""}
-        name="name"
-        placeholder="タグ名"
-        required
-      />
-      <div className="flex gap-2">
-        <input
-          className="h-9 w-11 rounded border"
-          name="color"
-          onChange={(event) => setColor(event.target.value)}
-          type="color"
-          value={color}
-        />
-        <Input readOnly value={color} />
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <Plus className="h-4 w-4 text-green-700" />
+        {editing ? "タグを編集" : "新しいタグを作成"}
       </div>
-      <SubmitButton editing={Boolean(editing)} />
-      <Button onClick={onCancel} type="button" variant="outline">
-        <X className="mr-2 h-4 w-4" />
-        閉じる
-      </Button>
+      <div className="grid gap-2 md:grid-cols-[1fr_160px_auto_auto]">
+        <Input
+          defaultValue={editing ? localizeSampleText(editing.name) ?? editing.name : ""}
+          name="name"
+          placeholder="タグ名"
+          required
+        />
+        <div className="flex gap-2">
+          <input
+            className="h-9 w-11 rounded border"
+            name="color"
+            onChange={(event) => setColor(event.target.value)}
+            type="color"
+            value={color}
+          />
+          <Input readOnly value={color} />
+        </div>
+        <SubmitButton editing={Boolean(editing)} />
+        <Button onClick={onCancel} type="button" variant="outline">
+          <X className="mr-2 h-4 w-4" />
+          閉じる
+        </Button>
+      </div>
       <FormMessage state={state} />
     </form>
   );
@@ -401,20 +421,42 @@ function DeleteTagButton({ tagId }: { tagId: string }) {
 
 function SubmitButton({ editing }: { editing: boolean }) {
   const { pending } = useFormStatus();
+  const [isSlow, setIsSlow] = useState(false);
+
+  useEffect(() => {
+    if (!pending) {
+      setIsSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setIsSlow(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [pending]);
+
   return (
     <Button disabled={pending} type="submit">
       {editing ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-      {pending ? "保存中..." : editing ? "更新" : "作成"}
+      {pending ? (isSlow ? "保存確認中..." : "保存中...") : editing ? "更新" : "作成"}
     </Button>
   );
 }
 
 function FolderSubmitButton() {
   const { pending } = useFormStatus();
+  const [isSlow, setIsSlow] = useState(false);
+
+  useEffect(() => {
+    if (!pending) {
+      setIsSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setIsSlow(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, [pending]);
+
   return (
     <Button disabled={pending} type="submit">
       <FolderPlus className="mr-2 h-4 w-4" />
-      {pending ? "作成中..." : "フォルダ作成"}
+      {pending ? (isSlow ? "作成確認中..." : "作成中...") : "フォルダ作成"}
     </Button>
   );
 }

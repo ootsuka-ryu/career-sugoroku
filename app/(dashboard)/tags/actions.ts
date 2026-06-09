@@ -34,6 +34,10 @@ const moveTagsSchema = z.object({
   folder_id: z.string().uuid().optional().or(z.literal("none"))
 });
 
+function actionErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export async function saveTag(
   _prevState: TagActionState = initialState,
   formData: FormData
@@ -60,9 +64,19 @@ export async function saveTag(
     created_by: user.id
   };
 
-  const { error } = input.tag_id
-    ? await supabase.from("tags").update(payload).eq("id", input.tag_id)
-    : await supabase.from("tags").insert(payload);
+  const { error } = await (async () => {
+    try {
+      return input.tag_id
+        ? await supabase.from("tags").update(payload).eq("id", input.tag_id)
+        : await supabase.from("tags").insert(payload);
+    } catch (error) {
+      return {
+        error: {
+          message: actionErrorMessage(error, "タグの保存中にエラーが発生しました。")
+        }
+      };
+    }
+  })();
 
   if (error) return { ok: false, message: error.message };
 
@@ -91,11 +105,21 @@ export async function createTagFolder(
 
   if (!user) return { ok: false, message: "ログインが必要です。" };
 
-  const { error } = await supabase.from("tag_folders").insert({
-    name: parsed.data.name,
-    description: parsed.data.description || null,
-    created_by: user.id
-  });
+  const { error } = await (async () => {
+    try {
+      return await supabase.from("tag_folders").insert({
+        name: parsed.data.name,
+        description: parsed.data.description || null,
+        created_by: user.id
+      });
+    } catch (error) {
+      return {
+        error: {
+          message: actionErrorMessage(error, "フォルダの保存中にエラーが発生しました。")
+        }
+      };
+    }
+  })();
 
   if (error) {
     return {
@@ -149,10 +173,20 @@ export async function moveTagsToFolder(
 
   if (!user) return { ok: false, message: "ログインが必要です。" };
 
-  const { error } = await supabase
-    .from("tags")
-    .update({ folder_id: folderId })
-    .in("id", parsed.data.tag_ids);
+  const { error } = await (async () => {
+    try {
+      return await supabase
+        .from("tags")
+        .update({ folder_id: folderId })
+        .in("id", parsed.data.tag_ids);
+    } catch (error) {
+      return {
+        error: {
+          message: actionErrorMessage(error, "タグの移動中にエラーが発生しました。")
+        }
+      };
+    }
+  })();
 
   if (error) {
     return {
