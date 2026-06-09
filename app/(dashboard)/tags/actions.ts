@@ -29,6 +29,11 @@ const deleteSchema = z.object({
   tag_id: z.string().uuid()
 });
 
+const moveTagsSchema = z.object({
+  tag_ids: z.array(z.string().uuid()).min(1),
+  folder_id: z.string().uuid().optional().or(z.literal("none"))
+});
+
 export async function saveTag(
   _prevState: TagActionState = initialState,
   formData: FormData
@@ -121,4 +126,51 @@ export async function deleteTag(
   revalidatePath("/students");
   revalidatePath("/surveys");
   return { ok: true, message: "タグを削除しました。" };
+}
+
+export async function moveTagsToFolder(
+  _prevState: TagActionState = initialState,
+  formData: FormData
+): Promise<TagActionState> {
+  const parsed = moveTagsSchema.safeParse({
+    tag_ids: formData.getAll("tag_ids").map((value) => String(value)),
+    folder_id: String(formData.get("folder_id") ?? "")
+  });
+
+  if (!parsed.success) {
+    return { ok: false, message: "移動するタグとフォルダを選択してください。" };
+  }
+
+  const folderId = parsed.data.folder_id === "none" ? null : parsed.data.folder_id;
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, message: "ログインが必要です。" };
+
+  const { error } = await supabase
+    .from("tags")
+    .update({ folder_id: folderId })
+    .in("id", parsed.data.tag_ids);
+
+  if (error) {
+    return {
+      ok: false,
+      message: error.message.includes("folder_id")
+        ? "Supabaseで21_tag_folder_assignments.sqlを実行するとタグをフォルダ移動できます。"
+        : error.message
+    };
+  }
+
+  revalidatePath("/tags");
+  revalidatePath("/students");
+  revalidatePath("/surveys");
+
+  return {
+    ok: true,
+    message: folderId
+      ? `${parsed.data.tag_ids.length}件のタグをフォルダへ移動しました。`
+      : `${parsed.data.tag_ids.length}件のタグを未分類へ移動しました。`
+  };
 }

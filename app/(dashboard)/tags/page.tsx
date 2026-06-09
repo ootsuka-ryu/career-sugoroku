@@ -9,19 +9,31 @@ import {
 
 export default async function TagsPage() {
   const supabase = createClient() as any;
-  const [{ data, error }, foldersResult] = await Promise.all([
-    supabase
+  let folderAssignmentMissing = false;
+  let tagResult = await supabase
     .from("tags")
-    .select("id, name, color, created_at, student_tags(student_id)")
-      .order("name"),
-    supabase.from("tag_folders").select("id, name, description, created_at").order("created_at")
-  ]);
+    .select("id, name, color, created_at, folder_id, student_tags(student_id)")
+    .order("name");
+  const foldersResult = await supabase
+    .from("tag_folders")
+    .select("id, name, description, created_at")
+    .order("created_at");
 
-  const tags = (data ?? []).map((tag: any) => ({
+  if (tagResult.error?.message?.includes("folder_id")) {
+    folderAssignmentMissing = true;
+    tagResult = await supabase
+      .from("tags")
+      .select("id, name, color, created_at, student_tags(student_id)")
+      .order("name");
+  }
+
+  const error = tagResult.error;
+  const tags = (tagResult.data ?? []).map((tag: any) => ({
     id: tag.id,
     name: tag.name,
     color: tag.color,
     created_at: tag.created_at,
+    folder_id: tag.folder_id ?? null,
     student_count: (tag.student_tags ?? []).length
   }));
   const customFolders = foldersResult.error ? [] : foldersResult.data ?? [];
@@ -58,6 +70,16 @@ export default async function TagsPage() {
         </Card>
       ) : null}
 
+      {folderAssignmentMissing ? (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="pt-6 text-sm text-amber-900">
+            タグをフォルダへ移動するには、Supabaseで
+            <code className="mx-1 rounded bg-white px-1 py-0.5">21_tag_folder_assignments.sql</code>
+            を実行してください。
+          </CardContent>
+        </Card>
+      ) : null}
+
       <TagAdmin folders={folders} tags={tags} />
     </div>
   );
@@ -78,18 +100,21 @@ function buildTagFolders(tags: TagItem[], customFolders: any[]): TagFolderGroup[
       continue;
     }
 
+    const folderTags = tags.filter((tag) => tag.folder_id === folder.id);
+    folderTags.forEach((tag) => groupedTagIds.add(tag.id));
+
     folders.push({
       id: folder.id,
       name: folder.name,
       description: folder.description ?? "手動で作成したタグフォルダです。",
-      tags: []
+      tags: folderTags
     });
   }
 
   for (const folder of UNIVERSITY_TAG_FOLDERS) {
     const folderTags = folder.tags
       .map((name) => tagsByName.get(name))
-      .filter(Boolean) as TagItem[];
+      .filter((tag): tag is TagItem => tag !== undefined && !groupedTagIds.has(tag.id));
     folderTags.forEach((tag) => groupedTagIds.add(tag.id));
 
     folders.push({

@@ -16,6 +16,7 @@ import {
 import {
   createTagFolder,
   deleteTag,
+  moveTagsToFolder,
   saveTag,
   type TagActionState
 } from "@/app/(dashboard)/tags/actions";
@@ -28,6 +29,7 @@ export type TagItem = {
   name: string;
   color: string;
   created_at?: string | null;
+  folder_id?: string | null;
   student_count: number;
 };
 
@@ -55,6 +57,7 @@ export function TagAdmin({
   const [editing, setEditing] = useState<TagItem | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showFolderForm, setShowFolderForm] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const normalizedQuery = query.trim().toLowerCase();
 
   useEffect(() => {
@@ -62,6 +65,10 @@ export function TagAdmin({
       setSelectedFolderId(folders[0]?.id ?? "");
     }
   }, [folders, selectedFolderId]);
+
+  useEffect(() => {
+    setSelectedTagIds([]);
+  }, [selectedFolderId]);
 
   const activeFolder = folders.find((folder) => folder.id === selectedFolderId) ?? folders[0];
   const visibleTags = useMemo(() => {
@@ -72,6 +79,26 @@ export function TagAdmin({
       (localizeSampleText(tag.name) ?? tag.name).toLowerCase().includes(normalizedQuery)
     );
   }, [activeFolder, normalizedQuery]);
+
+  const selectedTagIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds]);
+  const visibleTagIds = useMemo(() => visibleTags.map((tag) => tag.id), [visibleTags]);
+  const allVisibleSelected =
+    visibleTagIds.length > 0 && visibleTagIds.every((tagId) => selectedTagIdSet.has(tagId));
+  const someVisibleSelected = visibleTagIds.some((tagId) => selectedTagIdSet.has(tagId));
+  const manualFolders = useMemo(() => folders.filter((folder) => isUuid(folder.id)), [folders]);
+
+  function toggleTagSelection(tagId: string, checked: boolean) {
+    setSelectedTagIds((current) =>
+      checked ? Array.from(new Set([...current, tagId])) : current.filter((id) => id !== tagId)
+    );
+  }
+
+  function toggleVisibleSelection(checked: boolean) {
+    setSelectedTagIds((current) => {
+      if (checked) return Array.from(new Set([...current, ...visibleTagIds]));
+      return current.filter((id) => !visibleTagIds.includes(id));
+    });
+  }
 
   function startCreate() {
     setEditing(null);
@@ -138,6 +165,12 @@ export function TagAdmin({
               <Plus className="mr-2 h-4 w-4" />
               新しいタグ
             </Button>
+            <BulkTagFolderMove
+              folders={manualFolders}
+              onMoved={() => setSelectedTagIds([])}
+              selectedCount={selectedTagIds.length}
+              selectedTagIds={selectedTagIds}
+            />
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-72 max-w-[55vw]">
@@ -159,7 +192,16 @@ export function TagAdmin({
         <div className="overflow-x-auto border bg-white">
           <div className="grid min-w-[640px] grid-cols-[34px_34px_minmax(220px,1fr)_140px_140px_72px] border-b bg-muted/60 px-2 py-2 text-xs font-medium text-muted-foreground">
             <span />
-            <span />
+            <input
+              aria-label="表示中のタグをすべて選択"
+              checked={allVisibleSelected}
+              className="h-4 w-4 rounded border-input"
+              onChange={(event) => toggleVisibleSelection(event.target.checked)}
+              ref={(element) => {
+                if (element) element.indeterminate = someVisibleSelected && !allVisibleSelected;
+              }}
+              type="checkbox"
+            />
             <span>タグ名</span>
             <span>友だち人数</span>
             <span>登録日</span>
@@ -169,11 +211,18 @@ export function TagAdmin({
             {visibleTags.length > 0 ? (
               visibleTags.map((tag) => (
                 <div
-                  className="grid min-w-[640px] grid-cols-[34px_34px_minmax(220px,1fr)_140px_140px_72px] items-center border-b px-2 py-2 text-sm last:border-b-0 hover:bg-secondary/40"
+                  className={`grid min-w-[640px] grid-cols-[34px_34px_minmax(220px,1fr)_140px_140px_72px] items-center border-b px-2 py-2 text-sm last:border-b-0 hover:bg-secondary/40 ${
+                    selectedTagIdSet.has(tag.id) ? "bg-green-50" : ""
+                  }`}
                   key={tag.id}
                 >
                   <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-                  <input className="h-4 w-4 rounded border-input" type="checkbox" />
+                  <input
+                    checked={selectedTagIdSet.has(tag.id)}
+                    className="h-4 w-4 rounded border-input"
+                    onChange={(event) => toggleTagSelection(tag.id, event.target.checked)}
+                    type="checkbox"
+                  />
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="h-3 w-3 rounded-full border" style={{ backgroundColor: tag.color }} />
                     <button
@@ -207,6 +256,62 @@ export function TagAdmin({
         </div>
       </section>
     </div>
+  );
+}
+
+function BulkTagFolderMove({
+  folders,
+  selectedTagIds,
+  selectedCount,
+  onMoved
+}: {
+  folders: TagFolderGroup[];
+  selectedTagIds: string[];
+  selectedCount: number;
+  onMoved: () => void;
+}) {
+  const [state, formAction] = useFormState(moveTagsToFolder, initialState);
+
+  useEffect(() => {
+    if (state.ok) onMoved();
+  }, [onMoved, state.ok]);
+
+  if (selectedCount === 0) return null;
+
+  return (
+    <form action={formAction} className="flex flex-col gap-1 sm:min-w-56">
+      {selectedTagIds.map((tagId) => (
+        <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
+      ))}
+      <select
+        className="h-9 rounded-md border border-green-600 bg-background px-3 text-sm font-medium text-green-800"
+        defaultValue=""
+        name="folder_id"
+        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      >
+        <option value="" disabled>
+          一括操作
+        </option>
+        <option value="none">未分類に移動</option>
+        {folders.map((folder) => (
+          <option key={folder.id} value={folder.id}>
+            {folder.name}に移動
+          </option>
+        ))}
+      </select>
+      <BulkMoveMessage state={state} />
+    </form>
+  );
+}
+
+function BulkMoveMessage({ state }: { state: TagActionState }) {
+  const { pending } = useFormStatus();
+  if (pending) return <p className="text-xs text-muted-foreground">移動しています...</p>;
+  if (!state.message) return null;
+  return (
+    <p className={`text-xs ${state.ok ? "text-green-700" : "text-destructive"}`}>
+      {state.message}
+    </p>
   );
 }
 
@@ -330,4 +435,8 @@ function formatDate(value?: string | null) {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(value));
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
