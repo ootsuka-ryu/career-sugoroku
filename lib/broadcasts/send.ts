@@ -37,6 +37,7 @@ export async function sendBroadcastToTargets({
   const targets = filterBroadcastTargets(students, targeting);
   let sentCount = 0;
   let failedCount = 0;
+  let skippedCount = 0;
   const followupTargetIds: string[] = [];
 
   for (const student of targets) {
@@ -57,13 +58,15 @@ export async function sendBroadcastToTargets({
       status = "no_line_user_id";
     }
 
-    if (status === "failed") {
+    if (status === "sent") {
+      sentCount += 1;
+    } else if (status === "failed") {
       failedCount += 1;
     } else {
-      sentCount += 1;
+      skippedCount += 1;
     }
 
-    if (status !== "failed" && status !== "no_line_user_id") {
+    if (status === "sent") {
       followupTargetIds.push(student.id);
     }
 
@@ -85,16 +88,19 @@ export async function sendBroadcastToTargets({
     studentIds: followupTargetIds
   });
 
-  await supabase.from("line_usage_events").insert({
-    event_month: new Date().toISOString().slice(0, 7) + "-01",
-    message_count: sentCount,
-    source: "broadcast",
-    broadcast_id: broadcastId
-  });
+  if (sentCount > 0) {
+    await supabase.from("line_usage_events").insert({
+      event_month: new Date().toISOString().slice(0, 7) + "-01",
+      message_count: sentCount,
+      source: "broadcast",
+      broadcast_id: broadcastId
+    });
+  }
 
   return {
     sentCount,
     failedCount,
+    skippedCount,
     targetCount: targets.length
   };
 }

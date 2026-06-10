@@ -91,7 +91,9 @@ async function processFollowupJob(supabase: any, job: any) {
 
   const messages = buildLineMessages(step.body_jsonb);
   const result = await pushLineMessage(studentResult.data.line_user_id, messages);
-  const status = result.ok ? "sent" : "failed";
+  const delivered = result.ok && !result.skipped;
+  const status = delivered ? "sent" : result.skipped ? "skipped" : "failed";
+  const sentAt = new Date().toISOString();
 
   await supabase.from("messages").insert({
     student_id: job.student_id,
@@ -101,7 +103,7 @@ async function processFollowupJob(supabase: any, job: any) {
     type: step.body_jsonb.kind === "text" ? "text" : "flex",
     payload: step.body_jsonb.kind === "text" ? { text: step.body_jsonb.text } : step.body_jsonb,
     status: result.skipped ? "mock_sent" : status,
-    sent_at: new Date().toISOString(),
+    sent_at: sentAt,
     staff_id: null
   });
 
@@ -109,12 +111,12 @@ async function processFollowupJob(supabase: any, job: any) {
     .from("broadcast_followup_jobs")
     .update({
       status,
-      sent_at: new Date().toISOString(),
-      error_message: result.ok ? null : result.reason
+      sent_at: delivered ? sentAt : null,
+      error_message: delivered ? null : result.reason
     })
     .eq("id", job.id);
 
-  return { status, reason: result.ok ? null : result.reason };
+  return { status, reason: delivered ? null : result.reason };
 }
 
 async function shouldSendFollowup(

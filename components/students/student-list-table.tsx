@@ -38,6 +38,7 @@ import {
   matchesJapaneseSearchQuery,
   normalizeJapaneseSearchText
 } from "@/lib/search/japanese";
+import { getStudentLineStatus } from "@/lib/line/student-status";
 import type { StaffSummary, StudentListItem, TagSummary } from "@/lib/students/types";
 import {
   UNIVERSITY_CLASSIFICATION_TAG_NAMES,
@@ -506,7 +507,10 @@ export function StudentListTable({
                         <StudentPhoto student={student} />
                       </TableCell>
                       <TableCell>
-                        <StudentLinePhoto student={student} />
+                        <div className="flex flex-col items-start gap-1">
+                          <StudentLinePhoto student={student} />
+                          <LineStatusBadge student={student} />
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="min-w-0">
@@ -721,6 +725,24 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
     >
       <UserRound className="h-5 w-5" />
     </div>
+  );
+}
+
+function LineStatusBadge({ student }: { student: StudentListItem }) {
+  const lineStatus = getStudentLineStatus(student);
+  const className =
+    lineStatus.tone === "ok"
+      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+      : lineStatus.tone === "info"
+        ? "border-blue-600 bg-blue-50 text-blue-700"
+        : lineStatus.tone === "warn"
+          ? "border-amber-500 bg-amber-50 text-amber-700"
+          : "border-neutral-300 bg-neutral-50 text-neutral-500";
+
+  return (
+    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${className}`}>
+      {lineStatus.label}
+    </span>
   );
 }
 

@@ -289,23 +289,14 @@ async function buildBroadcastPrecheck(
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [broadcastsResult, messagesResult] = await Promise.all([
-    supabase
-      .from("broadcasts")
-      .select("sent_count")
-      .gte("created_at", monthStart.toISOString()),
-    supabase
-      .from("messages")
-      .select("id")
-      .eq("direction", "out")
-      .gte("sent_at", monthStart.toISOString())
-  ]);
+  const messagesResult = await supabase
+    .from("messages")
+    .select("id")
+    .eq("direction", "out")
+    .eq("status", "sent")
+    .gte("sent_at", monthStart.toISOString());
 
-  const used =
-    (broadcastsResult.data ?? []).reduce(
-      (sum: number, item: any) => sum + Number(item.sent_count ?? 0),
-      0
-    ) + (messagesResult.data ?? []).length;
+  const used = (messagesResult.data ?? []).length;
   const remaining = Math.max(0, 5000 - used);
 
   if (estimatedRecipients > remaining) {

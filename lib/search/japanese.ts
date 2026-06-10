@@ -1,4 +1,4 @@
-const ROMAJI_TABLE: Array<[string, string]> = [
+const ROMAJI_TO_HIRAGANA: Array<[string, string]> = [
   ["kya", "きゃ"],
   ["kyu", "きゅ"],
   ["kyo", "きょ"],
@@ -132,51 +132,112 @@ const ROMAJI_TABLE: Array<[string, string]> = [
   ["n", "ん"]
 ];
 
+const KANA_TO_ROMAJI = [
+  ...ROMAJI_TO_HIRAGANA
+    .filter(([romaji]) => romaji !== "si" && romaji !== "ti" && romaji !== "tu" && romaji !== "hu" && romaji !== "zi")
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([romaji, kana]) => [kana, romaji] as const)
+];
+
 const SEARCH_STOP_WORDS =
-  /話し?した人|話してた人|話した|話し|話題|について|のこと|の人|した人|人/g;
+  /話し?した人|話してた人|話した|話し|話題|について|のこと|の人|した人|人|探して|検索|学生|子/g;
+
+const KANJI_READING_ALIASES: Array<[RegExp, string[]]> = [
+  [/大塚/g, ["おおつか", "ootsuka", "otsuka"]],
+  [/神田/g, ["かんだ", "kanda"]],
+  [/伊藤/g, ["いとう", "itou", "ito"]],
+  [/岩屋/g, ["いわや", "iwaya"]],
+  [/木下/g, ["きのした", "kinoshita"]],
+  [/安田/g, ["やすだ", "yasuda"]],
+  [/佐藤/g, ["さとう", "satou", "sato"]],
+  [/鈴木/g, ["すずき", "suzuki"]],
+  [/田中/g, ["たなか", "tanaka"]],
+  [/中谷/g, ["なかたに", "nakatani"]],
+  [/杉原/g, ["すぎはら", "sugihara"]],
+  [/河久/g, ["かわきゅう", "kawakyu"]],
+  [/高/g, ["こう", "kou", "taka"]],
+  [/詩/g, ["し", "shi"]],
+  [/奏/g, ["かな", "kana"]],
+  [/渚/g, ["なぎさ", "nagisa"]],
+  [/左友希/g, ["さゆき", "sayuki"]],
+  [/徳太郎/g, ["とくたろう", "tokutaro"]],
+  [/珠鈴/g, ["しゅりん", "shurin"]]
+];
 
 export function buildJapaneseSearchIndex(values: Array<string | null | undefined>) {
-  return normalizeJapaneseSearchText(values.filter(Boolean).join(" "));
+  const source = values.filter(Boolean).join(" ");
+  const hiragana = normalizeJapaneseSearchText(source);
+  const romaji = kanaToRomaji(toHiragana(normalizeBase(source)));
+  const aliases = buildKanjiReadingAliases(source).join(" ");
+
+  return Array.from(
+    new Set([
+      hiragana,
+      stripSeparators(normalizeBase(source)),
+      stripSeparators(toKatakana(toHiragana(normalizeBase(source)))),
+      stripSeparators(romaji),
+      normalizeJapaneseSearchText(aliases),
+      stripSeparators(aliases)
+    ].filter(Boolean))
+  ).join(" ");
 }
 
 export function matchesJapaneseSearchQuery(index: string, rawQuery: string) {
-  const query = normalizeJapaneseSearchText(rawQuery);
-  if (!query) return true;
-  if (index.includes(query)) return true;
-
-  const romanQuery = normalizeJapaneseSearchText(romajiToHiragana(rawQuery));
-  if (romanQuery && romanQuery !== query && index.includes(romanQuery)) return true;
-
   const tokens = splitJapaneseSearchTokens(rawQuery);
-  return tokens.length > 0 && tokens.every((token) => index.includes(token));
+  if (tokens.length === 0) return true;
+
+  return tokens.every((token) => {
+    if (index.includes(token)) return true;
+    const noSpace = stripSeparators(token);
+    if (noSpace && index.includes(noSpace)) return true;
+    return token.length >= 4 && hasNearToken(index, token);
+  });
 }
 
 export function normalizeJapaneseSearchText(value: string) {
-  return toHiragana(value)
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[\s　・.,、。-]/g, "");
+  return stripSeparators(toHiragana(normalizeBase(value)));
 }
 
 function splitJapaneseSearchTokens(value: string) {
-  const simplified = toHiragana(value)
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(SEARCH_STOP_WORDS, " ");
-  const matches = simplified.match(/[一-龯々〆ヵヶ]+|[ぁ-んー]+|[a-z0-9]+/g) ?? [];
+  const simplified = normalizeBase(value).replace(SEARCH_STOP_WORDS, " ");
+  const matches = simplified.match(/[一-龯々〆ヵヶ]+|[ぁ-んァ-ヶー]+|[a-z0-9]+/g) ?? [];
   const tokens = new Set<string>();
 
-  for (const match of matches) {
-    const normalized = normalizeJapaneseSearchText(match);
-    if (normalized.length >= 2) tokens.add(normalized);
+  const whole = normalizeJapaneseSearchText(simplified);
+  if (whole.length >= 2) tokens.add(whole);
+  const wholeRomaji = stripSeparators(kanaToRomaji(toHiragana(simplified)));
+  if (wholeRomaji.length >= 2) tokens.add(wholeRomaji);
 
-    if (/^[a-z]+$/i.test(match)) {
-      const hiragana = normalizeJapaneseSearchText(romajiToHiragana(match));
-      if (hiragana.length >= 2 && hiragana !== normalized) tokens.add(hiragana);
-    }
+  for (const match of matches) {
+    addTokenVariants(tokens, match);
   }
 
-  return Array.from(tokens);
+  for (const alias of buildKanjiReadingAliases(value)) {
+    addTokenVariants(tokens, alias);
+  }
+
+  return Array.from(tokens).filter((token) => token.length >= 2);
+}
+
+function addTokenVariants(tokens: Set<string>, value: string) {
+  const normalized = normalizeJapaneseSearchText(value);
+  if (normalized.length >= 2) tokens.add(normalized);
+
+  const romaji = stripSeparators(kanaToRomaji(toHiragana(normalizeBase(value))));
+  if (romaji.length >= 2) tokens.add(romaji);
+
+  if (/^[a-z0-9]+$/i.test(value)) {
+    const hiragana = normalizeJapaneseSearchText(romajiToHiragana(value));
+    if (hiragana.length >= 2) tokens.add(hiragana);
+  }
+}
+
+function normalizeBase(value: string) {
+  return value.normalize("NFKC").toLowerCase();
+}
+
+function stripSeparators(value: string) {
+  return value.replace(/[\s　・･.,、。_\-‐‑‒–—―/\\|()[\]{}「」『』【】"'`~:：;；!?！？]/g, "");
 }
 
 function toHiragana(value: string) {
@@ -185,11 +246,23 @@ function toHiragana(value: string) {
   );
 }
 
+function toKatakana(value: string) {
+  return value.replace(/[ぁ-ゖ]/g, (char) =>
+    String.fromCharCode(char.charCodeAt(0) + 0x60)
+  );
+}
+
+function buildKanjiReadingAliases(value: string) {
+  const aliases: string[] = [];
+  for (const [pattern, readings] of KANJI_READING_ALIASES) {
+    if (pattern.test(value)) aliases.push(...readings);
+    pattern.lastIndex = 0;
+  }
+  return aliases;
+}
+
 function romajiToHiragana(value: string) {
-  const input = value
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^a-z]/g, "");
+  const input = normalizeBase(value).replace(/[^a-z]/g, "");
   let output = "";
   let index = 0;
 
@@ -223,7 +296,7 @@ function romajiToHiragana(value: string) {
       }
     }
 
-    const match = ROMAJI_TABLE.find(([romaji]) => input.startsWith(romaji, index));
+    const match = ROMAJI_TO_HIRAGANA.find(([romaji]) => input.startsWith(romaji, index));
     if (match) {
       output += match[1];
       index += match[0].length;
@@ -235,4 +308,65 @@ function romajiToHiragana(value: string) {
   }
 
   return output;
+}
+
+function kanaToRomaji(value: string) {
+  const input = toHiragana(value);
+  let output = "";
+  let index = 0;
+  let doubleNext = false;
+
+  while (index < input.length) {
+    const current = input[index];
+    if (current === "っ") {
+      doubleNext = true;
+      index += 1;
+      continue;
+    }
+    if (current === "ー") {
+      output += output.match(/[aiueo]$/)?.[0] ?? "";
+      index += 1;
+      continue;
+    }
+
+    const match = KANA_TO_ROMAJI.find(([kana]) => input.startsWith(kana, index));
+    if (match) {
+      const romaji = match[1];
+      output += doubleNext ? romaji[0] + romaji : romaji;
+      doubleNext = false;
+      index += match[0].length;
+      continue;
+    }
+
+    output += current ?? "";
+    doubleNext = false;
+    index += 1;
+  }
+
+  return output;
+}
+
+function hasNearToken(index: string, token: string) {
+  const terms = index.split(/\s+/).filter((term) => term.length >= token.length - 1);
+  return terms.some((term) => {
+    if (term.includes(token) || token.includes(term)) return true;
+    return levenshteinDistance(term.slice(0, Math.max(token.length, 8)), token) <= 1;
+  });
+}
+
+function levenshteinDistance(a: string, b: string) {
+  const dp = Array.from({ length: a.length + 1 }, () => Array<number>(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[a.length][b.length];
 }

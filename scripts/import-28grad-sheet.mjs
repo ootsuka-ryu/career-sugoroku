@@ -51,6 +51,7 @@ const staffUsers = await fetchAll("staff_users", "id, name, email, is_active");
 const existingAssignees = await fetchAll("student_assignees", "student_id, staff_id");
 
 const nameMap = buildNameMap(existingStudents);
+const searchableStudents = buildSearchableStudents(existingStudents);
 const staffBySheetName = buildStaffMap(staffUsers);
 const currentAssignees = new Map(existingAssignees.map((row) => [row.student_id, row.staff_id]));
 
@@ -76,7 +77,12 @@ for (const row of rows) {
   const candidates = nameMap.get(matchKey) ?? [];
 
   if (candidates.length === 0) {
-    stats.unmatched.push(parsedName.realName);
+    stats.unmatched.push({
+      name: parsedName.realName,
+      kana: parsedName.kana || null,
+      university: normalizeUniversity(row.university) ?? clean(row.university) || null,
+      candidates: findSimilarStudents(parsedName, row, searchableStudents)
+    });
     continue;
   }
   if (candidates.length > 1) {
@@ -228,6 +234,106 @@ function buildNameMap(students) {
     }
   }
   return map;
+}
+
+function buildSearchableStudents(students) {
+  return students.map((student) => {
+    const nameValues = [student.real_name, student.display_name].filter(Boolean);
+    const nameKeys = nameValues
+      .flatMap((name) => {
+        const parsed = parseName(name);
+        return [parsed.realName, parsed.kana, name];
+      })
+      .filter(Boolean)
+      .map((name) => normalizeNameKey(name));
+    return {
+      student,
+      nameKeys: Array.from(new Set(nameKeys)),
+      kanaKey: normalizeNameKey(student.kana),
+      universityKey: normalizeLoose(student.university)
+    };
+  });
+}
+
+function findSimilarStudents(parsedName, row, searchableStudents) {
+  const targetName = normalizeNameKey(parsedName.realName);
+  const targetKana = normalizeNameKey(parsedName.kana);
+  const targetUniversity = normalizeLoose(normalizeUniversity(row.university) ?? row.university);
+  const scored = [];
+
+  for (const entry of searchableStudents) {
+    const score = scoreStudentCandidate({
+      targetName,
+      targetKana,
+      targetUniversity,
+      entry
+    });
+    if (score <= 0) continue;
+    scored.push({
+      score,
+      id: entry.student.id,
+      name: entry.student.real_name ?? entry.student.display_name,
+      kana: entry.student.kana ?? null,
+      university: entry.student.university ?? null,
+      graduation_year: entry.student.graduation_year ?? null
+    });
+  }
+
+  return scored
+    .sort((a, b) => b.score - a.score || String(a.name).localeCompare(String(b.name), "ja"))
+    .slice(0, 5);
+}
+
+function scoreStudentCandidate({ targetName, targetKana, targetUniversity, entry }) {
+  let score = 0;
+  const keys = entry.nameKeys.filter(Boolean);
+
+  for (const key of keys) {
+    if (!targetName || !key) continue;
+    if (key === targetName) score = Math.max(score, 100);
+    else if (key.includes(targetName) || targetName.includes(key)) score = Math.max(score, 85);
+    else {
+      const distance = levenshteinDistance(key, targetName);
+      const maxLength = Math.max(key.length, targetName.length);
+      const similarity = maxLength === 0 ? 0 : 1 - distance / maxLength;
+      if (similarity >= 0.72) score = Math.max(score, Math.round(similarity * 75));
+    }
+  }
+
+  if (targetKana && entry.kanaKey) {
+    if (entry.kanaKey === targetKana) score += 18;
+    else if (entry.kanaKey.includes(targetKana) || targetKana.includes(entry.kanaKey)) score += 10;
+  }
+
+  if (targetUniversity && entry.universityKey) {
+    if (entry.universityKey === targetUniversity) score += 15;
+    else if (entry.universityKey.includes(targetUniversity) || targetUniversity.includes(entry.universityKey)) score += 8;
+  }
+
+  return score;
+}
+
+function levenshteinDistance(a, b) {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const current = new Array(b.length + 1);
+
+  for (let i = 0; i < a.length; i += 1) {
+    current[0] = i + 1;
+    for (let j = 0; j < b.length; j += 1) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      current[j + 1] = Math.min(
+        current[j] + 1,
+        previous[j + 1] + 1,
+        previous[j] + cost
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+
+  return previous[b.length];
 }
 
 function buildStaffMap(staffUsers) {

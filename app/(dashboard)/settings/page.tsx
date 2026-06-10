@@ -119,8 +119,9 @@ export default async function SettingsPage() {
       .gte("created_at", monthStart.toISOString()),
     supabase
       .from("messages")
-      .select("id, status, sent_at")
+      .select("id, status, sent_at, broadcast_id")
       .eq("direction", "out")
+      .eq("status", "sent")
       .gte("sent_at", monthStart.toISOString()),
     supabase.from("students").select("id", { count: "exact", head: true }),
     supabase.from("surveys").select("id", { count: "exact", head: true }),
@@ -135,13 +136,8 @@ export default async function SettingsPage() {
   const broadcasts = broadcastsResult.data ?? [];
   const messages = messagesResult.data ?? [];
   const recordings = recordingsResult.data ?? [];
-  const broadcastSentCount = broadcasts.reduce(
-    (sum: number, item: any) => sum + Number(item.sent_count ?? 0),
-    0
-  );
-  const chatSentCount = messages.filter((item: any) =>
-    ["sent", "mock_sent", "external_line_official"].includes(item.status)
-  ).length;
+  const broadcastSentCount = messages.filter((item: any) => item.broadcast_id).length;
+  const chatSentCount = messages.filter((item: any) => !item.broadcast_id).length;
   const totalLineUsage = broadcastSentCount + chatSentCount;
   const scheduledEstimate = broadcasts
     .filter((item: any) => item.status === "scheduled")

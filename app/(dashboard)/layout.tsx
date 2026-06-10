@@ -29,8 +29,7 @@ export default async function DashboardLayout({
 
   const [
     { count: unreadNotifications },
-    broadcastsResult,
-    { count: chatSentCount }
+    { count: lineUsageCount }
   ] = await Promise.all([
     supabase
       .from("notifications")
@@ -38,26 +37,16 @@ export default async function DashboardLayout({
       .eq("staff_id", user.id)
       .is("read_at", null),
     supabase
-      .from("broadcasts")
-      .select("sent_count")
-      .gte("created_at", monthStart.toISOString()),
-    supabase
       .from("messages")
       .select("id", { count: "exact", head: true })
       .eq("direction", "out")
-      .in("status", ["sent", "mock_sent", "external_line_official"])
+      .eq("status", "sent")
       .gte("sent_at", monthStart.toISOString())
   ]);
 
-  const broadcastSentCount = ((broadcastsResult.data ?? []) as Array<{ sent_count: number | null }>).reduce(
-    (sum, item) => sum + Number(item.sent_count ?? 0),
-    0
-  );
-  const lineUsageCount = broadcastSentCount + (chatSentCount ?? 0);
-
   return (
     <div className="flex min-h-screen">
-      <AppSidebar lineUsageCount={lineUsageCount} />
+      <AppSidebar lineUsageCount={lineUsageCount ?? 0} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar email={user.email} unreadNotifications={unreadNotifications ?? 0} />
         <main className="flex-1 p-4 md:p-6">{children}</main>

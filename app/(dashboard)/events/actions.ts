@@ -449,7 +449,7 @@ async function sendEventLineMessage({
     staff_id: staffId
   });
 
-  if (result.ok) {
+  if (result.ok && !result.skipped) {
     await supabase.from("line_usage_events").insert({
       event_month: sentAt.slice(0, 7) + "-01",
       message_count: 1,

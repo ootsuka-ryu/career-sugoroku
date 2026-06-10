@@ -59,7 +59,8 @@ async function processReminder(supabase: any, reminder: any) {
     { type: "text", text: reminder.message }
   ]);
   const now = new Date().toISOString();
-  const status = result.ok ? "sent" : "failed";
+  const delivered = result.ok && !result.skipped;
+  const status = delivered ? "sent" : result.skipped ? "skipped" : "failed";
 
   await supabase.from("messages").insert({
     student_id: reminder.student_id,
@@ -80,13 +81,13 @@ async function processReminder(supabase: any, reminder: any) {
     .from("event_reminders")
     .update({
       status,
-      sent_at: result.ok ? now : null,
-      error_message: result.ok ? null : result.reason,
+      sent_at: delivered ? now : null,
+      error_message: delivered ? null : result.reason,
       line_response_jsonb: result
     })
     .eq("id", reminder.id);
 
-  return { sent: result.ok, status, reason: result.reason };
+  return { sent: delivered, status, reason: result.reason };
 }
 
 async function markReminder(
