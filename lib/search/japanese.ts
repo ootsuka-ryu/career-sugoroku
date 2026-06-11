@@ -143,6 +143,17 @@ const SEARCH_STOP_WORDS =
   /話し?した人|話してた人|話した|話し|話題|について|のこと|の人|した人|人|探して|検索|学生|子/g;
 
 const KANJI_READING_ALIASES: Array<[RegExp, string[]]> = [
+  [/大塚\s*徳太郎/g, ["おおつかとくたろう", "ootsukatokutaro", "otsukatokutaro"]],
+  [/大塚\s*渚/g, ["おおつかなぎさ", "ootsukanagisa", "otsukanagisa"]],
+  [/伊藤\s*左友希/g, ["いとうさゆき", "itousayuki", "itosayuki"]],
+  [/神田\s*樹/g, ["かんだいつき", "kandaitsuki"]],
+  [/岩屋\s*伶/g, ["いわやりょう", "iwayaryo", "iwayaryou"]],
+  [/木下\s*珠鈴/g, ["きのしたしゅりん", "kinoshitashurin"]],
+  [/河久\s*元美/g, ["かわきゅうもとみ", "kawakyuumotomi", "kawakyumotomi"]],
+  [/安田\s*光里/g, ["やすだひかり", "yasudahikari"]],
+  [/田中\s*美咲/g, ["たなかみさき", "tanakamisaki"]],
+  [/佐藤\s*花/g, ["さとうはな", "satouhana", "satohana"]],
+  [/鈴木\s*亮/g, ["すずきりょう", "suzukiryo", "suzukiryou"]],
   [/大塚/g, ["おおつか", "ootsuka", "otsuka"]],
   [/神田/g, ["かんだ", "kanda"]],
   [/伊藤/g, ["いとう", "itou", "ito"]],
@@ -161,7 +172,43 @@ const KANJI_READING_ALIASES: Array<[RegExp, string[]]> = [
   [/渚/g, ["なぎさ", "nagisa"]],
   [/左友希/g, ["さゆき", "sayuki"]],
   [/徳太郎/g, ["とくたろう", "tokutaro"]],
-  [/珠鈴/g, ["しゅりん", "shurin"]]
+  [/珠鈴/g, ["しゅりん", "shurin"]],
+  [/樹/g, ["いつき", "itsuki"]],
+  [/伶/g, ["りょう", "ryo", "ryou", "れい", "rei"]],
+  [/元美/g, ["もとみ", "motomi"]],
+  [/光里/g, ["ひかり", "hikari"]],
+  [/美咲/g, ["みさき", "misaki"]],
+  [/花/g, ["はな", "hana"]],
+  [/亮/g, ["りょう", "ryo", "ryou"]]
+];
+
+const KANJI_READING_PARTS: Array<[string, string[]]> = [
+  ["大塚", ["おおつか", "ootsuka", "otsuka"]],
+  ["神田", ["かんだ", "kanda"]],
+  ["伊藤", ["いとう", "itou", "ito"]],
+  ["岩屋", ["いわや", "iwaya"]],
+  ["木下", ["きのした", "kinoshita"]],
+  ["安田", ["やすだ", "yasuda"]],
+  ["佐藤", ["さとう", "satou", "sato"]],
+  ["鈴木", ["すずき", "suzuki"]],
+  ["田中", ["たなか", "tanaka"]],
+  ["中谷", ["なかたに", "nakatani"]],
+  ["杉原", ["すぎはら", "sugihara"]],
+  ["河久", ["かわきゅう", "kawakyu"]],
+  ["高", ["こう", "kou", "taka"]],
+  ["詩", ["し", "shi"]],
+  ["奏", ["かな", "kana"]],
+  ["渚", ["なぎさ", "nagisa"]],
+  ["左友希", ["さゆき", "sayuki"]],
+  ["徳太郎", ["とくたろう", "tokutaro"]],
+  ["珠鈴", ["しゅりん", "shurin"]],
+  ["樹", ["いつき", "itsuki"]],
+  ["伶", ["りょう", "ryo", "ryou", "れい", "rei"]],
+  ["元美", ["もとみ", "motomi"]],
+  ["光里", ["ひかり", "hikari"]],
+  ["美咲", ["みさき", "misaki"]],
+  ["花", ["はな", "hana"]],
+  ["亮", ["りょう", "ryo", "ryou"]]
 ];
 
 export function buildJapaneseSearchIndex(values: Array<string | null | undefined>) {
@@ -258,7 +305,40 @@ function buildKanjiReadingAliases(value: string) {
     if (pattern.test(value)) aliases.push(...readings);
     pattern.lastIndex = 0;
   }
+  aliases.push(...buildCompositeKanjiReadingAliases(value));
   return aliases;
+}
+
+function buildCompositeKanjiReadingAliases(value: string) {
+  const compact = stripSeparators(normalizeBase(value));
+  const matchedParts = KANJI_READING_PARTS
+    .map(([kanji, readings]) => ({ kanji, readings, index: compact.indexOf(kanji) }))
+    .filter((part) => part.index >= 0)
+    .sort((a, b) => a.index - b.index || b.kanji.length - a.kanji.length);
+
+  const aliases: string[] = [];
+  for (let start = 0; start < matchedParts.length; start += 1) {
+    for (let end = start + 1; end < matchedParts.length; end += 1) {
+      const parts = matchedParts.slice(start, end + 1);
+      const kanjiSequence = parts.map((part) => part.kanji).join("");
+      if (!compact.includes(kanjiSequence)) continue;
+
+      const readingGroups = parts.map((part) => part.readings.slice(0, 3));
+      for (const reading of combineReadings(readingGroups)) {
+        aliases.push(reading);
+      }
+    }
+  }
+
+  return aliases;
+}
+
+function combineReadings(groups: string[][]) {
+  return groups.reduce<string[]>(
+    (combinations, group) =>
+      combinations.flatMap((prefix) => group.map((reading) => `${prefix}${reading}`)),
+    [""]
+  );
 }
 
 function romajiToHiragana(value: string) {

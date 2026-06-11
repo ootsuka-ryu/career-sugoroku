@@ -22,6 +22,26 @@ type AppliedUpdate = {
   label: string;
 };
 
+const NON_PERSON_PARTIAL_SUFFIXES = [
+  "大学",
+  "女子大学",
+  "薬科大学",
+  "医科大学",
+  "医療大学",
+  "学院大学",
+  "科学大学",
+  "短期大学",
+  "専門学校",
+  "高校",
+  "病院",
+  "薬局",
+  "店舗",
+  "セミナー",
+  "説明会",
+  "交流会",
+  "イベント"
+];
+
 export async function processRecording({
   supabase,
   recordingId,
@@ -71,7 +91,8 @@ export async function processRecording({
   const summary = await summarizeRecordingWithClaude({
     transcript,
     companyContext,
-    studentContext
+    studentContext,
+    selectedStudentLabel: identity.selectedStudentLabel
   });
 
   const confirmationReason =
@@ -493,21 +514,24 @@ async function resolveRecordingStudentIdentity(
   const matches = findMentionedStudents(transcript, students);
   const exactMatches = matches.filter((match) => match.kind === "full");
   const selected = students.find((student) => student.id === selectedStudentId);
+  const selectedStudentLabel = selected ? displayStudent(selected) : "";
 
   if (exactMatches.length === 1) {
     const match = exactMatches[0]!;
     if (selectedStudentId && match.student.id !== selectedStudentId) {
       return {
         requiresConfirmation: true,
+        selectedStudentLabel,
         reason: `録音内では「${displayStudent(match.student)}」が強く示されていますが、録音の紐づけ先は「${selected ? displayStudent(selected) : selectedStudentId}」です。`
       };
     }
-    return { requiresConfirmation: false, reason: "" };
+    return { requiresConfirmation: false, reason: "", selectedStudentLabel };
   }
 
   if (exactMatches.length > 1) {
     return {
       requiresConfirmation: true,
+      selectedStudentLabel,
       reason: `録音内の氏名に一致する学生が複数います: ${exactMatches
         .map((match) => displayStudent(match.student))
         .join("、")}`
@@ -515,7 +539,7 @@ async function resolveRecordingStudentIdentity(
   }
 
   if (selectedStudentId) {
-    return { requiresConfirmation: false, reason: "" };
+    return { requiresConfirmation: false, reason: "", selectedStudentLabel };
   }
 
   if (matches.length > 1) {
@@ -523,6 +547,7 @@ async function resolveRecordingStudentIdentity(
     if (candidateIds.size > 1) {
       return {
         requiresConfirmation: true,
+        selectedStudentLabel,
         reason: `名字または呼び名が近い学生が複数います: ${Array.from(candidateIds)
           .map((id) => students.find((student) => student.id === id))
           .filter((student): student is StudentLite => Boolean(student))
@@ -535,11 +560,12 @@ async function resolveRecordingStudentIdentity(
   if (matches.length === 1 && selectedStudentId && matches[0]!.student.id !== selectedStudentId) {
     return {
       requiresConfirmation: true,
+      selectedStudentLabel,
       reason: `録音内で示された可能性がある学生は「${displayStudent(matches[0]!.student)}」ですが、選択中の学生と異なります。`
     };
   }
 
-  return { requiresConfirmation: false, reason: "" };
+  return { requiresConfirmation: false, reason: "", selectedStudentLabel };
 }
 
 function findMentionedStudents(transcript: string, students: StudentLite[]) {
@@ -564,12 +590,31 @@ function findMentionedStudents(transcript: string, students: StudentLite[]) {
 
     if (fullTokens.some((token) => normalizedTranscript.includes(token))) {
       matches.push({ student, kind: "full" });
-    } else if (partialTokens.some((token) => normalizedTranscript.includes(token))) {
+    } else if (partialTokens.some((token) => hasPersonLikePartialMention(normalizedTranscript, token))) {
       matches.push({ student, kind: "partial" });
     }
   }
 
   return matches;
+}
+
+function hasPersonLikePartialMention(normalizedTranscript: string, token: string) {
+  let searchStart = 0;
+
+  while (searchStart < normalizedTranscript.length) {
+    const index = normalizedTranscript.indexOf(token, searchStart);
+    if (index === -1) return false;
+
+    const suffix = normalizedTranscript.slice(index + token.length, index + token.length + 10);
+    const isNonPersonContext = NON_PERSON_PARTIAL_SUFFIXES.some((word) =>
+      suffix.startsWith(normalizeForMatch(word))
+    );
+    if (!isNonPersonContext) return true;
+
+    searchStart = index + token.length;
+  }
+
+  return false;
 }
 
 async function fetchCompanyContext(supabase: SupabaseLike) {

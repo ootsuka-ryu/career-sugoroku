@@ -51,11 +51,13 @@ export type RecordingSummary = {
 export async function summarizeRecordingWithClaude({
   transcript,
   companyContext,
-  studentContext
+  studentContext,
+  selectedStudentLabel
 }: {
   transcript: string;
   companyContext: string;
   studentContext: string;
+  selectedStudentLabel?: string;
 }): Promise<RecordingSummary> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
@@ -81,6 +83,9 @@ export async function summarizeRecordingWithClaude({
           "あなたは薬学生採用CRMの面談・音声メモを処理する採用アシスタントです。",
           "文字起こし、学生プロフィール、過去チャット、過去アンケート、イベント参加履歴、会社資料を見て、実務で使える要約と次アクションを日本語で作ります。",
           "録音内容だけで断定できないことは推測で反映しないでください。",
+          "録音に紐づいた対象学生が明示されている場合、「この学生」「この子」「選択中の学生」などの指示は必ずその対象学生を指すものとして扱ってください。",
+          "大学名・イベント名・施設名に含まれる名字だけを根拠に、別の学生へ対象を切り替えないでください。",
+          "対象学生と異なる学生のフルネームが録音内で明確に出た場合だけ、needsStudentConfirmationをtrueにしてください。",
           "対象学生が曖昧な場合、needsStudentConfirmationをtrueにして、変更候補は空にしてください。",
           "学生から返信をもらうための次アクションは、相手の大学、卒年、興味、過去の接触、参加イベントに合わせて具体的にしてください。",
           "参加イベント、タグ、予定、プロフィールに反映できるものは構造化して返してください。",
@@ -97,6 +102,7 @@ export async function summarizeRecordingWithClaude({
                 type: "text",
                 text: [
                   `現在日時: ${new Date().toISOString()}`,
+                  `録音に紐づいている対象学生: ${selectedStudentLabel || "(未選択)"}`,
                   `会社・採用方針:\n${companyContext || "(未登録)"}`,
                   `対象学生の情報とこれまでの履歴:\n${studentContext || "(取得できる学生情報なし)"}`,
                   `今回の録音文字起こし:\n${transcript}`
