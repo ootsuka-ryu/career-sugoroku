@@ -518,7 +518,7 @@ function ChatComposer({
   }
 
   return (
-    <form action={formAction} className="max-h-[42vh] space-y-4 overflow-y-auto border-t bg-card p-4 pb-0">
+    <form action={formAction} className="flex max-h-[40vh] min-h-[18rem] flex-col border-t bg-card">
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
       <input name="image_url" type="hidden" value={imageUrl} />
@@ -526,23 +526,24 @@ function ChatComposer({
       <input name="preview_image_url" type="hidden" value={previewImageUrl} />
       <input name="carousel_json" type="hidden" value={JSON.stringify(carouselItems)} />
 
-      <div className="flex flex-wrap gap-1 border-b">
-        <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
-          テキスト
-        </ComposerTab>
-        <ComposerTab active={tab === "image"} onClick={() => setTab("image")}>
-          画像
-        </ComposerTab>
-        <ComposerTab active={tab === "carousel"} onClick={() => setTab("carousel")}>
-          カルーセル
-        </ComposerTab>
-        <ComposerTab active={tab === "video"} onClick={() => setTab("video")}>
-          動画
-        </ComposerTab>
-        <ComposerTab active={tab === "pdf"} onClick={() => setTab("pdf")}>
-          PDF
-        </ComposerTab>
-      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="flex flex-wrap gap-1 border-b">
+          <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
+            テキスト
+          </ComposerTab>
+          <ComposerTab active={tab === "image"} onClick={() => setTab("image")}>
+            画像
+          </ComposerTab>
+          <ComposerTab active={tab === "carousel"} onClick={() => setTab("carousel")}>
+            カルーセル
+          </ComposerTab>
+          <ComposerTab active={tab === "video"} onClick={() => setTab("video")}>
+            動画
+          </ComposerTab>
+          <ComposerTab active={tab === "pdf"} onClick={() => setTab("pdf")}>
+            PDF
+          </ComposerTab>
+        </div>
 
       {surveys.length > 0 ? (
         <select
@@ -653,29 +654,30 @@ function ChatComposer({
         </div>
       ) : null}
 
-      {tab === "pdf" ? (
-        <div className="space-y-4 rounded-md border bg-secondary/30 p-4">
-          <div className="flex items-center gap-2 font-medium">
-            <FileText className="h-4 w-4 text-primary" />
-            送付するPDF
+        {tab === "pdf" ? (
+          <div className="space-y-4 rounded-md border bg-secondary/30 p-4">
+            <div className="flex items-center gap-2 font-medium">
+              <FileText className="h-4 w-4 text-primary" />
+              送付するPDF
+            </div>
+            <div className="rounded-md border border-dashed bg-background p-4">
+              <Input
+                accept="application/pdf,.pdf"
+                onChange={(event) => void uploadPdf(event.target.files?.[0])}
+                type="file"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                PDFは10MBまでアップロードできます。アップロード後、本文に「PDFはこちら」とURLを自動で挿入します。
+              </p>
+            </div>
+            {uploadMessage ? (
+              <p className="rounded-md bg-background px-3 py-2 text-sm">{uploadMessage}</p>
+            ) : null}
           </div>
-          <div className="rounded-md border border-dashed bg-background p-4">
-            <Input
-              accept="application/pdf,.pdf"
-              onChange={(event) => void uploadPdf(event.target.files?.[0])}
-              type="file"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
-              PDFは10MBまでアップロードできます。アップロード後、本文に「PDFはこちら」とURLを自動で挿入します。
-            </p>
-          </div>
-          {uploadMessage ? (
-            <p className="rounded-md bg-background px-3 py-2 text-sm">{uploadMessage}</p>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t bg-card p-4 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-card p-3 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
         <p
           className={
             state.message
