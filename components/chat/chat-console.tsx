@@ -125,7 +125,7 @@ export function ChatConsole({
     .sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime());
 
   return (
-    <div className="grid h-[calc(100vh-11rem)] min-h-[42rem] gap-4 xl:grid-cols-[22rem_1fr]">
+    <div className="grid h-[calc(100vh-8rem)] min-h-0 gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
       <aside className="rounded-lg border bg-card">
         <div className="border-b p-3">
           <Input
@@ -134,7 +134,7 @@ export function ChatConsole({
             value={query}
           />
         </div>
-        <div className="max-h-[calc(100vh-16rem)] overflow-auto">
+        <div className="max-h-[calc(100vh-14rem)] overflow-auto">
           {filteredStudents.map((student) => {
             const active = student.id === currentStudentId;
             return (
@@ -188,7 +188,7 @@ export function ChatConsole({
       <section className="flex min-h-0 overflow-hidden rounded-lg border bg-card">
         {currentStudent ? (
           <div className="flex min-h-0 w-full flex-col">
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
+            <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4">
               <div>
                 <h2 className="text-lg font-semibold">
                   {localizeSampleText(currentStudent.real_name) ||
@@ -222,7 +222,7 @@ export function ChatConsole({
               </div>
             </header>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-4">
+            <div className="min-h-[8rem] flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-4">
               {currentMessages.length > 0 ? (
                 currentMessages.map((message) => (
                   <MessageBubble key={message.id} message={message} />
@@ -296,7 +296,7 @@ function ExternalLineLogForm({ studentId }: { studentId: string }) {
   );
 
   return (
-    <details className="border-t bg-secondary/30">
+    <details className="shrink-0 border-t bg-secondary/30">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-secondary/60">
         <NotebookPen className="h-4 w-4 text-primary" />
         公式LINEから直接送った連絡を記録
@@ -518,7 +518,7 @@ function ChatComposer({
   }
 
   return (
-    <form action={formAction} className="flex max-h-[40vh] min-h-[18rem] flex-col border-t bg-card">
+    <form action={formAction} className="flex max-h-[34vh] min-h-[14rem] shrink-0 flex-col border-t bg-card">
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
       <input name="image_url" type="hidden" value={imageUrl} />
@@ -526,7 +526,7 @@ function ChatComposer({
       <input name="preview_image_url" type="hidden" value={previewImageUrl} />
       <input name="carousel_json" type="hidden" value={JSON.stringify(carouselItems)} />
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         <div className="flex flex-wrap gap-1 border-b">
           <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
             テキスト
@@ -677,7 +677,7 @@ function ChatComposer({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-card p-3 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-card p-3 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
         <p
           className={
             state.message

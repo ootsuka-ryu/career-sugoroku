@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ type TopbarProps = {
 
 export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedGraduationYear = searchParams.get("graduationYear") ?? "all";
   const [studentSearch, setStudentSearch] = useState(searchParams.get("q") ?? "");
@@ -24,14 +23,12 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
   }, [searchParams]);
 
   function updateGraduationYear(value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === "all") {
-      params.delete("graduationYear");
-    } else {
-      params.set("graduationYear", value);
-    }
+    const params = new URLSearchParams();
+    const trimmed = studentSearch.trim() || searchParams.get("q")?.trim() || "";
+    if (trimmed) params.set("q", trimmed);
+    if (value !== "all") params.set("graduationYear", value);
     const query = params.toString();
-    router.push((query ? `${pathname}?${query}` : pathname) as any);
+    router.push(query ? `/students?${query}` : "/students");
   }
 
   function submitStudentSearch(event: FormEvent<HTMLFormElement>) {
@@ -43,7 +40,7 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
       params.set("graduationYear", selectedGraduationYear);
     }
     const query = params.toString();
-    router.push((query ? `/students?${query}` : "/students") as any);
+    router.push(query ? `/students?${query}` : "/students");
   }
 
   return (
@@ -63,7 +60,7 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
           onChange={(event) => updateGraduationYear(event.target.value)}
           value={selectedGraduationYear}
         >
-          <option value="all">全卒年</option>
+          <option value="all">全年卒</option>
           {Array.from({ length: 10 }, (_, index) => 2025 + index).map((year) => (
             <option key={year} value={year}>
               {year}卒

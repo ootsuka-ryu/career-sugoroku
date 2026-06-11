@@ -89,6 +89,7 @@ export default async function ChatPage({
     sent_at: row.sent_at,
     staff: row.staff_users
   })) as ChatMessage[];
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const surveys = (surveysResult.data ?? []).map((row: any) => ({
     id: row.id,
@@ -97,6 +98,7 @@ export default async function ChatPage({
     folderName: row.survey_folders?.name ?? "未分類",
     url: `${baseUrl}/survey/${row.id}`
   })) as ChatSurveyLink[];
+
   const templateTableMissing =
     templatesResult.error?.message?.includes("message_templates") ||
     templatesResult.error?.message?.includes("schema cache");
