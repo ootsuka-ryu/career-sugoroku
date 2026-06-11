@@ -291,19 +291,19 @@ function BulkTagFolderMove({
       ))}
       <Button
         aria-expanded={open}
-        className="border-green-700 text-green-800"
+        className="border-green-700 bg-green-50 text-green-800 hover:bg-green-100"
         onClick={() => setOpen((current) => !current)}
         size="sm"
         type="button"
         variant="outline"
       >
-        一括操作
+        {selectedCount}件選択中: 一括操作
         <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </Button>
       {open ? (
         <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border bg-white py-1 shadow-lg">
           <p className="border-b px-3 py-2 text-xs text-muted-foreground">
-            {selectedCount}件のタグを移動
+            移動先フォルダを選択
           </p>
           <BulkMoveMenuItem value="none">未分類に移動</BulkMoveMenuItem>
           {folders.map((folder) => (

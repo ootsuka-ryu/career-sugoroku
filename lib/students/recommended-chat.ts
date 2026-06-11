@@ -39,12 +39,8 @@ export function buildRecommendedChatDraft(student: RecommendedChatStudent) {
     "",
     body,
     "",
-    "無理に決めなくて大丈夫なので、",
-    "①日程を見たい",
-    "②まず内容だけ聞きたい",
-    "③今回は見送り",
-    "",
-    "この中だとどれが近いですか？✨"
+    "まだ迷っている段階でも大丈夫です。",
+    "気になる点だけでも気軽に返信してください✨"
   ].join("\n");
 }
 
@@ -73,6 +69,11 @@ export function extractNextAction(value: string | null | undefined) {
     /(?:次アクション|次にやること|送る文章|案内内容)\s*[：:\-]?\s*([\s\S]+?)(?=\n\s*(?:推奨連絡手段|理由|優先度|タグ候補|$)|$)/
   );
   if (nextActionMatch?.[1]) return polishAction(nextActionMatch[1]);
+
+  const studentFacingMatch = normalized.match(
+    /(?:送信文|返信文|メッセージ|チャット文)\s*[：:\-]?\s*([\s\S]+?)(?=\n\s*(?:理由|根拠|優先度|AI判断|次アクション|タグ候補|$)|$)/
+  );
+  if (studentFacingMatch?.[1]) return polishAction(studentFacingMatch[1]);
 
   if (/優先度|理由|推奨連絡手段/.test(normalized)) return "";
   return polishAction(normalized);
@@ -157,7 +158,10 @@ function getStudentChatName(student: RecommendedChatStudent) {
 
 function polishAction(value: string) {
   return value
+    .replace(/```(?:json)?/g, "")
+    .replace(/^\s*[-・]\s*/gm, "")
     .replace(/^次に?/g, "")
+    .replace(/^採用担当者が/g, "")
     .replace(/してください。?$/g, "")
     .replace(/です。?$/g, "")
     .trim();

@@ -14,6 +14,10 @@ const initialState: TagActionState = {
   message: ""
 };
 
+type SupabaseActionResult = {
+  error: { message: string } | null;
+};
+
 const tagSchema = z.object({
   tag_id: z.string().uuid().optional().or(z.literal("")),
   name: z.string().trim().min(1, "タグ名は必須です。"),
@@ -38,100 +42,140 @@ function actionErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+async function withActionTimeout<T>(promise: PromiseLike<T>, label: string, ms = 15000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label}に時間がかかっています。通信状態を確認して、もう一度お試しください。`)),
+          ms
+        );
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function revalidateTagScreens() {
+  try {
+    revalidatePath("/tags");
+    revalidatePath("/students");
+    revalidatePath("/surveys");
+  } catch {
+    // Revalidation failure should not make a successful database update look failed.
+  }
+}
+
 export async function saveTag(
   _prevState: TagActionState = initialState,
   formData: FormData
 ): Promise<TagActionState> {
-  const parsed = tagSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: parsed.error.errors[0]?.message ?? "入力内容を確認してください。"
-    };
-  }
-
-  const supabase = createClient() as any;
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) return { ok: false, message: "ログインが必要です。" };
-
-  const input = parsed.data;
-  const payload = {
-    name: input.name,
-    color: input.color,
-    created_by: user.id
-  };
-
-  const { error } = await (async () => {
-    try {
-      return input.tag_id
-        ? await supabase.from("tags").update(payload).eq("id", input.tag_id)
-        : await supabase.from("tags").insert(payload);
-    } catch (error) {
+  try {
+    const parsed = tagSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) {
       return {
-        error: {
-          message: actionErrorMessage(error, "タグの保存中にエラーが発生しました。")
-        }
+        ok: false,
+        message: parsed.error.errors[0]?.message ?? "入力内容を確認してください。"
       };
     }
-  })();
 
-  if (error) return { ok: false, message: error.message };
+    const supabase = createClient() as any;
+    const {
+      data: { user }
+    } = (await withActionTimeout(supabase.auth.getUser(), "ログイン確認")) as {
+      data: { user: { id: string } | null };
+    };
 
-  revalidatePath("/tags");
-  revalidatePath("/students");
-  revalidatePath("/surveys");
-  return { ok: true, message: input.tag_id ? "タグを更新しました。" : "タグを作成しました。" };
+    if (!user) return { ok: false, message: "ログインが必要です。" };
+
+    const input = parsed.data;
+    const payload = {
+      name: input.name,
+      color: input.color,
+      created_by: user.id
+    };
+
+    const { error } = (await (async () => {
+      try {
+        return input.tag_id
+          ? await withActionTimeout(supabase.from("tags").update(payload).eq("id", input.tag_id), "タグ更新")
+          : await withActionTimeout(supabase.from("tags").insert(payload), "タグ作成");
+      } catch (error) {
+        return {
+          error: {
+            message: actionErrorMessage(error, "タグの保存中にエラーが発生しました。")
+          }
+        };
+      }
+    })()) as SupabaseActionResult;
+
+    if (error) return { ok: false, message: error.message };
+
+    revalidateTagScreens();
+    return { ok: true, message: input.tag_id ? "タグを更新しました。" : "タグを作成しました。" };
+  } catch (error) {
+    return { ok: false, message: actionErrorMessage(error, "タグの保存中にエラーが発生しました。") };
+  }
 }
 
 export async function createTagFolder(
   _prevState: TagActionState = initialState,
   formData: FormData
 ): Promise<TagActionState> {
-  const parsed = folderSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: parsed.error.errors[0]?.message ?? "入力内容を確認してください。"
-    };
-  }
-
-  const supabase = createClient() as any;
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) return { ok: false, message: "ログインが必要です。" };
-
-  const { error } = await (async () => {
-    try {
-      return await supabase.from("tag_folders").insert({
-        name: parsed.data.name,
-        description: parsed.data.description || null,
-        created_by: user.id
-      });
-    } catch (error) {
+  try {
+    const parsed = folderSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) {
       return {
-        error: {
-          message: actionErrorMessage(error, "フォルダの保存中にエラーが発生しました。")
-        }
+        ok: false,
+        message: parsed.error.errors[0]?.message ?? "入力内容を確認してください。"
       };
     }
-  })();
 
-  if (error) {
-    return {
-      ok: false,
-      message: error.message.includes("tag_folders")
-        ? "Supabaseで16_tag_folders.sqlを実行するとフォルダを保存できます。"
-        : error.message
+    const supabase = createClient() as any;
+    const {
+      data: { user }
+    } = (await withActionTimeout(supabase.auth.getUser(), "ログイン確認")) as {
+      data: { user: { id: string } | null };
     };
-  }
 
-  revalidatePath("/tags");
-  return { ok: true, message: "フォルダを作成しました。" };
+    if (!user) return { ok: false, message: "ログインが必要です。" };
+
+    const { error } = (await (async () => {
+      try {
+        return await withActionTimeout(
+          supabase.from("tag_folders").insert({
+            name: parsed.data.name,
+            description: parsed.data.description || null,
+            created_by: user.id
+          }),
+          "フォルダ作成"
+        );
+      } catch (error) {
+        return {
+          error: {
+            message: actionErrorMessage(error, "フォルダの保存中にエラーが発生しました。")
+          }
+        };
+      }
+    })()) as SupabaseActionResult;
+
+    if (error) {
+      return {
+        ok: false,
+        message: error.message.includes("tag_folders")
+          ? "Supabaseで16_tag_folders.sqlを実行するとフォルダを保存できます。"
+          : error.message
+      };
+    }
+
+    revalidateTagScreens();
+    return { ok: true, message: "フォルダを作成しました。" };
+  } catch (error) {
+    return { ok: false, message: actionErrorMessage(error, "フォルダの保存中にエラーが発生しました。") };
+  }
 }
 
 export async function deleteTag(
@@ -156,55 +200,62 @@ export async function moveTagsToFolder(
   _prevState: TagActionState = initialState,
   formData: FormData
 ): Promise<TagActionState> {
-  const parsed = moveTagsSchema.safeParse({
-    tag_ids: formData.getAll("tag_ids").map((value) => String(value)),
-    folder_id: String(formData.get("folder_id") ?? "")
-  });
+  try {
+    const parsed = moveTagsSchema.safeParse({
+      tag_ids: formData.getAll("tag_ids").map((value) => String(value)),
+      folder_id: String(formData.get("folder_id") ?? "")
+    });
 
-  if (!parsed.success) {
-    return { ok: false, message: "移動するタグとフォルダを選択してください。" };
-  }
+    if (!parsed.success) {
+      return { ok: false, message: "移動するタグとフォルダを選択してください。" };
+    }
 
-  const folderId = parsed.data.folder_id === "none" ? null : parsed.data.folder_id;
-  const supabase = createClient() as any;
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+    const folderId = parsed.data.folder_id === "none" ? null : parsed.data.folder_id;
+    const supabase = createClient() as any;
+    const {
+      data: { user }
+    } = (await withActionTimeout(supabase.auth.getUser(), "ログイン確認")) as {
+      data: { user: { id: string } | null };
+    };
 
-  if (!user) return { ok: false, message: "ログインが必要です。" };
+    if (!user) return { ok: false, message: "ログインが必要です。" };
 
-  const { error } = await (async () => {
-    try {
-      return await supabase
-        .from("tags")
-        .update({ folder_id: folderId })
-        .in("id", parsed.data.tag_ids);
-    } catch (error) {
+    const { error } = (await (async () => {
+      try {
+        return await withActionTimeout(
+          supabase
+            .from("tags")
+            .update({ folder_id: folderId })
+            .in("id", parsed.data.tag_ids),
+          "タグ移動"
+        );
+      } catch (error) {
+        return {
+          error: {
+            message: actionErrorMessage(error, "タグの移動中にエラーが発生しました。")
+          }
+        };
+      }
+    })()) as SupabaseActionResult;
+
+    if (error) {
       return {
-        error: {
-          message: actionErrorMessage(error, "タグの移動中にエラーが発生しました。")
-        }
+        ok: false,
+        message: error.message.includes("folder_id")
+          ? "Supabaseで21_tag_folder_assignments.sqlを実行するとタグをフォルダ移動できます。"
+          : error.message
       };
     }
-  })();
 
-  if (error) {
+    revalidateTagScreens();
+
     return {
-      ok: false,
-      message: error.message.includes("folder_id")
-        ? "Supabaseで21_tag_folder_assignments.sqlを実行するとタグをフォルダ移動できます。"
-        : error.message
+      ok: true,
+      message: folderId
+        ? `${parsed.data.tag_ids.length}件のタグをフォルダへ移動しました。`
+        : `${parsed.data.tag_ids.length}件のタグを未分類へ移動しました。`
     };
+  } catch (error) {
+    return { ok: false, message: actionErrorMessage(error, "タグの移動中にエラーが発生しました。") };
   }
-
-  revalidatePath("/tags");
-  revalidatePath("/students");
-  revalidatePath("/surveys");
-
-  return {
-    ok: true,
-    message: folderId
-      ? `${parsed.data.tag_ids.length}件のタグをフォルダへ移動しました。`
-      : `${parsed.data.tag_ids.length}件のタグを未分類へ移動しました。`
-  };
 }

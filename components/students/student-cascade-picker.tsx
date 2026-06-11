@@ -92,7 +92,7 @@ export function StudentCascadePicker({
             ? formatStudentLabel(selectedStudent)
             : students.length > 0
               ? "学生を選択"
-              : "学生がありません"}
+              : "学生がいません"}
         </span>
         <ChevronRight className={`h-4 w-4 transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
@@ -100,7 +100,7 @@ export function StudentCascadePicker({
       {open ? (
         <div
           className="absolute left-0 top-full z-50 mt-2 flex w-[min(920px,calc(100vw-3rem))] flex-col overflow-hidden rounded-md border bg-white shadow-lg"
-          style={{ maxHeight: "min(560px, calc(100vh - 7rem))" }}
+          style={{ maxHeight: "min(720px, calc(100vh - 4rem))" }}
         >
           <div className="border-b p-3">
             <div className="relative">
@@ -115,7 +115,7 @@ export function StudentCascadePicker({
           </div>
           <div
             className="grid min-h-0 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
-            style={{ height: "min(460px, calc(100vh - 12rem))" }}
+            style={{ height: "min(600px, calc(100vh - 9rem))" }}
           >
             <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
               {groups.map((group) => (
