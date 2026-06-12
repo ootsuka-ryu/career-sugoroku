@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FilterX, MessageSquareText, UserRound } from "lucide-react";
@@ -184,6 +184,9 @@ export function StudentListTable({
         getCandidateStageLabel(student.candidate_stage),
         student.ai_next_action,
         student.manual_next_action,
+        student.notes,
+        getStudentLineStatus(student).label,
+        ...student.tags.map((tag) => tag.name),
         ...studentEvents.flatMap((participant) => [
           participant.event?.title,
           participant.event?.event_type,
@@ -279,6 +282,19 @@ export function StudentListTable({
     );
   }
 
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const params = new URLSearchParams(routeSearchParams.toString());
+    const trimmed = search.trim();
+    if (trimmed) {
+      params.set("q", trimmed);
+    } else {
+      params.delete("q");
+    }
+    const query = params.toString();
+    router.replace((query ? `${pathname}?${query}` : pathname) as any);
+  }
+
   function resetFilters() {
     setSearch("");
     const params = new URLSearchParams(routeSearchParams.toString());
@@ -298,11 +314,13 @@ export function StudentListTable({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 lg:grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr]">
-        <Input
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="氏名・大学・次アクションで検索"
-          value={search}
-        />
+        <form onSubmit={submitSearch}>
+          <Input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="氏名・大学・次アクションで検索"
+            value={search}
+          />
+        </form>
         <Select value={staffId} onChange={setStaffId}>
           <option value="all">担当者すべて</option>
           {staffUsers.map((staff) => (
