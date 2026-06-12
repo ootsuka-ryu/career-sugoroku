@@ -95,9 +95,13 @@ export async function processRecording({
     selectedStudentLabel: identity.selectedStudentLabel
   });
 
+  const shouldUseAiConfirmation =
+    !identity.selectedStudentLabel && summary.needsStudentConfirmation;
   const confirmationReason =
-    identity.requiresConfirmation || summary.needsStudentConfirmation
-      ? [identity.reason, summary.confirmationReason].filter(Boolean).join("\n")
+    identity.requiresConfirmation || shouldUseAiConfirmation
+      ? [identity.reason, shouldUseAiConfirmation ? summary.confirmationReason : ""]
+          .filter(Boolean)
+          .join("\n")
       : "";
   const canApply = Boolean(recording?.student_id) && !confirmationReason;
   const appliedUpdates: AppliedUpdate[] = [];

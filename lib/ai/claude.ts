@@ -85,12 +85,14 @@ export async function summarizeRecordingWithClaude({
           "録音内容だけで断定できないことは推測で反映しないでください。",
           "録音に紐づいた対象学生が明示されている場合、summary、nextActions、profileUpdates、eventUpdates、scheduleUpdatesは必ずその対象学生だけを対象にしてください。",
           "録音に紐づいた対象学生が明示されている場合、「この学生」「この子」「この人」「選択中の学生」「対象学生」などの指示は必ずその対象学生を指すものとして扱ってください。",
+          "録音に紐づいた対象学生がいる場合、その学生が処理対象として最優先です。録音内に別人の姓と名がそろったフルネームが明確に出た場合以外、別の学生候補を出さないでください。",
           "大学名・イベント名・施設名・タグ名・会社名・地名に含まれる名字だけを根拠に、別の学生へ対象を切り替えないでください。",
           "対象学生と異なる学生のフルネームが録音内で明確に出た場合だけ、needsStudentConfirmationをtrueにしてください。その場合、profileUpdates、eventUpdates、scheduleUpdatesは空にしてください。",
           "対象学生が曖昧な場合、needsStudentConfirmationをtrueにして、変更候補は空にしてください。",
           "選択済みの対象学生がいるのに録音内で別の学生名らしき語が出た場合でも、大学名やイベント名など文脈上の固有名詞なら別人候補として扱わないでください。",
           "次アクションは採用担当者が次に行う具体的な行動だけを書いてください。理由、分析、優先度、JSON説明、候補の羅列はnextActionsに入れないでください。",
           "学生から返信をもらうための次アクションは、相手の大学、卒年、興味、過去の接触、参加イベントに合わせて具体的にしてください。",
+          "summaryとnextActionsの文字列には、JSON、Markdown、コードフェンス、キー名、箇条書き記号だけの行を絶対に入れないでください。",
           "参加イベント、タグ、予定、プロフィールに反映できるものは構造化して返してください。",
           "返答はMarkdownやコードフェンスを付けず、JSONオブジェクトだけにしてください。",
           "JSON形式: {\"summary\":\"短い要約\",\"nextActions\":[\"誰がいつ何をするか\"],\"tagCandidates\":[\"追加タグ\"],\"urgent\":false,\"profileUpdates\":{},\"eventUpdates\":[{\"eventTitle\":\"店舗見学\",\"eventDate\":\"2026-06-10\",\"status\":\"参加\",\"memo\":\"\"}],\"scheduleUpdates\":[{\"title\":\"電話する\",\"dueAt\":\"2026-06-07T10:00:00+09:00\",\"memo\":\"\"}],\"needsStudentConfirmation\":false,\"confirmationReason\":\"\",\"mentionedStudentName\":null}",
@@ -150,17 +152,18 @@ export async function summarizeRecordingWithClaude({
 
 function normalizeRecordingSummary(value: unknown): RecordingSummary {
   const row = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const nextActions = normalizeStringArray(row.nextActions ?? row.next_actions ?? row.actions);
   return {
-    summary: cleanString(row.summary),
-    nextActions: normalizeStringArray(row.nextActions),
-    tagCandidates: normalizeStringArray(row.tagCandidates),
+    summary: cleanAiString(row.summary),
+    nextActions,
+    tagCandidates: normalizeStringArray(row.tagCandidates ?? row.tag_candidates),
     urgent: Boolean(row.urgent),
-    profileUpdates: normalizeProfileUpdates(row.profileUpdates),
-    eventUpdates: normalizeEventUpdates(row.eventUpdates),
-    scheduleUpdates: normalizeScheduleUpdates(row.scheduleUpdates),
-    needsStudentConfirmation: Boolean(row.needsStudentConfirmation),
-    confirmationReason: cleanString(row.confirmationReason),
-    mentionedStudentName: cleanString(row.mentionedStudentName) || null
+    profileUpdates: normalizeProfileUpdates(row.profileUpdates ?? row.profile_updates),
+    eventUpdates: normalizeEventUpdates(row.eventUpdates ?? row.event_updates),
+    scheduleUpdates: normalizeScheduleUpdates(row.scheduleUpdates ?? row.schedule_updates),
+    needsStudentConfirmation: Boolean(row.needsStudentConfirmation ?? row.needs_student_confirmation),
+    confirmationReason: cleanAiString(row.confirmationReason ?? row.confirmation_reason),
+    mentionedStudentName: cleanAiString(row.mentionedStudentName ?? row.mentioned_student_name) || null
   };
 }
 
@@ -256,13 +259,46 @@ function normalizeEventStatus(value: string): RecordingEventUpdate["status"] | n
 function normalizeStringArray(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .map((item) => {
+      if (typeof item === "string") return cleanAiString(item);
+      if (item && typeof item === "object") {
+        const row = item as Record<string, unknown>;
+        return [
+          cleanString(row.who),
+          cleanString(row.by),
+          cleanString(row.what || row.action || row.title || row.memo)
+        ]
+          .filter(Boolean)
+          .join(": ");
+      }
+      return "";
+    })
     .filter(Boolean)
     .slice(0, 12);
 }
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanAiString(value: unknown) {
+  const text = cleanString(value)
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+
+  if (firstBrace === 0 && lastBrace === text.length - 1) {
+    try {
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      return cleanString(parsed.summary || parsed.text || parsed.value);
+    } catch {
+      return "";
+    }
+  }
+
+  return text;
 }
 
 function extractJsonText(text: string) {
