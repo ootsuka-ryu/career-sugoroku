@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   Edit3,
   Folder,
@@ -312,13 +313,15 @@ function BulkTagFolderMove({
   selectedCount: number;
   onMoved: () => void;
 }) {
+  const router = useRouter();
   const [state, formAction] = useFormState(moveTagsToFolder, initialState);
 
   useEffect(() => {
     if (state.ok) {
       onMoved();
+      router.refresh();
     }
-  }, [onMoved, state.ok]);
+  }, [onMoved, router, state.ok]);
 
   if (selectedCount === 0) return null;
 
@@ -379,11 +382,15 @@ function BulkMoveMessage({ state }: { state: TagActionState }) {
 }
 
 function TagFolderForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter();
   const [state, action] = useFormState(createTagFolder, initialState);
 
   useEffect(() => {
-    if (state.ok) onCancel();
-  }, [onCancel, state.ok]);
+    if (state.ok) {
+      router.refresh();
+      onCancel();
+    }
+  }, [onCancel, router, state.ok]);
 
   return (
     <form action={action} className="mb-3 space-y-2 border border-amber-200 bg-amber-50/40 p-3">
@@ -412,6 +419,7 @@ function TagForm({
   editing: TagItem | null;
   onCancel: () => void;
 }) {
+  const router = useRouter();
   const [state, action] = useFormState(saveTag, initialState);
   const [color, setColor] = useState(editing?.color ?? "#0ea5e9");
 
@@ -420,8 +428,11 @@ function TagForm({
   }, [editing]);
 
   useEffect(() => {
-    if (state.ok) onCancel();
-  }, [onCancel, state.ok]);
+    if (state.ok) {
+      router.refresh();
+      onCancel();
+    }
+  }, [onCancel, router, state.ok]);
 
   return (
     <form
@@ -464,7 +475,13 @@ function TagForm({
 }
 
 function DeleteTagButton({ tagId }: { tagId: string }) {
+  const router = useRouter();
   const [state, action] = useFormState(deleteTag, initialState);
+
+  useEffect(() => {
+    if (state.ok) router.refresh();
+  }, [router, state.ok]);
+
   return (
     <form
       action={action}
