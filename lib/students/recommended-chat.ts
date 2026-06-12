@@ -22,31 +22,64 @@ type RecommendedChatStudent = {
   assignees?: StaffSummary[];
 };
 
-type ChatTopic = "reply" | "zoom" | "visit" | "event" | "interview" | "internship" | "general";
+type ChatTopic = "reply" | "zoom" | "visit" | "event" | "interview" | "internship" | "selection" | "general";
+
+const INTERNAL_LINE_PATTERNS = [
+  /採用担当者/,
+  /チーム内/,
+  /優先度/,
+  /理由[:：]/,
+  /根拠[:：]/,
+  /AI判断/,
+  /判断材料/,
+  /タグ候補/,
+  /推奨連絡手段/,
+  /フォロー計画/,
+  /情報提供計画/,
+  /確認・共有/,
+  /対応方針/,
+  /nextAction/i,
+  /urgent/i,
+  /tagCandidates/i
+];
+
+const MESSAGE_KEYS = [
+  "message",
+  "chatMessage",
+  "studentMessage",
+  "draft",
+  "sendText",
+  "text",
+  "lineMessage",
+  "recommendedMessage"
+];
+
+const ACTION_KEYS = ["nextAction", "nextActions", "action", "actions", "what", "task"];
 
 export function buildRecommendedChatDraft(student: RecommendedChatStudent) {
-  const action = extractNextAction(student.ai_next_action) || extractNextAction(student.manual_next_action);
+  const rawAction = extractNextAction(student.ai_next_action) || extractNextAction(student.manual_next_action);
   const inferred = inferAction(student);
-  if (!action && !inferred) return "";
+  const action = rawAction || inferred;
+  if (!action) return "";
 
   const name = getStudentChatName(student);
   const context = buildStudentContext(student);
   const topic = classifyTopic(`${action}\n${inferred}\n${buildTagText(student)}`);
-  const body = buildStudentFacingBody(topic, context, action || inferred);
+  const friendlyAction = extractStudentFriendlyHint(action);
+  const body = buildStudentFacingBody(topic, context, friendlyAction);
 
   return [
     `${name}さん、こんにちは！ゴダイ薬局の採用担当です😊`,
     "",
     body,
     "",
-    "まだ迷っている段階でも大丈夫です。",
-    "気になる点だけでも気軽に返信してください✨"
+    "少しでも気になれば、このLINEにそのまま返信してください✨"
   ].join("\n");
 }
 
 export function buildRecommendedChatReason(student: RecommendedChatStudent) {
-  const aiAction = clean(student.ai_next_action);
-  const manualAction = clean(student.manual_next_action);
+  const aiAction = extractNextAction(student.ai_next_action) || clean(student.ai_next_action);
+  const manualAction = extractNextAction(student.manual_next_action) || clean(student.manual_next_action);
   const context = buildStudentContext(student);
   const fallback = inferAction(student);
 
@@ -61,29 +94,34 @@ export function buildRecommendedChatReason(student: RecommendedChatStudent) {
 }
 
 export function extractNextAction(value: string | null | undefined) {
-  const text = stripInternalNoise(clean(value));
-  if (!text) return "";
+  const original = clean(value);
+  if (!original) return "";
 
-  const normalized = text.replace(/\r\n/g, "\n");
-  const nextActionMatch = normalized.match(
-    /(?:次アクション|次にやること|送る文章|案内内容|Next Action|nextAction)\s*[：:\-]?\s*([\s\S]+?)(?=\n\s*(?:推奨連絡手段|理由|優先度|タグ候補|根拠|判断材料|AI判断|$)|$)/i
-  );
-  if (nextActionMatch?.[1]) return polishAction(nextActionMatch[1]);
+  const jsonValue = extractFromJson(original);
+  if (jsonValue) return polishAction(jsonValue);
 
-  const studentFacingMatch = normalized.match(
-    /(?:送信文|返信文|メッセージ|チャット文)\s*[：:\-]?\s*([\s\S]+?)(?=\n\s*(?:理由|根拠|優先度|AI判断|次アクション|タグ候補|$)|$)/
-  );
-  if (studentFacingMatch?.[1]) return polishAction(studentFacingMatch[1]);
+  const text = stripCodeFence(original).replace(/\r\n/g, "\n").trim();
+  const explicitMessage = extractSection(text, [
+    "送信文",
+    "返信文",
+    "メッセージ",
+    "チャット文",
+    "送る文章",
+    "案内文",
+    "LINE文面"
+  ]);
+  if (explicitMessage && looksStudentFacing(explicitMessage)) return polishAction(explicitMessage);
 
-  if (/優先度|理由|推奨連絡手段|採用担当者が|チーム内で確認|確認・共有/.test(normalized)) {
-    const actionableLines = normalized
-      .split("\n")
-      .map((line) => polishAction(line))
-      .filter((line) => line && !isInternalActionLine(line));
-    return actionableLines[0] ?? "";
-  }
+  const explicitAction = extractSection(text, ["次アクション", "次にやること", "Next Action", "nextAction"]);
+  if (explicitAction) return polishAction(stripInternalNoise(explicitAction));
 
-  return polishAction(normalized);
+  const usefulLines = text
+    .split("\n")
+    .map((line) => polishAction(line))
+    .filter((line) => line && !isInternalActionLine(line));
+
+  if (usefulLines.length > 0) return usefulLines.slice(0, 2).join(" ");
+  return "";
 }
 
 function inferAction(student: RecommendedChatStudent) {
@@ -93,52 +131,54 @@ function inferAction(student: RecommendedChatStudent) {
 
   if (!student.funnel_next) {
     return isHighMotivation
-      ? "次のZoom面談や店舗見学の候補日を一緒に見てもらうこと"
-      : "まずは短い説明会や店舗見学の雰囲気を知ってもらうこと";
+      ? "次のZoom面談または店舗見学の候補日を確認する"
+      : "説明会または店舗見学を軽く案内する";
   }
 
   if (!student.funnel_pharmacist_interview) {
-    return "若手薬剤師と話せる機会や個別相談で、不安や希望を具体的に確認すること";
+    return "若手薬剤師インタビューまたは個別面談を案内する";
   }
 
   if (isHighMotivation) {
-    return "選考前に不安なところを一度整理する個別相談";
+    return "選考前に不安点を整理するため個別面談を案内する";
   }
 
   return "";
 }
 
 function classifyTopic(text: string): ChatTopic {
-  if (/返信|リマインド|返事|未返信/.test(text)) return "reply";
+  if (/返信|リマインド|未返信|返事/.test(text)) return "reply";
   if (/Zoom|zoom|面談|相談|個別/.test(text)) return "zoom";
   if (/店舗|見学/.test(text)) return "visit";
   if (/薬剤師|インタビュー|若手/.test(text)) return "interview";
   if (/インターン|IS|実習/.test(text)) return "internship";
+  if (/選考|内定|面接/.test(text)) return "selection";
   if (/説明会|セミナー|イベント|交流会|BBQ|案内/.test(text)) return "event";
   return "general";
 }
 
 function buildStudentFacingBody(topic: ChatTopic, context: string, action: string) {
-  const prefix = context ? `${context}の状況を見て、` : "";
-  const friendlyAction = extractStudentFriendlyHint(action);
+  const prefix = context ? `「${context}」の状況を見て、` : "";
 
   switch (topic) {
     case "reply":
-      return `${prefix}先日お送りした案内について、気になる点があれば気軽に聞いてもらえたらと思って連絡しました。日程が合うかだけでも大丈夫です！`;
+      return `${prefix}先日お送りしたご案内について、気になる点があれば気軽に聞いてもらえたらと思い連絡しました。日程が合うかだけでも大丈夫です！`;
     case "zoom":
-      return `${prefix}一度15〜20分くらいでZoom面談できたらと思って連絡しました。就活の進め方や気になっていることを聞きながら、合いそうなイベントも一緒に整理できます。`;
+      return `${prefix}一度15〜20分ほどZoomでお話しできたらと思い連絡しました。希望勤務地や実習のことも聞きながら、合いそうな見学・イベントを一緒に整理できます。`;
     case "visit":
-      return `${prefix}店舗見学をご案内できたらと思って連絡しました。実際の働き方や雰囲気を見てもらえるので、就活の判断材料にしやすいと思います。`;
+      return `${prefix}店舗見学をご案内できたらと思い連絡しました。実際の雰囲気や働き方を見てもらえるので、就活の判断材料にしやすいと思います。`;
     case "interview":
-      return `${prefix}若手薬剤師と話せる機会をご案内したいと思って連絡しました。現場の雰囲気や入社後の働き方をかなり具体的に聞けます。`;
+      return `${prefix}若手薬剤師と話せる機会をご案内したいと思い連絡しました。現場の雰囲気や入社後の働き方をかなり具体的に聞けます。`;
     case "internship":
-      return `${prefix}インターンシップや実務に近い体験の案内が合いそうだと思って連絡しました。薬局で働くイメージをつかみやすい内容です。`;
+      return `${prefix}インターンシップや実務に近い体験の案内が合いそうだと思い連絡しました。薬局で働くイメージをつかみやすい内容です。`;
+    case "selection":
+      return `${prefix}選考前に不安なところを一度整理できたらと思い連絡しました。気になることや確認したいことがあれば、短時間でも個別にお話しできます。`;
     case "event":
-      return `${prefix}次のイベント案内が合いそうだと思って連絡しました。まだ迷っている段階でも参加しやすい内容なので、興味があれば候補日を送ります。`;
+      return `${prefix}次のイベント案内が合いそうだと思い連絡しました。現場社員や薬学生とも話せるので、まだ迷っている段階でも参加しやすい内容です。`;
     default:
-      return friendlyAction
-        ? `${prefix}${friendlyAction}について一度ご案内できたらと思って連絡しました。気になる内容だけ確認でも大丈夫です！`
-        : `${prefix}今後のイベントや個別相談について、合いそうな案内を一度お送りできたらと思って連絡しました。気になる内容だけ確認でも大丈夫です！`;
+      return action
+        ? `${prefix}${action}について一度ご案内できたらと思い連絡しました。気になる内容だけ確認でも大丈夫です！`
+        : `${prefix}今後のイベントや個別相談について、合いそうな案内を一度お送りできたらと思い連絡しました。`;
   }
 }
 
@@ -166,19 +206,96 @@ function getStudentChatName(student: RecommendedChatStudent) {
   return clean(student.real_name) || clean(student.display_name) || "学生";
 }
 
-function polishAction(value: string) {
+function extractFromJson(value: string) {
+  const candidates = [value, stripCodeFence(value), findJsonBlock(value)].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      const message = findFirstStringByKeys(parsed, MESSAGE_KEYS);
+      if (message && looksStudentFacing(message)) return message;
+      const action = findFirstStringByKeys(parsed, ACTION_KEYS);
+      if (action) return action;
+    } catch {
+      // Not JSON; continue with plain-text extraction.
+    }
+  }
+  return "";
+}
+
+function findJsonBlock(value: string) {
+  const start = value.indexOf("{");
+  const end = value.lastIndexOf("}");
+  if (start < 0 || end <= start) return "";
+  return value.slice(start, end + 1);
+}
+
+function findFirstStringByKeys(value: unknown, keys: string[]): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findFirstStringByKeys(item, keys);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const item = record[key];
+    if (typeof item === "string" && item.trim()) return item;
+    const nested = findFirstStringByKeys(item, keys);
+    if (nested) return nested;
+  }
+  return "";
+}
+
+function extractSection(text: string, headings: string[]) {
+  const stopHeadings = [
+    "理由",
+    "根拠",
+    "優先度",
+    "AI判断",
+    "タグ候補",
+    "判断材料",
+    "推奨連絡手段",
+    "次アクション",
+    "次にやること",
+    "Next Action",
+    "nextAction"
+  ];
+
+  for (const heading of headings) {
+    const escaped = escapeRegExp(heading);
+    const stop = stopHeadings
+      .filter((item) => item !== heading)
+      .map(escapeRegExp)
+      .join("|");
+    const match = text.match(new RegExp(`${escaped}\\s*[:：\\-]?\\s*([\\s\\S]+?)(?=\\n\\s*(?:${stop})\\s*[:：\\-]|$)`, "i"));
+    if (match?.[1]) return match[1].trim();
+  }
+  return "";
+}
+
+function stripCodeFence(value: string) {
   return value
-    .replace(/```(?:json)?/g, "")
-    .replace(/^[\s"[{,]+/g, "")
-    .replace(/[\s"}\],]+$/g, "")
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .trim();
+}
+
+function polishAction(value: string) {
+  return stripCodeFence(value)
+    .replace(/^[\s"'[{,]+/g, "")
+    .replace(/[\s"'}\],]+$/g, "")
     .replace(/^\s*[-・]\s*/gm, "")
     .replace(/^次に?/g, "")
     .replace(/^採用担当者が/g, "")
     .replace(/^今週中に[、,]?\s*/g, "")
     .replace(/^学生に[、,]?\s*/g, "")
-    .replace(/を(確認|共有|整理)する$/g, "")
+    .replace(/を確認・共有する$/g, "")
     .replace(/してください。?$/g, "")
-    .replace(/です。?$/g, "")
     .trim();
 }
 
@@ -188,25 +305,33 @@ function clean(value: string | null | undefined) {
 
 function stripInternalNoise(value: string) {
   return value
-    .replace(/```(?:json)?/g, "")
-    .replace(/```/g, "")
     .split("\n")
-    .filter((line) => !/^\s*(優先度|理由|推奨連絡手段|タグ候補|判断材料|根拠|AI判断)\s*[：:]/.test(line))
+    .filter((line) => !isInternalActionLine(line))
     .join("\n")
     .trim();
 }
 
 function isInternalActionLine(value: string) {
-  return /採用担当者|チーム内|確認|共有|方針|フォロー計画|情報提供計画|理由|優先度|推奨連絡手段/.test(value);
+  return INTERNAL_LINE_PATTERNS.some((pattern) => pattern.test(value));
 }
 
 function extractStudentFriendlyHint(value: string) {
-  const text = polishAction(value);
+  const text = polishAction(stripInternalNoise(value));
   if (!text || isInternalActionLine(text)) return "";
   return text
-    .replace(/候補日を一緒に見てもらうこと/g, "候補日")
-    .replace(/不安や希望を具体的に確認すること/g, "不安や希望を聞ける個別相談")
-    .replace(/案内すること/g, "案内")
-    .replace(/連絡すること/g, "連絡")
+    .replace(/候補日を確認する/g, "候補日の確認")
+    .replace(/不安点を整理する/g, "不安点の整理")
+    .replace(/案内する/g, "案内")
+    .replace(/連絡する/g, "連絡")
     .trim();
+}
+
+function looksStudentFacing(value: string) {
+  const text = value.trim();
+  if (!text || isInternalActionLine(text)) return false;
+  return /さん|こんにちは|ご案内|連絡しました|返信|気軽|大丈夫|いかが|😊|✨/.test(text);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
