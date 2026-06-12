@@ -50,6 +50,12 @@ export function StudentCascadePicker({
   const [query, setQuery] = useState("");
   const [activeRegion, setActiveRegion] = useState<UniversityRegion>(UNIVERSITY_REGION_ORDER[0]);
   const [activeUniversity, setActiveUniversity] = useState("");
+  const [dropdownStyle, setDropdownStyle] = useState({
+    left: 16,
+    top: 16,
+    width: 920,
+    maxHeight: 560
+  });
 
   const selectedStudent = students.find((student) => student.id === value) ?? null;
   const groups = useMemo(() => buildRegionGroups(students, query), [query, students]);
@@ -79,6 +85,42 @@ export function StudentCascadePicker({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+
+    function updatePosition() {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const width = Math.min(920, viewportWidth - 32);
+      const left = Math.min(Math.max(rect.left, 16), Math.max(16, viewportWidth - width - 16));
+      const preferredTop = rect.bottom + 8;
+      const availableBelow = viewportHeight - preferredTop - 16;
+      const maxHeight = Math.min(620, Math.max(340, viewportHeight - 32));
+      const top =
+        availableBelow >= 340
+          ? preferredTop
+          : Math.max(16, Math.min(rect.top - 8, viewportHeight - maxHeight - 16));
+
+      setDropdownStyle({
+        left,
+        top,
+        width,
+        maxHeight: Math.min(maxHeight, viewportHeight - top - 16)
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
   return (
     <div className={`relative ${className ?? ""}`} ref={rootRef}>
       <button
@@ -99,8 +141,8 @@ export function StudentCascadePicker({
 
       {open ? (
         <div
-          className="absolute left-0 top-full z-50 mt-2 flex w-[min(920px,calc(100vw-3rem))] flex-col overflow-hidden rounded-md border bg-white shadow-lg"
-          style={{ maxHeight: "min(720px, calc(100vh - 4rem))" }}
+          className="fixed z-[80] flex flex-col overflow-hidden rounded-md border bg-white shadow-lg"
+          style={dropdownStyle}
         >
           <div className="border-b p-3">
             <div className="relative">
@@ -115,7 +157,7 @@ export function StudentCascadePicker({
           </div>
           <div
             className="grid min-h-0 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
-            style={{ height: "min(600px, calc(100vh - 9rem))" }}
+            style={{ height: Math.max(260, dropdownStyle.maxHeight - 65) }}
           >
             <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
               {groups.map((group) => (
