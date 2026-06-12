@@ -40,6 +40,11 @@ type RecordingItem = {
   student: StudentOption | null;
 };
 
+type DisplayRecordingAi = {
+  summary: string;
+  nextAction: string;
+};
+
 export function RecordingConsole({
   students,
   recordings,
@@ -347,7 +352,10 @@ export function RecordingConsole({
               録音はまだありません。
             </p>
           ) : (
-            recordings.map((recording) => (
+            recordings.map((recording) => {
+              const aiDisplay = formatRecordingAiForDisplay(recording);
+
+              return (
               <div className="space-y-3 rounded-md border p-4" key={recording.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -388,19 +396,19 @@ export function RecordingConsole({
                 <audio className="w-full" controls src={recording.audio_url}>
                   <track kind="captions" />
                 </audio>
-                {recording.ai_summary ? (
+                {aiDisplay.summary ? (
                   <div className="rounded-md bg-secondary/50 p-3 text-sm">
                     <p className="font-medium">AI要約</p>
                     <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                      {recording.ai_summary}
+                      {aiDisplay.summary}
                     </p>
                   </div>
                 ) : null}
-                {recording.ai_next_action ? (
+                {aiDisplay.nextAction ? (
                   <div className="rounded-md bg-accent/10 p-3 text-sm">
                     <p className="font-medium">次アクション</p>
                     <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                      {recording.ai_next_action}
+                      {aiDisplay.nextAction}
                     </p>
                   </div>
                 ) : null}
@@ -413,12 +421,82 @@ export function RecordingConsole({
                   </details>
                 ) : null}
               </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function formatRecordingAiForDisplay(recording: RecordingItem): DisplayRecordingAi {
+  const parsedSummary = parseRecordingAiJson(recording.ai_summary);
+  const parsedNextAction = parseRecordingAiJson(recording.ai_next_action);
+  const nextActions = [
+    ...(parsedSummary?.nextActions ?? []),
+    ...(parsedNextAction?.nextActions ?? [])
+  ];
+
+  return {
+    summary:
+      parsedSummary?.summary ||
+      parsedNextAction?.summary ||
+      stripJsonFence(recording.ai_summary ?? ""),
+    nextAction:
+      stripJsonFence(recording.ai_next_action ?? "") ||
+      nextActions.join("\n")
+  };
+}
+
+function parseRecordingAiJson(value: string | null) {
+  if (!value) return null;
+  const jsonText = extractJsonObject(value);
+  if (!jsonText) return null;
+
+  try {
+    const parsed = JSON.parse(jsonText) as {
+      summary?: unknown;
+      nextActions?: unknown;
+      nextAction?: unknown;
+    };
+    const nextActions = Array.isArray(parsed.nextActions)
+      ? parsed.nextActions
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : typeof parsed.nextAction === "string"
+        ? [parsed.nextAction.trim()].filter(Boolean)
+        : [];
+
+    return {
+      summary: typeof parsed.summary === "string" ? parsed.summary.trim() : "",
+      nextActions
+    };
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonObject(value: string) {
+  const text = value
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace < 0 || lastBrace <= firstBrace) return "";
+  return text.slice(firstBrace, lastBrace + 1);
+}
+
+function stripJsonFence(value: string) {
+  const text = value
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  return extractJsonObject(text) ? "" : text;
 }
 
 function formatDateTime(value: string | null) {

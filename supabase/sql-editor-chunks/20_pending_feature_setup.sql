@@ -2,6 +2,7 @@
 -- "DB setup required" or asks for one of these files:
 -- 15_rich_menu_line_sync.sql
 -- 16_tag_folders.sql
+-- 21_tag_folder_assignments.sql
 -- 18_student_photo_position.sql
 -- 19_student_line_picture.sql
 --
@@ -39,6 +40,11 @@ create policy "staff can manage tag folders" on public.tag_folders
 drop trigger if exists set_tag_folders_updated_at on public.tag_folders;
 create trigger set_tag_folders_updated_at before update on public.tag_folders
   for each row execute function app.set_updated_at();
+
+alter table public.tags
+  add column if not exists folder_id uuid references public.tag_folders(id) on delete set null;
+
+create index if not exists tags_folder_id_idx on public.tags(folder_id);
 
 alter table public.students
   add column if not exists photo_position_x integer not null default 50,
