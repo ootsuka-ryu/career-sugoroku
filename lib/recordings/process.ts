@@ -512,20 +512,35 @@ async function resolveRecordingStudentIdentity(
 
   const students = (data ?? []) as StudentLite[];
   const matches = findMentionedStudents(transcript, students);
-  const exactMatches = matches.filter((match) => match.kind === "full");
+  const exactMatches = uniqueStudentMatches(matches.filter((match) => match.kind === "full"));
   const selected = students.find((student) => student.id === selectedStudentId);
   const selectedStudentLabel = selected ? displayStudent(selected) : "";
 
-  if (exactMatches.length === 1) {
-    const match = exactMatches[0]!;
-    if (selectedStudentId && match.student.id !== selectedStudentId) {
+  if (selectedStudentId) {
+    const otherExactMatches = exactMatches.filter((match) => match.student.id !== selectedStudentId);
+    if (otherExactMatches.length === 1) {
+      const match = otherExactMatches[0]!;
       return {
         requiresConfirmation: true,
         selectedStudentLabel,
-        reason: `録音内では「${displayStudent(match.student)}」が強く示されていますが、録音の紐づけ先は「${selected ? displayStudent(selected) : selectedStudentId}」です。`
+        reason: `録音内では「${displayStudent(match.student)}」の氏名が出ていますが、録音の紐づけ先は「${selected ? displayStudent(selected) : selectedStudentId}」です。`
       };
     }
+    if (otherExactMatches.length > 1) {
+      return {
+        requiresConfirmation: true,
+        selectedStudentLabel,
+        reason: `録音内に選択中の学生とは別の氏名が複数出ています: ${otherExactMatches
+          .map((match) => displayStudent(match.student))
+          .join("、")}`
+      };
+    }
+
     return { requiresConfirmation: false, reason: "", selectedStudentLabel };
+  }
+
+  if (exactMatches.length === 1) {
+    return { requiresConfirmation: false, reason: "", selectedStudentLabel: displayStudent(exactMatches[0]!.student) };
   }
 
   if (exactMatches.length > 1) {
@@ -557,15 +572,16 @@ async function resolveRecordingStudentIdentity(
     }
   }
 
-  if (matches.length === 1 && selectedStudentId && matches[0]!.student.id !== selectedStudentId) {
-    return {
-      requiresConfirmation: true,
-      selectedStudentLabel,
-      reason: `録音内で示された可能性がある学生は「${displayStudent(matches[0]!.student)}」ですが、選択中の学生と異なります。`
-    };
-  }
-
   return { requiresConfirmation: false, reason: "", selectedStudentLabel };
+}
+
+function uniqueStudentMatches(matches: Array<{ student: StudentLite; kind: "full" | "partial" }>) {
+  const seen = new Set<string>();
+  return matches.filter((match) => {
+    if (seen.has(match.student.id)) return false;
+    seen.add(match.student.id);
+    return true;
+  });
 }
 
 function findMentionedStudents(transcript: string, students: StudentLite[]) {
