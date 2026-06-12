@@ -21,6 +21,7 @@ export function EventParticipantForm({
   const firstStudentId = students[0]?.id ?? "";
   const [studentId, setStudentId] = useState(firstStudentId);
   const normalizedStudents = useMemo(() => students, [students]);
+  const defaultStatus = statuses[0] ?? "参加";
 
   return (
     <form action={addEventParticipant} className="grid gap-2 md:grid-cols-[1fr_140px_1fr_auto]">
@@ -34,7 +35,7 @@ export function EventParticipantForm({
       <select
         className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         name="status"
-        defaultValue="参加"
+        defaultValue={defaultStatus}
       >
         {statuses.map((status) => (
           <option key={status}>{status}</option>

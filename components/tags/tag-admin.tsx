@@ -1,11 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
   Edit3,
-  ChevronDown,
   Folder,
   FolderPlus,
   GripVertical,
@@ -273,11 +271,9 @@ function BulkTagFolderMove({
   onMoved: () => void;
 }) {
   const [state, formAction] = useFormState(moveTagsToFolder, initialState);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (state.ok) {
-      setOpen(false);
       onMoved();
     }
   }, [onMoved, state.ok]);
@@ -285,58 +281,49 @@ function BulkTagFolderMove({
   if (selectedCount === 0) return null;
 
   return (
-    <form action={formAction} className="relative flex flex-col gap-1">
+    <form
+      action={formAction}
+      className="flex flex-wrap items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2"
+    >
       {selectedTagIds.map((tagId) => (
         <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
       ))}
-      <Button
-        aria-expanded={open}
-        className="border-green-700 bg-green-50 text-green-800 hover:bg-green-100"
-        onClick={() => setOpen((current) => !current)}
-        size="sm"
-        type="button"
-        variant="outline"
+      <span className="text-sm font-semibold text-green-900">
+        {selectedCount}件選択中
+      </span>
+      <select
+        className="h-9 min-w-[220px] rounded-md border border-input bg-white px-3 text-sm"
+        defaultValue=""
+        name="folder_id"
+        required
       >
-        {selectedCount}件選択中: 一括操作
-        <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        <option value="" disabled>
+          移動先フォルダを選択
+        </option>
+        <option value="none">未分類へ移動</option>
+        {folders.map((folder) => (
+          <option key={folder.id} value={folder.id}>
+            {folder.name}へ移動
+          </option>
+        ))}
+      </select>
+      <BulkMoveSubmitButton />
+      <Button onClick={onMoved} size="sm" type="button" variant="outline">
+        選択解除
       </Button>
-      {open ? (
-        <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-md border bg-white py-1 shadow-lg">
-          <p className="border-b px-3 py-2 text-xs text-muted-foreground">
-            移動先フォルダを選択
-          </p>
-          <BulkMoveMenuItem value="none">未分類に移動</BulkMoveMenuItem>
-          {folders.map((folder) => (
-            <BulkMoveMenuItem key={folder.id} value={folder.id}>
-              {folder.name}に移動
-            </BulkMoveMenuItem>
-          ))}
-        </div>
-      ) : null}
       <BulkMoveMessage state={state} />
     </form>
   );
 }
 
-function BulkMoveMenuItem({
-  children,
-  value
-}: {
-  children: ReactNode;
-  value: string;
-}) {
+function BulkMoveSubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
-      className="block w-full px-3 py-2 text-left text-sm hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={pending}
-      name="folder_id"
-      type="submit"
-      value={value}
-    >
-      {pending ? "移動中..." : children}
-    </button>
+    <Button disabled={pending} size="sm" type="submit">
+      <Folder className="mr-2 h-4 w-4" />
+      {pending ? "移動中..." : "選択タグを移動"}
+    </Button>
   );
 }
 

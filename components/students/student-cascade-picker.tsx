@@ -132,7 +132,10 @@ export function StudentCascadePicker({
                 >
                   <span>{group.region}</span>
                   <span className="text-xs opacity-80">
-                    {group.universities.reduce((total, university) => total + university.students.length, 0)}
+                    {group.universities.reduce(
+                      (total, university) => total + university.students.length,
+                      0
+                    )}
                   </span>
                 </button>
               ))}
