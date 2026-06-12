@@ -527,22 +527,25 @@ function ChatComposer({
       <input name="carousel_json" type="hidden" value={JSON.stringify(carouselItems)} />
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-        <div className="flex flex-wrap gap-1 border-b">
-          <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
-            テキスト
-          </ComposerTab>
-          <ComposerTab active={tab === "image"} onClick={() => setTab("image")}>
-            画像
-          </ComposerTab>
-          <ComposerTab active={tab === "carousel"} onClick={() => setTab("carousel")}>
-            カルーセル
-          </ComposerTab>
-          <ComposerTab active={tab === "video"} onClick={() => setTab("video")}>
-            動画
-          </ComposerTab>
-          <ComposerTab active={tab === "pdf"} onClick={() => setTab("pdf")}>
-            PDF
-          </ComposerTab>
+        <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-card pb-2">
+          <div className="flex flex-wrap gap-1">
+            <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
+              テキスト
+            </ComposerTab>
+            <ComposerTab active={tab === "image"} onClick={() => setTab("image")}>
+              画像
+            </ComposerTab>
+            <ComposerTab active={tab === "carousel"} onClick={() => setTab("carousel")}>
+              カルーセル
+            </ComposerTab>
+            <ComposerTab active={tab === "video"} onClick={() => setTab("video")}>
+              動画
+            </ComposerTab>
+            <ComposerTab active={tab === "pdf"} onClick={() => setTab("pdf")}>
+              PDF
+            </ComposerTab>
+          </div>
+          <SubmitButton />
         </div>
 
       {surveys.length > 0 ? (
