@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
   Edit3,
@@ -45,6 +45,45 @@ const initialState: TagActionState = {
   message: ""
 };
 
+const TEXT = {
+  newFolder: "\u65b0\u3057\u3044\u30d5\u30a9\u30eb\u30c0",
+  newTag: "\u65b0\u3057\u3044\u30bf\u30b0",
+  search: "\u691c\u7d22",
+  tagName: "\u30bf\u30b0\u540d",
+  friendCount: "\u53cb\u3060\u3061\u4eba\u6570",
+  createdAt: "\u767b\u9332\u65e5",
+  actions: "\u64cd\u4f5c",
+  selectVisible: "\u8868\u793a\u4e2d\u306e\u30bf\u30b0\u3092\u3059\u3079\u3066\u9078\u629e",
+  noTags: "\u6761\u4ef6\u306b\u5408\u3046\u30bf\u30b0\u304c\u3042\u308a\u307e\u305b\u3093\u3002",
+  selected: "\u4ef6\u9078\u629e\u4e2d",
+  chooseBulkAction: "\u4e00\u62ec\u64cd\u4f5c\u3092\u9078\u629e",
+  moveToUncategorized: "\u672a\u5206\u985e\u306b\u79fb\u52d5",
+  moveSuffix: "\u306b\u79fb\u52d5",
+  movePending: "\u79fb\u52d5\u4e2d...",
+  moving: "\u79fb\u52d5\u3057\u3066\u3044\u307e\u3059...",
+  run: "\u5b9f\u884c",
+  clearSelection: "\u9078\u629e\u89e3\u9664",
+  createFolderTitle: "\u65b0\u3057\u3044\u30d5\u30a9\u30eb\u30c0\u3092\u4f5c\u6210",
+  folderName: "\u30d5\u30a9\u30eb\u30c0\u540d",
+  folderDescription: "\u8aac\u660e\uff08\u4efb\u610f\uff09",
+  close: "\u9589\u3058\u308b",
+  createFolder: "\u30d5\u30a9\u30eb\u30c0\u4f5c\u6210",
+  creatingFolder: "\u4f5c\u6210\u4e2d...",
+  confirmingFolder: "\u4f5c\u6210\u78ba\u8a8d\u4e2d...",
+  editTag: "\u30bf\u30b0\u3092\u7de8\u96c6",
+  createTag: "\u65b0\u3057\u3044\u30bf\u30b0\u3092\u4f5c\u6210",
+  color: "\u8272",
+  update: "\u66f4\u65b0",
+  create: "\u4f5c\u6210",
+  saving: "\u4fdd\u5b58\u4e2d...",
+  confirmingSave: "\u4fdd\u5b58\u78ba\u8a8d\u4e2d...",
+  edit: "\u7de8\u96c6",
+  delete: "\u524a\u9664",
+  people: "\u4eba",
+  deleteConfirm:
+    "\u3053\u306e\u30bf\u30b0\u3092\u524a\u9664\u3057\u307e\u3059\u3002\u5b66\u751f\u3084\u30a2\u30f3\u30b1\u30fc\u30c8\u6761\u4ef6\u304b\u3089\u3082\u5916\u308c\u307e\u3059\u3002\u3088\u308d\u3057\u3044\u3067\u3059\u304b\uff1f"
+};
+
 export function TagAdmin({
   tags,
   folders
@@ -86,6 +125,8 @@ export function TagAdmin({
     visibleTagIds.length > 0 && visibleTagIds.every((tagId) => selectedTagIdSet.has(tagId));
   const someVisibleSelected = visibleTagIds.some((tagId) => selectedTagIdSet.has(tagId));
   const manualFolders = useMemo(() => folders.filter((folder) => isUuid(folder.id)), [folders]);
+  const clearSelectedTags = useCallback(() => setSelectedTagIds([]), []);
+  const closeFolderForm = useCallback(() => setShowFolderForm(false), []);
 
   function toggleTagSelection(tagId: string, checked: boolean) {
     setSelectedTagIds((current) =>
@@ -102,11 +143,13 @@ export function TagAdmin({
 
   function startCreate() {
     setEditing(null);
+    setShowFolderForm(false);
     setShowForm(true);
   }
 
   function startEdit(tag: TagItem) {
     setEditing(tag);
+    setShowFolderForm(false);
     setShowForm(true);
   }
 
@@ -121,17 +164,19 @@ export function TagAdmin({
     setShowFolderForm(true);
   }
 
-  function closeFolderForm() {
-    setShowFolderForm(false);
-  }
-
   return (
     <div className="grid min-h-[560px] gap-4 lg:grid-cols-[216px_1fr]">
       <aside className="border-r bg-secondary/30">
         <div className="p-3">
-          <Button className="w-full justify-start" onClick={startCreateFolder} size="sm" type="button" variant="outline">
+          <Button
+            className="w-full justify-start"
+            onClick={startCreateFolder}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <FolderPlus className="mr-2 h-4 w-4" />
-            新しいフォルダ
+            {TEXT.newFolder}
           </Button>
         </div>
         <nav className="space-y-0.5 px-2 pb-3">
@@ -163,25 +208,23 @@ export function TagAdmin({
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={startCreate} size="sm" type="button">
               <Plus className="mr-2 h-4 w-4" />
-              新しいタグ
+              {TEXT.newTag}
             </Button>
             <BulkTagFolderMove
               folders={manualFolders}
-              onMoved={() => setSelectedTagIds([])}
+              onMoved={clearSelectedTags}
               selectedCount={selectedTagIds.length}
               selectedTagIds={selectedTagIds}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-72 max-w-[55vw]">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="検索"
-                value={query}
-              />
-            </div>
+          <div className="relative w-72 max-w-[55vw]">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={TEXT.search}
+              value={query}
+            />
           </div>
         </div>
 
@@ -193,7 +236,7 @@ export function TagAdmin({
           <div className="grid min-w-[640px] grid-cols-[34px_34px_minmax(220px,1fr)_140px_140px_72px] border-b bg-muted/60 px-2 py-2 text-xs font-medium text-muted-foreground">
             <span />
             <input
-              aria-label="表示中のタグをすべて選択"
+              aria-label={TEXT.selectVisible}
               checked={allVisibleSelected}
               className="h-4 w-4 rounded border-input"
               onChange={(event) => toggleVisibleSelection(event.target.checked)}
@@ -202,10 +245,10 @@ export function TagAdmin({
               }}
               type="checkbox"
             />
-            <span>タグ名</span>
-            <span>友だち人数</span>
-            <span>登録日</span>
-            <span className="text-right">操作</span>
+            <span>{TEXT.tagName}</span>
+            <span>{TEXT.friendCount}</span>
+            <span>{TEXT.createdAt}</span>
+            <span className="text-right">{TEXT.actions}</span>
           </div>
           <div className="max-h-[64vh] overflow-auto">
             {visibleTags.length > 0 ? (
@@ -235,12 +278,13 @@ export function TagAdmin({
                   </div>
                   <span>
                     <button className="text-primary hover:underline" type="button">
-                      {tag.student_count}人
+                      {tag.student_count}
+                      {TEXT.people}
                     </button>
                   </span>
                   <span>{formatDate(tag.created_at)}</span>
                   <div className="flex justify-end gap-1">
-                    <Button onClick={() => startEdit(tag)} size="icon" title="編集" type="button" variant="ghost">
+                    <Button onClick={() => startEdit(tag)} size="icon" title={TEXT.edit} type="button" variant="ghost">
                       <Edit3 className="h-4 w-4" />
                     </Button>
                     <DeleteTagButton tagId={tag.id} />
@@ -248,9 +292,7 @@ export function TagAdmin({
                 </div>
               ))
             ) : (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                条件に合うタグがありません。
-              </p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">{TEXT.noTags}</p>
             )}
           </div>
         </div>
@@ -289,7 +331,8 @@ function BulkTagFolderMove({
         <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
       ))}
       <span className="text-sm font-semibold text-green-900">
-        {selectedCount}件選択中
+        {selectedCount}
+        {TEXT.selected}
       </span>
       <select
         className="h-9 min-w-[220px] rounded-md border border-input bg-white px-3 text-sm"
@@ -298,18 +341,19 @@ function BulkTagFolderMove({
         required
       >
         <option value="" disabled>
-          移動先フォルダを選択
+          {TEXT.chooseBulkAction}
         </option>
-        <option value="none">未分類へ移動</option>
+        <option value="none">{TEXT.moveToUncategorized}</option>
         {folders.map((folder) => (
           <option key={folder.id} value={folder.id}>
-            {folder.name}へ移動
+            {folder.name}
+            {TEXT.moveSuffix}
           </option>
         ))}
       </select>
       <BulkMoveSubmitButton />
       <Button onClick={onMoved} size="sm" type="button" variant="outline">
-        選択解除
+        {TEXT.clearSelection}
       </Button>
       <BulkMoveMessage state={state} />
     </form>
@@ -322,20 +366,16 @@ function BulkMoveSubmitButton() {
   return (
     <Button disabled={pending} size="sm" type="submit">
       <Folder className="mr-2 h-4 w-4" />
-      {pending ? "移動中..." : "選択タグを移動"}
+      {pending ? TEXT.movePending : TEXT.run}
     </Button>
   );
 }
 
 function BulkMoveMessage({ state }: { state: TagActionState }) {
   const { pending } = useFormStatus();
-  if (pending) return <p className="text-xs text-muted-foreground">移動しています...</p>;
+  if (pending) return <p className="text-xs text-muted-foreground">{TEXT.moving}</p>;
   if (!state.message) return null;
-  return (
-    <p className={`text-xs ${state.ok ? "text-green-700" : "text-destructive"}`}>
-      {state.message}
-    </p>
-  );
+  return <p className={`text-xs ${state.ok ? "text-green-700" : "text-destructive"}`}>{state.message}</p>;
 }
 
 function TagFolderForm({ onCancel }: { onCancel: () => void }) {
@@ -349,15 +389,15 @@ function TagFolderForm({ onCancel }: { onCancel: () => void }) {
     <form action={action} className="mb-3 space-y-2 border border-amber-200 bg-amber-50/40 p-3">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <FolderPlus className="h-4 w-4 text-amber-600" />
-        新しいフォルダを作成
+        {TEXT.createFolderTitle}
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
-        <Input name="name" placeholder="フォルダ名" required />
-        <Input name="description" placeholder="説明（任意）" />
+        <Input name="name" placeholder={TEXT.folderName} required />
+        <Input name="description" placeholder={TEXT.folderDescription} />
         <FolderSubmitButton />
         <Button onClick={onCancel} type="button" variant="outline">
           <X className="mr-2 h-4 w-4" />
-          閉じる
+          {TEXT.close}
         </Button>
       </div>
       <FormMessage state={state} />
@@ -392,17 +432,18 @@ function TagForm({
       <input name="tag_id" type="hidden" value={editing?.id ?? ""} />
       <div className="flex items-center gap-2 text-sm font-semibold">
         <Plus className="h-4 w-4 text-green-700" />
-        {editing ? "タグを編集" : "新しいタグを作成"}
+        {editing ? TEXT.editTag : TEXT.createTag}
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_160px_auto_auto]">
         <Input
           defaultValue={editing ? localizeSampleText(editing.name) ?? editing.name : ""}
           name="name"
-          placeholder="タグ名"
+          placeholder={TEXT.tagName}
           required
         />
         <div className="flex gap-2">
           <input
+            aria-label={TEXT.color}
             className="h-9 w-11 rounded border"
             name="color"
             onChange={(event) => setColor(event.target.value)}
@@ -414,7 +455,7 @@ function TagForm({
         <SubmitButton editing={Boolean(editing)} />
         <Button onClick={onCancel} type="button" variant="outline">
           <X className="mr-2 h-4 w-4" />
-          閉じる
+          {TEXT.close}
         </Button>
       </div>
       <FormMessage state={state} />
@@ -428,13 +469,13 @@ function DeleteTagButton({ tagId }: { tagId: string }) {
     <form
       action={action}
       onSubmit={(event) => {
-        if (!confirm("このタグを削除します。学生やアンケート条件からも外れます。よろしいですか？")) {
+        if (!confirm(TEXT.deleteConfirm)) {
           event.preventDefault();
         }
       }}
     >
       <input name="tag_id" type="hidden" value={tagId} />
-      <Button size="icon" title="削除" type="submit" variant="ghost">
+      <Button size="icon" title={TEXT.delete} type="submit" variant="ghost">
         <Trash2 className="h-4 w-4" />
       </Button>
       <FormMessage state={state} />
@@ -458,7 +499,7 @@ function SubmitButton({ editing }: { editing: boolean }) {
   return (
     <Button disabled={pending} type="submit">
       {editing ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-      {pending ? (isSlow ? "保存確認中..." : "保存中...") : editing ? "更新" : "作成"}
+      {pending ? (isSlow ? TEXT.confirmingSave : TEXT.saving) : editing ? TEXT.update : TEXT.create}
     </Button>
   );
 }
@@ -479,18 +520,14 @@ function FolderSubmitButton() {
   return (
     <Button disabled={pending} type="submit">
       <FolderPlus className="mr-2 h-4 w-4" />
-      {pending ? (isSlow ? "作成確認中..." : "作成中...") : "フォルダ作成"}
+      {pending ? (isSlow ? TEXT.confirmingFolder : TEXT.creatingFolder) : TEXT.createFolder}
     </Button>
   );
 }
 
 function FormMessage({ state }: { state: TagActionState }) {
   if (!state.message) return null;
-  return (
-    <p className={state.ok ? "text-sm text-green-700 md:col-span-4" : "text-sm text-red-700 md:col-span-4"}>
-      {state.message}
-    </p>
-  );
+  return <p className={state.ok ? "text-sm text-green-700 md:col-span-4" : "text-sm text-red-700 md:col-span-4"}>{state.message}</p>;
 }
 
 function formatDate(value?: string | null) {
@@ -503,5 +540,5 @@ function formatDate(value?: string | null) {
 }
 
 function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }
