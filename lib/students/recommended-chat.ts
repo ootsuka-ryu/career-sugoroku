@@ -22,72 +22,90 @@ type RecommendedChatStudent = {
   assignees?: StaffSummary[];
 };
 
-type ChatTopic = "reply" | "zoom" | "visit" | "event" | "interview" | "internship" | "selection" | "general";
-
-const INTERNAL_LINE_PATTERNS = [
-  /採用担当者/,
-  /チーム内/,
-  /優先度/,
-  /理由[:：]/,
-  /根拠[:：]/,
-  /AI判断/,
-  /判断材料/,
-  /タグ候補/,
-  /推奨連絡手段/,
-  /フォロー計画/,
-  /情報提供計画/,
-  /確認・共有/,
-  /対応方針/,
-  /nextAction/i,
-  /urgent/i,
-  /tagCandidates/i
-];
+type ChatTopic =
+  | "reply"
+  | "zoom"
+  | "visit"
+  | "event"
+  | "interview"
+  | "internship"
+  | "selection"
+  | "general";
 
 const MESSAGE_KEYS = [
-  "message",
   "chatMessage",
   "studentMessage",
-  "draft",
   "sendText",
-  "text",
   "lineMessage",
-  "recommendedMessage"
+  "recommendedMessage",
+  "messageDraft",
+  "draftMessage"
 ];
 
 const ACTION_KEYS = ["nextAction", "nextActions", "action", "actions", "what", "task"];
 
+const INTERNAL_LABEL_PATTERNS = [
+  /^AI判断[:：]/,
+  /^判断材料[:：]/,
+  /^理由[:：]/,
+  /^根拠[:：]/,
+  /^優先度/,
+  /^次アクション[:：]/,
+  /^推奨連絡手段[:：]/,
+  /^タグ候補[:：]/,
+  /^Channel:/i,
+  /^Reason:/i,
+  /^Next Action:/i,
+  /^Priority:/i,
+  /^Urgency:/i,
+  /^recommendedChannel/i,
+  /^tagCandidates/i,
+  /^nextActions?/i,
+  /^urgent/i
+];
+
+const INTERNAL_TEXT_PATTERNS = [
+  /採用担当者が/,
+  /チーム内で/,
+  /フォロー計画/,
+  /情報提供計画/,
+  /直接ヒアリング/,
+  /優先的にアプローチ/,
+  /確認・共有/,
+  /JSON/i,
+  /tagCandidates/i,
+  /recommendedChannel/i
+];
+
 export function buildRecommendedChatDraft(student: RecommendedChatStudent) {
-  const rawAction = extractNextAction(student.ai_next_action) || extractNextAction(student.manual_next_action);
-  const inferred = inferAction(student);
-  const action = rawAction || inferred;
+  const explicitMessage =
+    extractStudentMessage(student.ai_next_action) || extractStudentMessage(student.manual_next_action);
+  if (explicitMessage) {
+    return normalizeSendableMessage(explicitMessage, student);
+  }
+
+  const action =
+    extractNextAction(student.ai_next_action) ||
+    extractNextAction(student.manual_next_action) ||
+    inferAction(student);
   if (!action) return "";
 
-  const name = getStudentChatName(student);
-  const context = buildStudentContext(student);
-  const topic = classifyTopic(`${action}\n${inferred}\n${buildTagText(student)}`);
-  const friendlyAction = extractStudentFriendlyHint(action);
-  const body = buildStudentFacingBody(topic, context, friendlyAction);
-
-  return [
-    `${name}さん、こんにちは！ゴダイ薬局の採用担当です😊`,
-    "",
-    body,
-    "",
-    "少しでも気になれば、このLINEにそのまま返信してください✨"
-  ].join("\n");
+  const topic = classifyTopic(`${action}\n${buildTagText(student)}`);
+  return synthesizeStudentMessage(student, topic);
 }
 
 export function buildRecommendedChatReason(student: RecommendedChatStudent) {
-  const aiAction = extractNextAction(student.ai_next_action) || clean(student.ai_next_action);
-  const manualAction = extractNextAction(student.manual_next_action) || clean(student.manual_next_action);
+  const aiAction = extractNextAction(student.ai_next_action) || readableAnalysis(student.ai_next_action);
+  const manualAction = extractNextAction(student.manual_next_action) || readableAnalysis(student.manual_next_action);
   const context = buildStudentContext(student);
   const fallback = inferAction(student);
 
   return [
+    "送信文には入れない判断材料",
     context ? `学生情報: ${context}` : "",
     aiAction ? `AI判断: ${aiAction}` : "",
     manualAction ? `手動ネクストアクション: ${manualAction}` : "",
-    !aiAction && !manualAction && fallback ? `判断材料: ${fallback}` : ""
+    !aiAction && !manualAction && fallback ? `推定理由: ${fallback}` : ""
   ]
     .filter(Boolean)
     .join("\n");
@@ -97,8 +115,33 @@ export function extractNextAction(value: string | null | undefined) {
   const original = clean(value);
   if (!original) return "";
 
-  const jsonValue = extractFromJson(original);
-  if (jsonValue) return polishAction(jsonValue);
+  const jsonAction = extractActionFromJson(original);
+  if (jsonAction) return compactAction(jsonAction);
+
+  const text = stripCodeFence(original).replace(/\r\n/g, "\n").trim();
+  const explicitAction = extractSection(text, [
+    "次アクション",
+    "次にやること",
+    "Next Action",
+    "nextAction",
+    "対応内容"
+  ]);
+  if (explicitAction) return compactAction(explicitAction);
+
+  const usefulLines = text
+    .split("\n")
+    .map((line) => compactAction(line))
+    .filter((line) => line && !isInternalLine(line));
+
+  return usefulLines.slice(0, 2).join(" ");
+}
+
+function extractStudentMessage(value: string | null | undefined) {
+  const original = clean(value);
+  if (!original) return "";
+
+  const jsonMessage = extractMessageFromJson(original);
+  if (jsonMessage && looksStudentFacing(jsonMessage)) return jsonMessage;
 
   const text = stripCodeFence(original).replace(/\r\n/g, "\n").trim();
   const explicitMessage = extractSection(text, [
@@ -110,18 +153,41 @@ export function extractNextAction(value: string | null | undefined) {
     "案内文",
     "LINE文面"
   ]);
-  if (explicitMessage && looksStudentFacing(explicitMessage)) return polishAction(explicitMessage);
+  if (explicitMessage && looksStudentFacing(explicitMessage)) {
+    return explicitMessage;
+  }
 
-  const explicitAction = extractSection(text, ["次アクション", "次にやること", "Next Action", "nextAction"]);
-  if (explicitAction) return polishAction(stripInternalNoise(explicitAction));
-
-  const usefulLines = text
-    .split("\n")
-    .map((line) => polishAction(line))
-    .filter((line) => line && !isInternalActionLine(line));
-
-  if (usefulLines.length > 0) return usefulLines.slice(0, 2).join(" ");
   return "";
+}
+
+function synthesizeStudentMessage(student: RecommendedChatStudent, topic: ChatTopic) {
+  const name = getStudentChatName(student);
+  const greeting = `${name}さん、こんにちは！ゴダイ薬局の採用担当です😊`;
+  const university = clean(student.university);
+  const graduation = student.graduation_year ? `${student.graduation_year}卒` : "";
+  const context = [university, graduation].filter(Boolean).join(" / ");
+  const contextLine = context ? `${context}での就活状況を見て、ご連絡しました。` : "就活の状況を見て、ご連絡しました。";
+
+  const bodyByTopic: Record<ChatTopic, string> = {
+    reply:
+      "先日お送りした案内について、気になる点があれば気軽に返信してください✨\n日程が合うかだけでも大丈夫です。",
+    zoom:
+      "一度15〜20分ほどZoomでお話しできたらと思っています✨\n希望勤務地や実習、就活で不安なことを聞きながら、合いそうな見学やイベントを一緒に整理できます。",
+    visit:
+      "店舗見学に興味があれば、雰囲気を見やすい日程をご案内できます✨\n実際の働き方や職場の空気感も見てもらえるので、就活の判断材料にしやすいと思います。",
+    event:
+      "次のイベントで、現場社員や薬学生同士と話せる機会があります✨\nまだ迷っている段階でも参加しやすい内容なので、少しでも気になれば案内しますね。",
+    interview:
+      "若手薬剤師と話せる機会をご案内できます✨\n現場の雰囲気や入社後の働き方など、近い目線で聞けるのでおすすめです。",
+    internship:
+      "インターンシップや実習に近い体験の案内ができます✨\n薬局で働くイメージをつかみやすい内容なので、興味があれば詳細を送ります。",
+    selection:
+      "選考前に、不安なところを一度整理できたらと思っています✨\n確認したいことや迷っていることがあれば、個別に相談できます。",
+    general:
+      "今後の就活で気になっていることや、不安に感じていることがあれば気軽に教えてください✨\n店舗見学や若手薬剤師との相談など、合いそうな機会をこちらで案内できます。"
+  };
+
+  return [greeting, "", contextLine, bodyByTopic[topic]].join("\n");
 }
 
 function inferAction(student: RecommendedChatStudent) {
@@ -157,31 +223,6 @@ function classifyTopic(text: string): ChatTopic {
   return "general";
 }
 
-function buildStudentFacingBody(topic: ChatTopic, context: string, action: string) {
-  const prefix = context ? `「${context}」の状況を見て、` : "";
-
-  switch (topic) {
-    case "reply":
-      return `${prefix}先日お送りしたご案内について、気になる点があれば気軽に聞いてもらえたらと思い連絡しました。日程が合うかだけでも大丈夫です！`;
-    case "zoom":
-      return `${prefix}一度15〜20分ほどZoomでお話しできたらと思い連絡しました。希望勤務地や実習のことも聞きながら、合いそうな見学・イベントを一緒に整理できます。`;
-    case "visit":
-      return `${prefix}店舗見学をご案内できたらと思い連絡しました。実際の雰囲気や働き方を見てもらえるので、就活の判断材料にしやすいと思います。`;
-    case "interview":
-      return `${prefix}若手薬剤師と話せる機会をご案内したいと思い連絡しました。現場の雰囲気や入社後の働き方をかなり具体的に聞けます。`;
-    case "internship":
-      return `${prefix}インターンシップや実務に近い体験の案内が合いそうだと思い連絡しました。薬局で働くイメージをつかみやすい内容です。`;
-    case "selection":
-      return `${prefix}選考前に不安なところを一度整理できたらと思い連絡しました。気になることや確認したいことがあれば、短時間でも個別にお話しできます。`;
-    case "event":
-      return `${prefix}次のイベント案内が合いそうだと思い連絡しました。現場社員や薬学生とも話せるので、まだ迷っている段階でも参加しやすい内容です。`;
-    default:
-      return action
-        ? `${prefix}${action}について一度ご案内できたらと思い連絡しました。気になる内容だけ確認でも大丈夫です！`
-        : `${prefix}今後のイベントや個別相談について、合いそうな案内を一度お送りできたらと思い連絡しました。`;
-  }
-}
-
 function buildStudentContext(student: RecommendedChatStudent) {
   const pieces: string[] = [];
   const university = clean(student.university);
@@ -189,13 +230,19 @@ function buildStudentContext(student: RecommendedChatStudent) {
   const motivation = getMotivationRankLabel(student.motivation_rank, student.motivation_level);
   const contact = clean(student.first_contact_method);
   const area = clean(student.desired_area);
+  const tags = (student.tags ?? [])
+    .map((tag) => clean(tag.name))
+    .filter(Boolean)
+    .slice(0, 5)
+    .join("、");
 
   if (university || graduation) pieces.push([university, graduation].filter(Boolean).join(" / "));
   if (motivation && motivation !== "-") pieces.push(`志望度${motivation}`);
-  if (contact) pieces.push(`${contact}で接点あり`);
-  if (area) pieces.push(`${area}エリア希望`);
+  if (contact) pieces.push(`初回接触: ${contact}`);
+  if (area) pieces.push(`希望エリア: ${area}`);
+  if (tags) pieces.push(`タグ: ${tags}`);
 
-  return pieces.slice(0, 3).join("・");
+  return pieces.join("、");
 }
 
 function buildTagText(student: RecommendedChatStudent) {
@@ -203,23 +250,30 @@ function buildTagText(student: RecommendedChatStudent) {
 }
 
 function getStudentChatName(student: RecommendedChatStudent) {
-  return clean(student.real_name) || clean(student.display_name) || "学生";
+  const raw = clean(student.real_name) || clean(student.display_name) || "学生";
+  return raw.replace(/\s*[（(].*?[）)]/g, "").trim() || "学生";
 }
 
-function extractFromJson(value: string) {
+function extractMessageFromJson(value: string) {
+  const parsed = parseJsonLike(value);
+  return parsed ? findFirstStringByKeys(parsed, MESSAGE_KEYS) : "";
+}
+
+function extractActionFromJson(value: string) {
+  const parsed = parseJsonLike(value);
+  return parsed ? findFirstStringByKeys(parsed, ACTION_KEYS) : "";
+}
+
+function parseJsonLike(value: string): unknown {
   const candidates = [value, stripCodeFence(value), findJsonBlock(value)].filter(Boolean);
   for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(candidate);
-      const message = findFirstStringByKeys(parsed, MESSAGE_KEYS);
-      if (message && looksStudentFacing(message)) return message;
-      const action = findFirstStringByKeys(parsed, ACTION_KEYS);
-      if (action) return action;
+      return JSON.parse(candidate);
     } catch {
-      // Not JSON; continue with plain-text extraction.
+      // Keep trying other candidates.
     }
   }
-  return "";
+  return null;
 }
 
 function findJsonBlock(value: string) {
@@ -272,7 +326,7 @@ function extractSection(text: string, headings: string[]) {
       .filter((item) => item !== heading)
       .map(escapeRegExp)
       .join("|");
-    const match = text.match(new RegExp(`${escaped}\\s*[:：\\-]?\\s*([\\s\\S]+?)(?=\\n\\s*(?:${stop})\\s*[:：\\-]|$)`, "i"));
+    const match = text.match(new RegExp(`${escaped}\\s*[:：-]?\\s*([\\s\\S]+?)(?=\\n\\s*(?:${stop})\\s*[:：-]|$)`, "i"));
     if (match?.[1]) return match[1].trim();
   }
   return "";
@@ -285,51 +339,63 @@ function stripCodeFence(value: string) {
     .trim();
 }
 
-function polishAction(value: string) {
-  return stripCodeFence(value)
-    .replace(/^[\s"'[{,]+/g, "")
-    .replace(/[\s"'}\],]+$/g, "")
-    .replace(/^\s*[-・]\s*/gm, "")
-    .replace(/^次に?/g, "")
-    .replace(/^採用担当者が/g, "")
-    .replace(/^今週中に[、,]?\s*/g, "")
-    .replace(/^学生に[、,]?\s*/g, "")
-    .replace(/を確認・共有する$/g, "")
-    .replace(/してください。?$/g, "")
-    .trim();
-}
-
-function clean(value: string | null | undefined) {
-  return localizeSampleText(value)?.trim() || "";
-}
-
-function stripInternalNoise(value: string) {
-  return value
+function compactAction(value: string) {
+  const lines = stripCodeFence(value)
+    .replace(/\r\n/g, "\n")
     .split("\n")
-    .filter((line) => !isInternalActionLine(line))
-    .join("\n")
-    .trim();
+    .map((line) =>
+      line
+        .replace(/^[\s"'[{,]+/g, "")
+        .replace(/[\s"'}\],]+$/g, "")
+        .replace(/^\s*[-・]\s*/g, "")
+        .trim()
+    )
+    .filter((line) => line && !isInternalLine(line));
+
+  return lines.slice(0, 3).join(" ");
 }
 
-function isInternalActionLine(value: string) {
-  return INTERNAL_LINE_PATTERNS.some((pattern) => pattern.test(value));
-}
-
-function extractStudentFriendlyHint(value: string) {
-  const text = polishAction(stripInternalNoise(value));
-  if (!text || isInternalActionLine(text)) return "";
+function readableAnalysis(value: string | null | undefined) {
+  const text = stripCodeFence(clean(value));
+  if (!text) return "";
   return text
-    .replace(/候補日を確認する/g, "候補日の確認")
-    .replace(/不安点を整理する/g, "不安点の整理")
-    .replace(/案内する/g, "案内")
-    .replace(/連絡する/g, "連絡")
-    .trim();
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^```/.test(line))
+    .slice(0, 4)
+    .join(" ");
+}
+
+function normalizeSendableMessage(value: string, student: RecommendedChatStudent) {
+  const name = getStudentChatName(student);
+  const lines = stripCodeFence(value)
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !isInternalLine(line));
+
+  const body = lines.join("\n").trim();
+  if (!body) return synthesizeStudentMessage(student, "general");
+  if (/こんにちは|お疲れさま|ご連絡/.test(body)) return body;
+  return `${name}さん、こんにちは！ゴダイ薬局の採用担当です😊\n\n${body}`;
 }
 
 function looksStudentFacing(value: string) {
   const text = value.trim();
-  if (!text || isInternalActionLine(text)) return false;
-  return /さん|こんにちは|ご案内|連絡しました|返信|気軽|大丈夫|いかが|😊|✨/.test(text);
+  if (!text || isInternalLine(text)) return false;
+  return /さん|こんにちは|ご案内|連絡しました|返信|気軽|大丈夫|✨|😊|お願いします/.test(text);
+}
+
+function isInternalLine(value: string) {
+  const text = value.trim();
+  return (
+    INTERNAL_LABEL_PATTERNS.some((pattern) => pattern.test(text)) ||
+    INTERNAL_TEXT_PATTERNS.some((pattern) => pattern.test(text))
+  );
+}
+
+function clean(value: string | null | undefined) {
+  return localizeSampleText(value)?.trim() || "";
 }
 
 function escapeRegExp(value: string) {
