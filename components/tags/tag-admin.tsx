@@ -60,9 +60,8 @@ const TEXT = {
   chooseBulkAction: "\u4e00\u62ec\u64cd\u4f5c\u3092\u9078\u629e",
   moveToUncategorized: "\u672a\u5206\u985e\u306b\u79fb\u52d5",
   moveSuffix: "\u306b\u79fb\u52d5",
-  movePending: "\u79fb\u52d5\u4e2d...",
+  bulkMoveHint: "\u79fb\u52d5\u5148\u3092\u9078\u3076\u3068\u3001\u9078\u629e\u4e2d\u306e\u30bf\u30b0\u3092\u307e\u3068\u3081\u3066\u79fb\u52d5\u3057\u307e\u3059\u3002",
   moving: "\u79fb\u52d5\u3057\u3066\u3044\u307e\u3059...",
-  run: "\u5b9f\u884c",
   clearSelection: "\u9078\u629e\u89e3\u9664",
   createFolderTitle: "\u65b0\u3057\u3044\u30d5\u30a9\u30eb\u30c0\u3092\u4f5c\u6210",
   folderName: "\u30d5\u30a9\u30eb\u30c0\u540d",
@@ -314,6 +313,7 @@ function BulkTagFolderMove({
   onMoved: () => void;
 }) {
   const router = useRouter();
+  const [formElement, setFormElement] = useState<HTMLFormElement | null>(null);
   const [state, formAction] = useFormState(moveTagsToFolder, initialState);
 
   useEffect(() => {
@@ -328,19 +328,28 @@ function BulkTagFolderMove({
   return (
     <form
       action={formAction}
-      className="flex flex-wrap items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2"
+      className="flex flex-wrap items-center gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 shadow-sm"
+      ref={setFormElement}
     >
       {selectedTagIds.map((tagId) => (
         <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
       ))}
-      <span className="text-sm font-semibold text-green-900">
-        {selectedCount}
-        {TEXT.selected}
-      </span>
+      <div className="min-w-[130px]">
+        <p className="text-sm font-semibold text-green-900">
+          {selectedCount}
+          {TEXT.selected}
+        </p>
+        <p className="text-xs text-green-800">{TEXT.bulkMoveHint}</p>
+      </div>
       <select
-        className="h-9 min-w-[220px] rounded-md border border-input bg-white px-3 text-sm"
+        className="h-9 min-w-[240px] rounded-md border border-green-300 bg-white px-3 text-sm font-medium"
         defaultValue=""
         name="folder_id"
+        onChange={(event) => {
+          if (event.currentTarget.value && formElement) {
+            formElement.requestSubmit();
+          }
+        }}
         required
       >
         <option value="" disabled>
@@ -354,23 +363,11 @@ function BulkTagFolderMove({
           </option>
         ))}
       </select>
-      <BulkMoveSubmitButton />
       <Button onClick={onMoved} size="sm" type="button" variant="outline">
         {TEXT.clearSelection}
       </Button>
       <BulkMoveMessage state={state} />
     </form>
-  );
-}
-
-function BulkMoveSubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button disabled={pending} size="sm" type="submit">
-      <Folder className="mr-2 h-4 w-4" />
-      {pending ? TEXT.movePending : TEXT.run}
-    </Button>
   );
 }
 
