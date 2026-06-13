@@ -46,7 +46,7 @@ export async function saveRecruitingMonthlySnapshot(
     if (message.includes("recruiting_monthly_snapshots") || message.includes("schema cache")) {
       return {
         ok: false,
-        message: "Supabaseで 12_recruiting_funnel.sql を先に実行してください。"
+        message: "Supabaseで 20_pending_feature_setup.sql を実行してください。"
       };
     }
     return { ok: false, message };

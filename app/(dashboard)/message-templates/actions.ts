@@ -42,7 +42,7 @@ export async function createTemplateFolder(
     return {
       ok: false,
       message: error.message.includes("message_template_folders")
-        ? "Supabaseで 10_recruiting_ops_features.sql を先に実行してください。"
+        ? "Supabaseで 20_pending_feature_setup.sql を実行してください。"
         : error.message
     };
   }
@@ -95,7 +95,7 @@ export async function createMessageTemplate(
     return {
       ok: false,
       message: error.message.includes("message_templates")
-        ? "Supabaseで 10_recruiting_ops_features.sql を先に実行してください。"
+        ? "Supabaseで 20_pending_feature_setup.sql を実行してください。"
         : error.message
     };
   }

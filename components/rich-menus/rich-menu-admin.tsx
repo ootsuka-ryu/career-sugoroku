@@ -677,7 +677,7 @@ function SyncMenuSubmitButton() {
 
 function LineSyncStatus({ menu }: { menu: RichMenuItem }) {
   if (menu.line_sync_status === "schema_missing") {
-    return <span className="text-xs text-amber-700">DB準備が必要</span>;
+    return <span className="text-xs text-amber-700">DB未準備（20_pending_feature_setup.sql）</span>;
   }
 
   if (menu.line_sync_status === "syncing") {

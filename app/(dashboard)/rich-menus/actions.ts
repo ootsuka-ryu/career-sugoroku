@@ -105,7 +105,7 @@ export async function syncRichMenu(
     return {
       ok: false,
       message: isRichMenuSyncSchemaMissing(error.message)
-        ? "Supabaseで 15_rich_menu_line_sync.sql を先に実行してください。"
+        ? "Supabaseで 20_pending_feature_setup.sql を実行してください。"
         : error.message
     };
   }
@@ -138,7 +138,7 @@ export async function syncRichMenu(
     return {
       ok: false,
       message: isRichMenuSyncSchemaMissing(updateError.message)
-        ? "Supabaseで 15_rich_menu_line_sync.sql を先に実行してください。"
+        ? "Supabaseで 20_pending_feature_setup.sql を実行してください。"
         : updateError.message
     };
   }

@@ -425,6 +425,13 @@ export function SurveyAdmin({
     });
   }
 
+  function deleteSection(sectionId: string) {
+    setDraftSections((current) => {
+      if (current.length <= 1) return current;
+      return current.filter((section) => section.id !== sectionId);
+    });
+  }
+
   function moveSection(sectionId: string, direction: -1 | 1) {
     setDraftSections((current) => {
       const index = current.findIndex((section) => section.id === sectionId);
@@ -635,6 +642,7 @@ export function SurveyAdmin({
                   {draftSections.map((section, index) => (
                     <DraftSectionEditor
                       addQuestion={addQuestion}
+                      deleteSection={deleteSection}
                       duplicateSection={duplicateSection}
                       displayIndex={index + 1}
                       index={index}
@@ -700,6 +708,7 @@ function DraftSectionEditor({
   displayIndex,
   tags,
   addQuestion,
+  deleteSection,
   duplicateSection,
   moveSection,
   onDeleteQuestion,
@@ -712,6 +721,7 @@ function DraftSectionEditor({
   displayIndex: number;
   tags: TagSummary[];
   addQuestion: (sectionId: string, type: DraftQuestionType, label: string) => void;
+  deleteSection: (sectionId: string) => void;
   duplicateSection: (sectionId: string) => void;
   moveSection: (sectionId: string, direction: -1 | 1) => void;
   onDeleteQuestion: (sectionId: string, questionId: string) => void;
@@ -736,6 +746,16 @@ function DraftSectionEditor({
           >
             <Copy className="mr-2 h-4 w-4" />
             セクション複製
+          </Button>
+          <Button
+            disabled={sectionCount <= 1}
+            onClick={() => deleteSection(section.id)}
+            size="sm"
+            type="button"
+            variant="destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            セクション削除
           </Button>
           <Button
             disabled={index === 0}

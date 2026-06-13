@@ -263,7 +263,7 @@ export async function uploadStudentPhoto(
         return {
           ok: false,
           message:
-            "Supabaseに顔写真用の保存場所がまだありません。11_student_photo.sql を実行してください。"
+            "Supabaseに顔写真用の保存場所がまだありません。20_pending_feature_setup.sql を実行してください。"
         };
       }
       return { ok: false, message: error.message };
@@ -328,7 +328,7 @@ export async function updateStudentPhotoPosition(
     if (isMissingPhotoPositionColumnError(error)) {
       return {
         ok: false,
-        message: "Supabaseで 18_student_photo_position.sql を先に実行してください。"
+        message: "Supabaseで 20_pending_feature_setup.sql を実行してください。"
       };
     }
     return { ok: false, message: error.message };
@@ -397,7 +397,7 @@ export async function updateStudentFunnelFlags(
     if (error.message?.includes("funnel_")) {
       return {
         ok: false,
-        message: "Supabaseに進捗チェック用の保存場所がまだありません。12_recruiting_funnel.sql を実行してください。"
+        message: "Supabaseに進捗チェック用の保存場所がまだありません。20_pending_feature_setup.sql を実行してください。"
       };
     }
     return { ok: false, message: error.message };

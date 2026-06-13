@@ -81,7 +81,7 @@ export function EventMessageSettingsForm({
       </div>
       {!settingsAvailable ? (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Supabaseで 14_event_message_settings.sql を実行すると設定できます。
+          Supabaseで 20_pending_feature_setup.sql を実行すると設定できます。
         </p>
       ) : null}
       {state.message ? (
