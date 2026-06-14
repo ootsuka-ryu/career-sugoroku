@@ -442,10 +442,10 @@ function formatRecordingAiForDisplay(recording: RecordingItem): DisplayRecording
     summary:
       parsedSummary?.summary ||
       parsedNextAction?.summary ||
-      stripJsonFence(recording.ai_summary ?? ""),
+      cleanAiPlainText(recording.ai_summary ?? ""),
     nextAction:
-      stripJsonFence(recording.ai_next_action ?? "") ||
-      nextActions.join("\n")
+      nextActions.join("\n") ||
+      cleanAiPlainText(recording.ai_next_action ?? "")
   };
 }
 
@@ -460,17 +460,16 @@ function parseRecordingAiJson(value: string | null) {
       nextActions?: unknown;
       nextAction?: unknown;
     };
-    const nextActions = Array.isArray(parsed.nextActions)
-      ? parsed.nextActions
-          .filter((item): item is string => typeof item === "string")
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : typeof parsed.nextAction === "string"
-        ? [parsed.nextAction.trim()].filter(Boolean)
-        : [];
+    const nextActions = [
+      ...normalizeAiNextActions(parsed.nextActions),
+      ...normalizeAiNextActions(parsed.nextAction)
+    ];
 
     return {
-      summary: typeof parsed.summary === "string" ? parsed.summary.trim() : "",
+      summary:
+        typeof parsed.summary === "string"
+          ? cleanAiPlainText(parsed.summary)
+          : "",
       nextActions
     };
   } catch {
@@ -482,18 +481,73 @@ function extractJsonObject(value: string) {
   const text = value
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
+    .replace(/^json\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
   const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace < 0 || lastBrace <= firstBrace) return "";
-  return text.slice(firstBrace, lastBrace + 1);
+  if (firstBrace < 0) return "";
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = firstBrace; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) return text.slice(firstBrace, index + 1);
+  }
+
+  return "";
 }
 
-function stripJsonFence(value: string) {
+function normalizeAiNextActions(value: unknown): string[] {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .map((item) => {
+      if (typeof item === "string") return cleanAiPlainText(item);
+      if (!item || typeof item !== "object") return "";
+      const entry = item as {
+        what?: unknown;
+        action?: unknown;
+        title?: unknown;
+        by?: unknown;
+        who?: unknown;
+      };
+      const what =
+        typeof entry.what === "string"
+          ? entry.what
+          : typeof entry.action === "string"
+            ? entry.action
+            : typeof entry.title === "string"
+              ? entry.title
+              : "";
+      const by = typeof entry.by === "string" ? entry.by : "";
+      const who = typeof entry.who === "string" ? entry.who : "";
+      const prefix = [who, by].filter(Boolean).join(" / ");
+      return cleanAiPlainText(prefix ? `${prefix}: ${what}` : what);
+    })
+    .filter(Boolean);
+}
+
+function cleanAiPlainText(value: string) {
   const text = value
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
+    .replace(/^json\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
   return extractJsonObject(text) ? "" : text;

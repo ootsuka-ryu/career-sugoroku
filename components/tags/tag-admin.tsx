@@ -127,6 +127,10 @@ export function TagAdmin({
   const manualFolders = useMemo(() => folders.filter((folder) => isUuid(folder.id)), [folders]);
   const clearSelectedTags = useCallback(() => setSelectedTagIds([]), []);
   const closeFolderForm = useCallback(() => setShowFolderForm(false), []);
+  const handleFolderCreated = useCallback((folderId?: string) => {
+    if (folderId) setSelectedFolderId(folderId);
+    setShowFolderForm(false);
+  }, []);
 
   function toggleTagSelection(tagId: string, checked: boolean) {
     setSelectedTagIds((current) =>
@@ -228,7 +232,9 @@ export function TagAdmin({
           </div>
         </div>
 
-        {showFolderForm ? <TagFolderForm onCancel={closeFolderForm} /> : null}
+        {showFolderForm ? (
+          <TagFolderForm onCancel={closeFolderForm} onCreated={handleFolderCreated} />
+        ) : null}
 
         {showForm ? <TagForm editing={editing} onCancel={closeForm} /> : null}
 
@@ -378,16 +384,22 @@ function BulkMoveMessage({ state }: { state: TagActionState }) {
   return <p className={`text-xs ${state.ok ? "text-green-700" : "text-destructive"}`}>{state.message}</p>;
 }
 
-function TagFolderForm({ onCancel }: { onCancel: () => void }) {
+function TagFolderForm({
+  onCancel,
+  onCreated
+}: {
+  onCancel: () => void;
+  onCreated: (folderId?: string) => void;
+}) {
   const router = useRouter();
   const [state, action] = useFormState(createTagFolder, initialState);
 
   useEffect(() => {
     if (state.ok) {
       router.refresh();
-      onCancel();
+      onCreated(state.folderId);
     }
-  }, [onCancel, router, state.ok]);
+  }, [onCreated, router, state.folderId, state.ok]);
 
   return (
     <form action={action} className="mb-3 space-y-2 border border-amber-200 bg-amber-50/40 p-3">

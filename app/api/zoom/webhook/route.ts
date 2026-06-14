@@ -15,7 +15,10 @@ export async function POST(request: Request) {
 
     if (!plainToken || !secret) {
       return NextResponse.json(
-        { error: "Zoom webhook secret is not configured." },
+        {
+          error:
+            "Zoom Webhookの検証に必要な ZOOM_WEBHOOK_SECRET_TOKEN が未設定です。Cloudflareの環境変数に追加してください。"
+        },
         { status: 400 }
       );
     }
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
       ok: true,
       stored: false,
       message:
-        "Zoom recording received. Add ?studentId=... to link it automatically."
+        "Zoom録音は受信しましたが、学生IDまたは録音ファイルURLがないため自動紐づけしませんでした。必要な場合はWebhook URLに ?studentId=... を付けてください。"
     });
   }
 

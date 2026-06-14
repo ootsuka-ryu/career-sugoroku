@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export type TagActionState = {
   ok: boolean;
   message: string;
+  folderId?: string;
 };
 
 const initialState: TagActionState = {
@@ -166,24 +167,25 @@ export async function createTagFolder(
 
     if (!user) return { ok: false, message: MSG.loginRequired };
 
-    const { error } = (await (async () => {
+    const { data, error } = (await (async () => {
       try {
         return await withActionTimeout(
           supabase.from("tag_folders").insert({
             name: parsed.data.name,
             description: parsed.data.description || null,
             created_by: user.id
-          }),
+          }).select("id").single(),
           "\u30d5\u30a9\u30eb\u30c0\u4f5c\u6210"
         );
       } catch (error) {
         return {
+          data: null,
           error: {
             message: actionErrorMessage(error, MSG.saveFolderFailed)
           }
         };
       }
-    })()) as SupabaseActionResult;
+    })()) as SupabaseActionResult & { data: { id: string } | null };
 
     if (error) {
       return {
@@ -196,7 +198,7 @@ export async function createTagFolder(
     }
 
     revalidateTagScreens();
-    return { ok: true, message: MSG.folderCreated };
+    return { ok: true, message: MSG.folderCreated, folderId: data?.id };
   } catch (error) {
     return { ok: false, message: actionErrorMessage(error, MSG.saveFolderFailed) };
   }
