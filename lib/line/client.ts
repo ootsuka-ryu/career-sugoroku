@@ -37,7 +37,8 @@ export async function pushLineMessage(to: string, messages: LinePushMessage[]) {
     return {
       ok: true,
       skipped: true,
-      reason: "LINE_CHANNEL_ACCESS_TOKEN is not configured."
+      reason:
+        "LINE_CHANNEL_ACCESS_TOKEN が未設定です。Cloudflare Workers の Variables and Secrets に本番用のチャネルアクセストークンを登録してください。"
     };
   }
 

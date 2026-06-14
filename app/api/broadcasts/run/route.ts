@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
   const providedSecret = request.headers.get("x-cron-secret");
 
   if (cronSecret && providedSecret !== cronSecret) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "配信実行用の認証情報が一致しません。" },
+      { status: 401 }
+    );
   }
 
   const supabase = createAdminClient() as any;

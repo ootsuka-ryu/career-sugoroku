@@ -10,7 +10,10 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
 
   if (secret && authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "月次採用データ保存用の認証情報が一致しません。" },
+      { status: 401 }
+    );
   }
 
   const url = new URL(request.url);
@@ -20,7 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       skipped: true,
-      reason: "今日は日本時間の月末ではないため、保存しませんでした。"
+      reason: "今日は日本時間の月末ではないため、月次データは保存しませんでした。"
     });
   }
 

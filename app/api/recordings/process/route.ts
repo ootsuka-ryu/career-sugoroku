@@ -10,13 +10,16 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "ログイン状態を確認できませんでした。再ログインしてからAI処理を実行してください。" },
+      { status: 401 }
+    );
   }
 
   const { recordingId } = await request.json();
   if (!recordingId) {
     return NextResponse.json(
-      { error: "recordingId is required" },
+      { error: "AI処理する録音が指定されていません。" },
       { status: 400 }
     );
   }
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
 
   if (error || !recording) {
     return NextResponse.json(
-      { error: error?.message ?? "Recording not found" },
+      { error: error?.message ?? "録音が見つかりません。" },
       { status: 404 }
     );
   }

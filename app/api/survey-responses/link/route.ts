@@ -10,7 +10,10 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "ログイン状態を確認できませんでした。再ログインしてください。" },
+      { status: 401 }
+    );
   }
 
   const body = await request.json().catch(() => ({}));
@@ -18,7 +21,10 @@ export async function POST(request: Request) {
   const studentId = String(body.student_id ?? "");
 
   if (!responseId || !studentId) {
-    return NextResponse.json({ error: "response_id and student_id are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "紐づける回答または学生が指定されていません。" },
+      { status: 400 }
+    );
   }
 
   const { data: response, error: responseError } = await supabase

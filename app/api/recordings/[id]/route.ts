@@ -13,7 +13,10 @@ export async function DELETE(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "ログイン状態を確認できませんでした。再ログインしてから削除してください。" },
+      { status: 401 }
+    );
   }
 
   const admin = createAdminClient() as any;

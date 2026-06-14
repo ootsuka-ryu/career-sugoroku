@@ -10,7 +10,10 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "ログイン状態を確認できませんでした。再ログインしてください。" },
+      { status: 401 }
+    );
   }
 
   const url = new URL(request.url);

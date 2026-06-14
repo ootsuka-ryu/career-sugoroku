@@ -29,7 +29,7 @@ export async function transcribeAudioFile(file: File): Promise<TranscriptionResu
   return {
     provider: "mock",
     transcript:
-      "AI transcription is not configured yet. Add GROQ_API_KEY to enable Whisper transcription."
+      "文字起こしAPIが未設定です。Cloudflare Workers の Variables and Secrets に GROQ_API_KEY を追加すると自動文字起こしできます。"
   };
 }
 

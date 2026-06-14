@@ -221,7 +221,7 @@ export async function toggleSurveyActive(
 export async function createSurveyTagByName(name: string) {
   const trimmedName = name.trim();
   if (!trimmedName) {
-    return { ok: false, message: "Tag name is required." };
+    return { ok: false, message: "タグ名を入力してください。" };
   }
 
   const supabase = createClient() as any;
@@ -230,7 +230,7 @@ export async function createSurveyTagByName(name: string) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { ok: false, message: "Login is required." };
+    return { ok: false, message: "ログイン状態を確認できませんでした。再ログインしてください。" };
   }
 
   const { data, error } = await supabase

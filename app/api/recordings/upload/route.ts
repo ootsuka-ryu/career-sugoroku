@@ -13,7 +13,10 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "ログイン状態を確認できませんでした。再ログインしてから録音を保存してください。" },
+      { status: 401 }
+    );
   }
 
   const formData = await request.formData();
@@ -26,14 +29,14 @@ export async function POST(request: Request) {
 
   if (!studentId) {
     return NextResponse.json(
-      { error: "student_id is required" },
+      { error: "録音を紐づける学生が選択されていません。" },
       { status: 400 }
     );
   }
 
   if (!isUploadedFile(audio)) {
     return NextResponse.json(
-      { error: "audio file is required" },
+      { error: "保存する音声ファイルが見つかりませんでした。録音後にもう一度保存してください。" },
       { status: 400 }
     );
   }
@@ -43,14 +46,17 @@ export async function POST(request: Request) {
       {
         error:
           `音声ファイルが大きすぎます。現在 ${formatBytes(audio.size)} です。` +
-          `保存できる目安は ${formatBytes(MAX_RECORDING_UPLOAD_BYTES)} までなので、短く録音するか、mp3/m4a/webmに圧縮してからアップロードしてください。`
+          `保存できる目安は ${formatBytes(MAX_RECORDING_UPLOAD_BYTES)} までです。mp3 / m4a / webm に圧縮してからアップロードしてください。`
       },
       { status: 413 }
     );
   }
 
   if (!["browser", "upload"].includes(source)) {
-    return NextResponse.json({ error: "Invalid source" }, { status: 400 });
+    return NextResponse.json(
+      { error: "録音の保存方法を確認できませんでした。ページを更新してからもう一度お試しください。" },
+      { status: 400 }
+    );
   }
 
   const admin = createAdminClient() as any;
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
         {
           error:
             `Supabaseの保存上限を超えています。現在の音声サイズは ${formatBytes(audio.size)} です。` +
-            "Storage全体の上限、またはrecordingsバケットの上限を確認してください。"
+            "Storage全体の上限、またはrecordingsバケットのfile_size_limitを確認してください。"
         },
         { status: 413 }
       );
