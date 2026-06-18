@@ -60,7 +60,7 @@ export function CsvImportPreview() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
-            CSV ファイルを確認
+            CSVファイルを確認
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -71,13 +71,14 @@ export function CsvImportPreview() {
             type="file"
           />
           <p className="text-sm text-muted-foreground">
-            Step 3 では画面内で列マッピングとエラー確認まで行います。実際の登録処理は次の実装で接続します。
+            取り込むCSVの列を、学生情報のどの項目に反映するか確認します。
+            氏名が近い学生は候補として照合され、未一致の行は確認できます。
           </p>
           {fileName ? (
             <div className="flex flex-wrap gap-2 text-sm">
               <Badge variant="secondary">{fileName}</Badge>
-              <Badge variant="outline">{rows.length} 行</Badge>
-              <Badge variant="outline">{headers.length} 列</Badge>
+              <Badge variant="outline">{rows.length}行</Badge>
+              <Badge variant="outline">{headers.length}列</Badge>
             </div>
           ) : null}
         </CardContent>
@@ -87,7 +88,7 @@ export function CsvImportPreview() {
         <section className="grid gap-4 xl:grid-cols-[0.45fr_0.55fr]">
           <Card>
             <CardHeader>
-              <CardTitle>列マッピング</CardTitle>
+              <CardTitle>列の対応</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {studentImportFields.map((field) => (
@@ -112,7 +113,7 @@ export function CsvImportPreview() {
 
           <Card>
             <CardHeader>
-              <CardTitle>先頭20行の検証</CardTitle>
+              <CardTitle>先頭20行の確認</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {preview.map((item) => (
@@ -144,7 +145,7 @@ export function CsvImportPreview() {
                 </div>
               ))}
               <Button disabled variant="outline">
-                インポート実行は Step 4 で接続
+                取り込み実行は、照合結果を確認してから行います
               </Button>
             </CardContent>
           </Card>

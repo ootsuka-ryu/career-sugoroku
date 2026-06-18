@@ -97,13 +97,22 @@ export function TagAdmin({
   const [showForm, setShowForm] = useState(false);
   const [showFolderForm, setShowFolderForm] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [pendingFolderId, setPendingFolderId] = useState<string | null>(null);
   const normalizedQuery = query.trim().toLowerCase();
 
   useEffect(() => {
+    if (pendingFolderId) {
+      if (folders.some((folder) => folder.id === pendingFolderId)) {
+        setSelectedFolderId(pendingFolderId);
+        setPendingFolderId(null);
+      }
+      return;
+    }
+
     if (!folders.some((folder) => folder.id === selectedFolderId)) {
       setSelectedFolderId(folders[0]?.id ?? "");
     }
-  }, [folders, selectedFolderId]);
+  }, [folders, pendingFolderId, selectedFolderId]);
 
   useEffect(() => {
     setSelectedTagIds([]);
@@ -128,7 +137,10 @@ export function TagAdmin({
   const clearSelectedTags = useCallback(() => setSelectedTagIds([]), []);
   const closeFolderForm = useCallback(() => setShowFolderForm(false), []);
   const handleFolderCreated = useCallback((folderId?: string) => {
-    if (folderId) setSelectedFolderId(folderId);
+    if (folderId) {
+      setPendingFolderId(folderId);
+      setSelectedFolderId(folderId);
+    }
     setShowFolderForm(false);
   }, []);
 
