@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   mapRawRowToStudentImportRow,
@@ -60,7 +59,7 @@ export function CsvImportPreview() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
-            CSVファイルを確認
+            CSV確認だけ（登録しません）
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -71,8 +70,8 @@ export function CsvImportPreview() {
             type="file"
           />
           <p className="text-sm text-muted-foreground">
-            取り込むCSVの列を、学生情報のどの項目に反映するか確認します。
-            氏名が近い学生は候補として照合され、未一致の行は確認できます。
+            CSVの列をどの学生項目に対応させるか確認できます。この欄では学生情報へ登録・更新は行いません。
+            本番反映は「Lステップ回答CSVを学生情報に反映」から取り込んでください。
           </p>
           {fileName ? (
             <div className="flex flex-wrap gap-2 text-sm">
@@ -144,9 +143,12 @@ export function CsvImportPreview() {
                   )}
                 </div>
               ))}
-              <Button disabled variant="outline">
-                取り込み実行は、照合結果を確認してから行います
-              </Button>
+              <div className="flex items-start gap-2 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  ここは確認専用です。学生情報に反映する場合は、本番取り込みフォームからCSVをアップロードしてください。
+                </p>
+              </div>
             </CardContent>
           </Card>
         </section>

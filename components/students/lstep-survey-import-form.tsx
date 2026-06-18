@@ -34,12 +34,13 @@ export function LStepSurveyImportForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileUp className="h-5 w-5 text-primary" />
-          CSVを選択して取り込む
+          Lステップ回答CSVを学生情報に反映
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Lステップの回答CSV専用です。氏名が一致する学生に電話番号・メール・大学・卒業年を反映し、回答内容を備考欄と履歴に残します。
+          Lステップから出力した回答CSV専用です。氏名が一致する学生に電話番号・メール・大学・卒業年を反映し、
+          回答内容は参考情報として履歴に残します。未一致や候補が複数ある行は、結果表で確認できます。
         </p>
         <form action={action} className="grid gap-3 md:grid-cols-[1fr_auto]">
           <input
@@ -94,9 +95,7 @@ export function LStepSurveyImportForm() {
                       <td className="whitespace-nowrap px-3 py-2">{row.rowNumber}</td>
                       <td className="whitespace-nowrap px-3 py-2 font-medium">{row.name}</td>
                       <td className="whitespace-nowrap px-3 py-2">
-                        <Badge
-                          variant={row.status === "updated" ? "accent" : "outline"}
-                        >
+                        <Badge variant={row.status === "updated" ? "accent" : "outline"}>
                           {statusLabels[row.status]}
                         </Badge>
                       </td>
