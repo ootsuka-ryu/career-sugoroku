@@ -33,6 +33,7 @@ export function EventParticipantForm({
         onChange={setStudentId}
       />
       <select
+        aria-label="参加状態"
         className="h-10 rounded-md border border-input bg-background px-3 text-sm"
         name="status"
         defaultValue={defaultStatus}
@@ -41,8 +42,13 @@ export function EventParticipantForm({
           <option key={status}>{status}</option>
         ))}
       </select>
-      <Input name="memo" placeholder="メモ" />
-      <Button disabled={!studentId} type="submit" variant="outline">
+      <Input aria-label="参加メモ" name="memo" placeholder="メモ" />
+      <Button
+        disabled={!studentId}
+        title={studentId ? "参加者を追加" : "学生を選択してください"}
+        type="submit"
+        variant="outline"
+      >
         参加者追加
       </Button>
     </form>

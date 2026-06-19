@@ -1449,7 +1449,7 @@ function SurveyRow({
                 <button
                   className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-secondary"
                   onClick={() => {
-                    alert("テスト送信はLINE連携設定後に利用できます。");
+                    setCopyMessage("テスト送信はLINE連携設定後に利用できます。");
                     setMenuOpen(false);
                   }}
                   type="button"
@@ -1476,7 +1476,7 @@ function SurveyRow({
                 <button
                   className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-destructive hover:bg-secondary"
                   onClick={() => {
-                    alert("削除機能は誤操作防止の確認画面を追加してから有効化します。");
+                    setCopyMessage("削除機能は誤操作防止の確認画面を追加してから有効化します。");
                     setMenuOpen(false);
                   }}
                   type="button"

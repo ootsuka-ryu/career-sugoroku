@@ -96,6 +96,7 @@ export function BroadcastForm({
           ) : null}
           <Label htmlFor="text">本文</Label>
           <Textarea
+            className="max-h-40 resize-y"
             id="text"
             name="text"
             placeholder="こんにちは。今月の店舗見学日程をご案内します。"
@@ -273,6 +274,7 @@ function NoReplyFollowupFields({
             <div className="mt-3 space-y-1">
               <Label htmlFor={`followup_text_${index}`}>条件に合う場合に送る文章</Label>
               <Textarea
+                className="max-h-28 resize-y"
                 id={`followup_text_${index}`}
                 name={`followup_text_${index}`}
                 placeholder="先日お送りしたご案内はいかがでしたか？気になる点があればお気軽に返信してください。"
@@ -296,6 +298,7 @@ function TagCheckboxGroup({
   tags: TagSummary[];
 }) {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const selectedTags = tags.filter((tag) => selectedTagIds.includes(tag.id));
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((current) =>
@@ -307,10 +310,32 @@ function TagCheckboxGroup({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">{label}</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">{label}</p>
+        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+          {selectedTagIds.length}件選択中
+        </span>
+      </div>
       {selectedTagIds.map((tagId) => (
         <input key={tagId} name={fieldName} type="hidden" value={tagId} />
       ))}
+      {selectedTags.length > 0 ? (
+        <div className="flex flex-wrap gap-1" aria-live="polite">
+          {selectedTags.slice(0, 5).map((tag) => (
+            <span
+              className="rounded-full border bg-background px-2 py-0.5 text-xs"
+              key={tag.id}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {selectedTags.length > 5 ? (
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+              +{selectedTags.length - 5}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
       <FolderedTagSelector
         onToggle={toggleTag}
         selectedTagIds={selectedTagIds}

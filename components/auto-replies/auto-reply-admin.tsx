@@ -147,6 +147,7 @@ function AutoReplyForm({
       <div className="space-y-2">
         <label className="text-sm font-medium">返信文</label>
         <Textarea
+          className="max-h-40 resize-y"
           defaultValue={editing?.reply_text ?? ""}
           name="reply_text"
           placeholder="お問い合わせありがとうございます。担当者よりご連絡します。"

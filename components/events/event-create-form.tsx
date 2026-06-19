@@ -8,6 +8,7 @@ import {
 } from "@/app/(dashboard)/events/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 type SurveyOption = {
@@ -32,35 +33,74 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <Input name="title" placeholder="イベント名" required />
-      <select
-        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        name="event_type"
-        defaultValue="説明会"
-      >
-        <option>説明会</option>
-        <option>店舗見学</option>
-        <option>座談会</option>
-        <option>インターンシップ</option>
-        <option>薬剤師インタビュー</option>
-        <option>選考会</option>
-        <option>その他</option>
-      </select>
-      <Input name="starts_at" type="datetime-local" />
-      <Input name="location" placeholder="場所 / Zoom URL" />
-      <select
-        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-        name="survey_id"
-      >
-        <option value="">紐づけアンケートなし</option>
-        {surveys.map((survey) => (
-          <option key={survey.id} value={survey.id}>
-            {survey.admin_title ?? survey.title}
-          </option>
-        ))}
-      </select>
-      <Textarea name="description" placeholder="イベント内容・注意事項" />
-      <Textarea name="next_action" placeholder="次回案内・フォロー内容" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="event-title">イベント名</Label>
+          <Input id="event-title" name="title" placeholder="イベント名" required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-type">種別</Label>
+          <select
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            id="event-type"
+            name="event_type"
+            defaultValue="説明会"
+          >
+            <option>説明会</option>
+            <option>店舗見学</option>
+            <option>座談会</option>
+            <option>インターンシップ</option>
+            <option>薬剤師インタビュー</option>
+            <option>選考会</option>
+            <option>その他</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-starts-at">日時</Label>
+          <Input id="event-starts-at" name="starts_at" type="datetime-local" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-location">場所 / Zoom URL</Label>
+          <Input id="event-location" name="location" placeholder="場所 / Zoom URL" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="event-survey">紐づけアンケート</Label>
+        <select
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          id="event-survey"
+          name="survey_id"
+        >
+          <option value="">紐づけアンケートなし</option>
+          {surveys.map((survey) => (
+            <option key={survey.id} value={survey.id}>
+              {survey.admin_title ?? survey.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="event-description">イベント内容・注意事項</Label>
+          <Textarea
+            className="max-h-32 resize-y"
+            id="event-description"
+            name="description"
+            placeholder="イベント内容・注意事項"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-next-action">次回案内・フォロー内容</Label>
+          <Textarea
+            className="max-h-32 resize-y"
+            id="event-next-action"
+            name="next_action"
+            placeholder="次回案内・フォロー内容"
+          />
+        </div>
+      </div>
 
       <div className="rounded-md border bg-muted/30 p-3">
         <label className="flex items-center gap-2 text-sm font-semibold">
@@ -68,7 +108,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
           申込時に自動メッセージを送信
         </label>
         <Textarea
-          className="mt-2"
+          className="mt-2 max-h-36 resize-y"
           name="signup_message_template"
           rows={4}
           defaultValue={DEFAULT_SIGNUP_MESSAGE}
@@ -84,7 +124,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
           開催3日以上前の申込者へ前日リマインドを予約
         </label>
         <Textarea
-          className="mt-2"
+          className="mt-2 max-h-36 resize-y"
           name="reminder_message_template"
           rows={4}
           defaultValue={DEFAULT_REMINDER_MESSAGE}

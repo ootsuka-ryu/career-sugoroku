@@ -45,7 +45,7 @@ export function EventMessageSettingsForm({
             申込時メッセージ
           </label>
           <Textarea
-            className="mt-2"
+            className="mt-2 max-h-32 resize-y"
             defaultValue={event.signup_message_template ?? ""}
             disabled={!settingsAvailable}
             name="signup_message_template"
@@ -64,7 +64,7 @@ export function EventMessageSettingsForm({
             前日リマインド
           </label>
           <Textarea
-            className="mt-2"
+            className="mt-2 max-h-32 resize-y"
             defaultValue={event.reminder_message_template ?? ""}
             disabled={!settingsAvailable}
             name="reminder_message_template"

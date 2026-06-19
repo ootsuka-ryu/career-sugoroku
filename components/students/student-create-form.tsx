@@ -107,7 +107,11 @@ export function StudentCreateForm({
           </Field>
         </div>
         <Field className="mt-4" label="次アクション">
-          <Textarea name="manual_next_action" placeholder="例：3日後に店舗見学の日程確認を送る" />
+          <Textarea
+            className="max-h-36 resize-y"
+            name="manual_next_action"
+            placeholder="例：3日後に店舗見学の日程確認を送る"
+          />
         </Field>
       </section>
 

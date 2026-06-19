@@ -166,7 +166,12 @@ function FollowUpCard({
 
         <form action={reminderAction} className="space-y-2">
           <input name="student_id" type="hidden" value={student.id} />
-          <Textarea defaultValue={defaultText} name="text" rows={4} />
+          <Textarea
+            className="max-h-36 resize-y"
+            defaultValue={defaultText}
+            name="text"
+            rows={4}
+          />
           <div className="flex flex-wrap items-center gap-2">
             <SubmitButton label="リマインダー送信" />
             <Button asChild size="sm" variant="outline">
