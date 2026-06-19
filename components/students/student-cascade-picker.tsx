@@ -101,6 +101,31 @@ export function StudentCascadePicker({
   useEffect(() => {
     if (!open) return;
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        const firstStudent = universityGroup?.students[0];
+        if (!firstStudent) return;
+        event.preventDefault();
+        onChange(firstStudent.id);
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onChange, open, universityGroup]);
+
+  useEffect(() => {
+    if (!open) return;
+
     function updatePosition() {
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -137,6 +162,8 @@ export function StudentCascadePicker({
   return (
     <div className={`relative ${className ?? ""}`} ref={rootRef}>
       <button
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-left text-sm"
         id={id}
         onClick={() => setOpen((current) => !current)}

@@ -43,6 +43,8 @@ type RecordingItem = {
 type DisplayRecordingAi = {
   summary: string;
   nextAction: string;
+  tagCandidates: string[];
+  urgent: boolean;
 };
 
 export function RecordingConsole({
@@ -304,6 +306,7 @@ export function RecordingConsole({
           <div className="space-y-2">
             <Label htmlFor="transcript">文字起こし済みテキスト</Label>
             <Textarea
+              className="max-h-40 resize-y"
               id="transcript"
               onChange={(event) => setTranscript(event.target.value)}
               placeholder="Web Speech APIなどで文字起こし済みの場合は貼り付け"
@@ -412,10 +415,27 @@ export function RecordingConsole({
                     </p>
                   </div>
                 ) : null}
+                {aiDisplay.tagCandidates.length > 0 || aiDisplay.urgent ? (
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {aiDisplay.urgent ? (
+                      <span className="rounded-full bg-red-600 px-2 py-1 font-semibold text-white">
+                        要注意
+                      </span>
+                    ) : null}
+                    {aiDisplay.tagCandidates.map((tag) => (
+                      <span
+                        className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800"
+                        key={tag}
+                      >
+                        候補タグ: {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 {recording.transcript ? (
                   <details className="text-sm">
                     <summary className="cursor-pointer font-medium">文字起こし</summary>
-                    <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                    <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
                       {recording.transcript}
                     </p>
                   </details>
@@ -437,6 +457,12 @@ function formatRecordingAiForDisplay(recording: RecordingItem): DisplayRecording
     ...(parsedSummary?.nextActions ?? []),
     ...(parsedNextAction?.nextActions ?? [])
   ];
+  const tagCandidates = Array.from(
+    new Set([
+      ...(parsedSummary?.tagCandidates ?? []),
+      ...(parsedNextAction?.tagCandidates ?? [])
+    ])
+  );
 
   return {
     summary:
@@ -445,7 +471,9 @@ function formatRecordingAiForDisplay(recording: RecordingItem): DisplayRecording
       cleanAiPlainText(recording.ai_summary ?? ""),
     nextAction:
       nextActions.join("\n") ||
-      cleanAiPlainText(recording.ai_next_action ?? "")
+      cleanAiPlainText(recording.ai_next_action ?? ""),
+    tagCandidates,
+    urgent: Boolean(parsedSummary?.urgent || parsedNextAction?.urgent)
   };
 }
 
@@ -459,6 +487,8 @@ function parseRecordingAiJson(value: string | null) {
       summary?: unknown;
       nextActions?: unknown;
       nextAction?: unknown;
+      tagCandidates?: unknown;
+      urgent?: unknown;
     };
     const nextActions = [
       ...normalizeAiNextActions(parsed.nextActions),
@@ -470,7 +500,9 @@ function parseRecordingAiJson(value: string | null) {
         typeof parsed.summary === "string"
           ? cleanAiPlainText(parsed.summary)
           : "",
-      nextActions
+      nextActions,
+      tagCandidates: normalizeStringList(parsed.tagCandidates),
+      urgent: parsed.urgent === true
     };
   } catch {
     return null;
@@ -540,6 +572,14 @@ function normalizeAiNextActions(value: unknown): string[] {
       const prefix = [who, by].filter(Boolean).join(" / ");
       return cleanAiPlainText(prefix ? `${prefix}: ${what}` : what);
     })
+    .filter(Boolean);
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .map((item) => (typeof item === "string" ? cleanAiPlainText(item) : ""))
     .filter(Boolean);
 }
 

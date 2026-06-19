@@ -178,6 +178,11 @@ export function ChatConsole({
                       {localizeSampleText(tag.name)}
                     </span>
                   ))}
+                  {student.tags.length > 3 ? (
+                    <span className="rounded-md border bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                      +{student.tags.length - 3}
+                    </span>
+                  ) : null}
                 </div>
               </Link>
             );
@@ -260,19 +265,26 @@ export function ChatConsole({
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const outbound = message.direction === "out";
+  const text = localizeSampleText(getMessageText(message.payload) ?? "") ?? "";
+  const linkClick = isLinkClickMessage(message.payload, text);
 
   return (
     <div className={outbound ? "flex justify-end" : "flex justify-start"}>
       <div
         className={
           outbound
-            ? "max-w-[78%] rounded-lg bg-primary px-4 py-3 text-primary-foreground"
-            : "max-w-[78%] rounded-lg border bg-background px-4 py-3"
+            ? "max-w-[78%] break-words rounded-lg bg-primary px-4 py-3 text-primary-foreground"
+            : linkClick
+              ? "max-w-[78%] break-words rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3"
+              : "max-w-[78%] break-words rounded-lg border bg-background px-4 py-3"
         }
       >
-        <p className="whitespace-pre-wrap text-sm">
-          {localizeSampleText(getMessageText(message.payload))}
-        </p>
+        {linkClick ? (
+          <span className="mb-2 inline-flex rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+            リンクタップ
+          </span>
+        ) : null}
+        <p className="whitespace-pre-wrap break-words text-sm">{text}</p>
         <div
           className={
             outbound
@@ -287,6 +299,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
     </div>
   );
+}
+
+function isLinkClickMessage(payload: Json, text: string) {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const event = (payload as { event?: unknown }).event;
+    if (event === "line_link_click") return true;
+  }
+
+  return text.includes("リンクをタップしました") || text.includes("リンクタップ");
 }
 
 function ExternalLineLogForm({ studentId }: { studentId: string }) {
@@ -305,6 +326,7 @@ function ExternalLineLogForm({ studentId }: { studentId: string }) {
         <input name="student_id" type="hidden" value={studentId} />
         <div className="grid gap-3 md:grid-cols-[1fr_12rem]">
           <Textarea
+            className="max-h-28 resize-y"
             name="text"
             placeholder="公式LINE管理画面から送った内容やメモ"
             required
@@ -578,6 +600,7 @@ function ChatComposer({
       ) : null}
 
       <Textarea
+        className="max-h-40 resize-y"
         ref={textareaRef}
         name="text"
         placeholder={

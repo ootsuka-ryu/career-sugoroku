@@ -171,6 +171,24 @@ export function MessageTemplateForm({
     });
   }
 
+  function duplicatePanel(index: number) {
+    setPanels((current) => {
+      if (current.length >= 10) return current;
+      const panel = current[index];
+      if (!panel) return current;
+      const copiedPanel: CarouselPanel = {
+        ...panel,
+        buttons: panel.buttons.map((button) => ({
+          ...button,
+          action: { ...button.action }
+        }))
+      };
+      const next = [...current.slice(0, index + 1), copiedPanel, ...current.slice(index + 1)];
+      setSelectedPanelIndex(index + 1);
+      return next;
+    });
+  }
+
   function removePanel(index: number) {
     setPanels((current) => {
       if (current.length <= 1) return current;
@@ -272,20 +290,71 @@ export function MessageTemplateForm({
             <div className="flex min-h-44 gap-6 overflow-x-auto p-4">
               {panels.map((panel, index) => (
                 <div key={index} className="flex items-start gap-4">
-                  <button
+                  <div
                     className={`w-[220px] rounded border bg-background text-left transition ${
                       selectedPanelIndex === index ? "border-green-500 ring-1 ring-green-500" : ""
                     }`}
                     onClick={() => setSelectedPanelIndex(index)}
-                    type="button"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedPanelIndex(index);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     <div className="flex items-center justify-between border-b px-3 py-2 text-sm font-medium">
                       <span>パネル #{index + 1}</span>
-                      <span className="flex gap-2 text-muted-foreground">
-                        <span>←</span>
-                        <span>→</span>
-                        <Copy className="h-4 w-4" />
-                        <Trash2 className="h-4 w-4" />
+                      <span className="flex gap-1 text-muted-foreground">
+                        <button
+                          aria-label="move left"
+                          className="rounded px-1 hover:bg-secondary disabled:opacity-30"
+                          disabled={index === 0}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            movePanel(index, -1);
+                          }}
+                          type="button"
+                        >
+                          ←
+                        </button>
+                        <button
+                          aria-label="move right"
+                          className="rounded px-1 hover:bg-secondary disabled:opacity-30"
+                          disabled={index === panels.length - 1}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            movePanel(index, 1);
+                          }}
+                          type="button"
+                        >
+                          →
+                        </button>
+                        <button
+                          aria-label="duplicate panel"
+                          className="rounded p-1 hover:bg-secondary disabled:opacity-30"
+                          disabled={panels.length >= 10}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            duplicatePanel(index);
+                          }}
+                          type="button"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          aria-label="delete panel"
+                          className="rounded p-1 hover:bg-secondary disabled:opacity-30"
+                          disabled={panels.length <= 1}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removePanel(index);
+                          }}
+                          type="button"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </span>
                     </div>
                     <div className="aspect-[1.51] bg-muted">
@@ -305,7 +374,7 @@ export function MessageTemplateForm({
                         {panel.buttons[0]?.label || "選択肢1"}
                       </div>
                     </div>
-                  </button>
+                  </div>
                   {index === panels.length - 1 ? (
                     <button
                       className="mt-20 text-sm font-medium text-green-600"
