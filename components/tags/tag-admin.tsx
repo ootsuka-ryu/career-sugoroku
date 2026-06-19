@@ -57,7 +57,9 @@ const TEXT = {
   selectVisible: "\u8868\u793a\u4e2d\u306e\u30bf\u30b0\u3092\u3059\u3079\u3066\u9078\u629e",
   noTags: "\u6761\u4ef6\u306b\u5408\u3046\u30bf\u30b0\u304c\u3042\u308a\u307e\u305b\u3093\u3002",
   selected: "\u4ef6\u9078\u629e\u4e2d",
+  bulkAction: "\u4e00\u62ec\u64cd\u4f5c",
   chooseBulkAction: "\u4e00\u62ec\u64cd\u4f5c\u3092\u9078\u629e",
+  chooseMoveFolder: "\u79fb\u52d5\u5148\u30d5\u30a9\u30eb\u30c0\u3092\u9078\u629e",
   moveToUncategorized: "\u672a\u5206\u985e\u306b\u79fb\u52d5",
   moveSuffix: "\u306b\u79fb\u52d5",
   bulkMoveHint: "\u79fb\u52d5\u5148\u3092\u9078\u3076\u3068\u3001\u9078\u629e\u4e2d\u306e\u30bf\u30b0\u3092\u307e\u3068\u3081\u3066\u79fb\u52d5\u3057\u307e\u3059\u3002",
@@ -226,12 +228,6 @@ export function TagAdmin({
               <Plus className="mr-2 h-4 w-4" />
               {TEXT.newTag}
             </Button>
-            <BulkTagFolderMove
-              folders={manualFolders}
-              onMoved={clearSelectedTags}
-              selectedCount={selectedTagIds.length}
-              selectedTagIds={selectedTagIds}
-            />
           </div>
           <div className="relative w-72 max-w-[55vw]">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -243,6 +239,12 @@ export function TagAdmin({
             />
           </div>
         </div>
+        <BulkTagFolderMove
+          folders={manualFolders}
+          onMoved={clearSelectedTags}
+          selectedCount={selectedTagIds.length}
+          selectedTagIds={selectedTagIds}
+        />
 
         {showFolderForm ? (
           <TagFolderForm onCancel={closeFolderForm} onCreated={handleFolderCreated} />
@@ -346,21 +348,24 @@ function BulkTagFolderMove({
   return (
     <form
       action={formAction}
-      className="flex flex-wrap items-center gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 shadow-sm"
+      className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-400 bg-green-50 px-3 py-3 shadow-sm"
       ref={setFormElement}
     >
       {selectedTagIds.map((tagId) => (
         <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
       ))}
-      <div className="min-w-[130px]">
+      <div className="flex min-w-[170px] items-center gap-2">
+        <span className="rounded-md bg-green-700 px-3 py-1.5 text-sm font-semibold text-white">
+          {TEXT.bulkAction}
+        </span>
         <p className="text-sm font-semibold text-green-900">
           {selectedCount}
           {TEXT.selected}
         </p>
-        <p className="text-xs text-green-800">{TEXT.bulkMoveHint}</p>
       </div>
+      <p className="max-w-md text-xs text-green-800">{TEXT.bulkMoveHint}</p>
       <select
-        className="h-9 min-w-[240px] rounded-md border border-green-300 bg-white px-3 text-sm font-medium"
+        className="h-9 min-w-[260px] rounded-md border border-green-300 bg-white px-3 text-sm font-medium"
         defaultValue=""
         name="folder_id"
         onChange={(event) => {
@@ -371,7 +376,7 @@ function BulkTagFolderMove({
         required
       >
         <option value="" disabled>
-          {TEXT.chooseBulkAction}
+          {TEXT.chooseMoveFolder}
         </option>
         <option value="none">{TEXT.moveToUncategorized}</option>
         {folders.map((folder) => (
