@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { pushLineMessage } from "@/lib/line/client";
+import { trackUrlForLineClick, trackUrlsInTextForLineClicks } from "@/lib/line/tracked-links";
 import { createClient } from "@/lib/supabase/server";
 import {
   personalizeSurveyUrl,
@@ -151,7 +152,14 @@ function personalizeChatInput(
 
   return {
     ...input,
-    text: personalizeSurveyUrlsInText(input.text ?? "", lineUserId, studentId),
+    text: trackUrlsInTextForLineClicks(
+      personalizeSurveyUrlsInText(input.text ?? "", lineUserId, studentId),
+      {
+        studentId,
+        lineUserId,
+        source: "chat_text"
+      }
+    ),
     carousel_json: personalizeCarouselJson(input.carousel_json, lineUserId, studentId)
   };
 }
@@ -168,10 +176,35 @@ function personalizeCarouselJson(
     if (!Array.isArray(items)) return value;
 
     return JSON.stringify(
-      items.map((item) => ({
-        ...item,
-        url: personalizeSurveyUrl(String(item.url ?? ""), lineUserId, studentId)
-      }))
+      items.map((item) => {
+        const title = String(item.title ?? "").trim();
+        const buttonLabel = String(item.buttonLabel ?? "").trim();
+        const url = personalizeSurveyUrl(String(item.url ?? ""), lineUserId, studentId);
+
+        return {
+          ...item,
+          url: trackUrlForLineClick(url, {
+            studentId,
+            lineUserId,
+            label: buttonLabel || title || "カルーセル",
+            source: "chat_carousel"
+          }),
+          buttons: Array.isArray(item.buttons)
+            ? item.buttons.map((button: any) => {
+                const value = personalizeSurveyUrl(String(button.value ?? ""), lineUserId, studentId);
+                return {
+                  ...button,
+                  value: trackUrlForLineClick(value, {
+                    studentId,
+                    lineUserId,
+                    label: String(button.label ?? title ?? "カルーセル").trim(),
+                    source: "chat_carousel"
+                  })
+                };
+              })
+            : item.buttons
+        };
+      })
     );
   } catch {
     return value;

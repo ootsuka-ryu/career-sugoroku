@@ -5,6 +5,7 @@ import {
   type TargetableStudent
 } from "@/lib/broadcasts/targeting";
 import { pushLineMessage } from "@/lib/line/client";
+import { trackUrlForLineClick, trackUrlsInTextForLineClicks } from "@/lib/line/tracked-links";
 import {
   personalizeSurveyUrl,
   personalizeSurveyUrlsInText
@@ -42,7 +43,7 @@ export async function sendBroadcastToTargets({
 
   for (const student of targets) {
     let status = "mock_sent";
-    const personalizedBody = personalizeBroadcastBody(body, student.line_user_id);
+    const personalizedBody = personalizeBroadcastBody(body, student.id, student.line_user_id);
     const messages = buildLineMessages(personalizedBody);
 
     if (student.line_user_id) {
@@ -107,14 +108,17 @@ export async function sendBroadcastToTargets({
 
 function personalizeBroadcastBody(
   body: BroadcastBody,
+  studentId: string,
   lineUserId: string | null | undefined
 ): BroadcastBody {
-  if (!lineUserId) return body;
-
   if (body.kind === "text") {
     return {
       ...body,
-      text: personalizeSurveyUrlsInText(body.text, lineUserId)
+      text: trackUrlsInTextForLineClicks(personalizeSurveyUrlsInText(body.text, lineUserId, studentId), {
+        studentId,
+        lineUserId,
+        source: "broadcast_text"
+      })
     };
   }
 
@@ -122,8 +126,18 @@ function personalizeBroadcastBody(
     ...body,
     cells: body.cells.map((cell) => ({
       ...cell,
-      detailUrl: personalizeSurveyUrl(cell.detailUrl, lineUserId),
-      applyUrl: personalizeSurveyUrl(cell.applyUrl, lineUserId)
+      detailUrl: trackUrlForLineClick(personalizeSurveyUrl(cell.detailUrl, lineUserId, studentId), {
+        studentId,
+        lineUserId,
+        label: `${cell.title} 詳細`,
+        source: "broadcast_grid"
+      }),
+      applyUrl: trackUrlForLineClick(personalizeSurveyUrl(cell.applyUrl, lineUserId, studentId), {
+        studentId,
+        lineUserId,
+        label: `${cell.title} 申し込み`,
+        source: "broadcast_grid"
+      })
     }))
   };
 }
