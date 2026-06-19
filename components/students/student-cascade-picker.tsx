@@ -59,6 +59,19 @@ export function StudentCascadePicker({
 
   const selectedStudent = students.find((student) => student.id === value) ?? null;
   const groups = useMemo(() => buildRegionGroups(students, query), [query, students]);
+  const filteredStudentCount = useMemo(
+    () =>
+      groups.reduce(
+        (regionTotal, group) =>
+          regionTotal +
+          group.universities.reduce(
+            (universityTotal, university) => universityTotal + university.students.length,
+            0
+          ),
+        0
+      ),
+    [groups]
+  );
   const regionGroup = groups.find((group) => group.region === activeRegion) ?? groups[0] ?? null;
   const universityGroup =
     regionGroup?.universities.find((group) => group.university === activeUniversity) ??
@@ -154,12 +167,19 @@ export function StudentCascadePicker({
                 value={query}
               />
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              地域 → 大学 → 学生の順に選択します。検索結果:
+              <span className="ml-1 font-medium text-foreground">{filteredStudentCount}名</span>
+            </p>
           </div>
           <div
             className="grid min-h-0 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
-            style={{ height: Math.max(260, dropdownStyle.maxHeight - 65) }}
+            style={{ height: Math.max(260, dropdownStyle.maxHeight - 96) }}
           >
             <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
+              <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground">
+                地域
+              </p>
               {groups.map((group) => (
                 <button
                   className={
@@ -183,6 +203,9 @@ export function StudentCascadePicker({
               ))}
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain border-r p-2">
+              <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
+                大学
+              </p>
               {regionGroup?.universities.map((group) => (
                 <button
                   className={
@@ -201,6 +224,9 @@ export function StudentCascadePicker({
               ))}
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain p-2">
+              <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
+                学生
+              </p>
               {universityGroup ? (
                 <div className="space-y-1">
                   <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
