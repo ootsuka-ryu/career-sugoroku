@@ -20,6 +20,7 @@ const STUDENTS_SELECT = `
   student_tags(tags(id, name, color)),
   student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
 `;
+const RELATED_FETCH_CHUNK_SIZE = 200;
 
 export default async function StudentsPage({
   searchParams
@@ -50,30 +51,36 @@ export default async function StudentsPage({
           { data: [], error: null }
         ]
       : await Promise.all([
-          (supabase as any)
-            .from("event_participants")
-            .select(
+          fetchRowsForStudentChunks<StudentEventSummary>(studentIds, (ids) =>
+            (supabase as any)
+              .from("event_participants")
+              .select(
+                `
+                student_id,
+                status,
+                memo,
+                created_at,
+                recruiting_events(id, title, event_type, starts_at, location)
               `
-              student_id,
-              status,
-              memo,
-              created_at,
-              recruiting_events(id, title, event_type, starts_at, location)
-            `
-            )
-            .in("student_id", studentIds),
-          (supabase as any)
-            .from("messages")
-            .select("student_id, payload, sent_at")
-            .in("student_id", studentIds)
-            .order("sent_at", { ascending: false })
-            .limit(2500),
-          (supabase as any)
-            .from("recordings")
-            .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
-            .in("student_id", studentIds)
-            .order("recorded_at", { ascending: false })
-            .limit(1500)
+              )
+              .in("student_id", ids)
+          ),
+          fetchRowsForStudentChunks<StudentMessageSearchSummary>(studentIds, (ids) =>
+            (supabase as any)
+              .from("messages")
+              .select("student_id, payload, sent_at")
+              .in("student_id", ids)
+              .order("sent_at", { ascending: false })
+              .limit(400)
+          ),
+          fetchRowsForStudentChunks<StudentRecordingSearchSummary>(studentIds, (ids) =>
+            (supabase as any)
+              .from("recordings")
+              .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
+              .in("student_id", ids)
+              .order("recorded_at", { ascending: false })
+              .limit(250)
+          )
         ]);
 
   const scopedStudents = students;
@@ -138,16 +145,23 @@ export default async function StudentsPage({
         </div>
       </div>
 
-      {(studentsResult.error || tagsResult.error || staffResult.error || (!hasOptionalEventError && eventParticipantsResult.error)) && (
+      {(studentsResult.error ||
+        tagsResult.error ||
+        staffResult.error ||
+        messagesResult.error ||
+        recordingsResult.error ||
+        (!hasOptionalEventError && eventParticipantsResult.error)) && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive">データ取得エラー</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm text-destructive">
-            <p>{studentsResult.error?.message}</p>
-            <p>{tagsResult.error?.message}</p>
-            <p>{staffResult.error?.message}</p>
-            <p>{!hasOptionalEventError ? eventParticipantsResult.error?.message : null}</p>
+            <p>{getErrorMessage(studentsResult.error)}</p>
+            <p>{getErrorMessage(tagsResult.error)}</p>
+            <p>{getErrorMessage(staffResult.error)}</p>
+            <p>{getErrorMessage(messagesResult.error)}</p>
+            <p>{getErrorMessage(recordingsResult.error)}</p>
+            <p>{!hasOptionalEventError ? getErrorMessage(eventParticipantsResult.error) : null}</p>
           </CardContent>
         </Card>
       )}
@@ -215,6 +229,26 @@ async function fetchAllStudents(
   return { data: rows, error: null };
 }
 
+async function fetchRowsForStudentChunks<T>(
+  studentIds: string[],
+  buildQuery: (ids: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>
+) {
+  const rows: T[] = [];
+
+  for (let index = 0; index < studentIds.length; index += RELATED_FETCH_CHUNK_SIZE) {
+    const ids = studentIds.slice(index, index + RELATED_FETCH_CHUNK_SIZE);
+    const { data, error } = await buildQuery(ids);
+
+    if (error) {
+      return { data: rows, error };
+    }
+
+    rows.push(...(data ?? []));
+  }
+
+  return { data: rows, error: null };
+}
+
 function extractMessageText(payload: unknown) {
   if (typeof payload === "string") return payload;
   if (!payload || typeof payload !== "object") return "";
@@ -233,6 +267,14 @@ function isMissingOptionalEventTable(error: unknown) {
     ? String((error as { message?: unknown }).message ?? "")
     : "";
   return /event_participants|recruiting_events|schema cache/i.test(message);
+}
+
+function getErrorMessage(error: unknown) {
+  if (!error) return null;
+  if (typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "");
+  }
+  return String(error);
 }
 
 function SummaryCard({

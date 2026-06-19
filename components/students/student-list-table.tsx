@@ -88,6 +88,8 @@ type TagGroup = {
   tags: TagSummary[];
 };
 
+const STUDENTS_PER_PAGE = 100;
+
 const EVENT_COLUMN_PATTERNS = {
   himejiTour: [/姫路/, /店舗見学/, /ツアー/],
   realTalk: [/リアルトーク/i, /real\s*talk/i],
@@ -120,6 +122,7 @@ export function StudentListTable({
   const [motivationRank, setMotivationRank] = useState("all");
   const [candidateStage, setCandidateStage] = useState("all");
   const [noReplyDays, setNoReplyDays] = useState("off");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     setSearch(routeSearchQuery);
@@ -271,8 +274,33 @@ export function StudentListTable({
     () => tags.filter((tag) => selectedTagIds.includes(tag.id)),
     [selectedTagIds, tags]
   );
+  const selectedTagIdsKey = selectedTagIds.join(",");
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / STUDENTS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * STUDENTS_PER_PAGE;
+  const pageEnd = Math.min(pageStart + STUDENTS_PER_PAGE, filteredStudents.length);
+  const visibleStudents = filteredStudents.slice(pageStart, pageEnd);
   const activeTagGroup =
     tagGroups.find((group) => group.id === activeTagGroupId) ?? tagGroups[0] ?? null;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    candidateStage,
+    motivationRank,
+    noReplyDays,
+    search,
+    selectedGraduationYear,
+    selectedTagIdsKey,
+    staffId,
+    tagMode
+  ]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((current) =>
@@ -475,8 +503,20 @@ export function StudentListTable({
       </div>
 
       <div className="overflow-hidden rounded-md border bg-card">
-        <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-          {filteredStudents.length} / {students.length}名を表示
+        <div className="flex flex-col gap-3 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <span>
+            {filteredStudents.length > 0
+              ? `${pageStart + 1}-${pageEnd} / ${filteredStudents.length}名を表示`
+              : `0 / ${students.length}名を表示`}
+            {filteredStudents.length > 0 && filteredStudents.length !== students.length
+              ? `（全${students.length}名）`
+              : null}
+          </span>
+          <PaginationControls
+            currentPage={safeCurrentPage}
+            onPageChange={setCurrentPage}
+            totalPages={totalPages}
+          />
         </div>
         <div className="overflow-x-auto">
           <Table className="min-w-[2510px] table-fixed">
@@ -509,8 +549,8 @@ export function StudentListTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => {
+              {visibleStudents.length > 0 ? (
+                visibleStudents.map((student) => {
                   const studentEvents = eventsByStudent.get(student.id) ?? [];
                   const aiJudgement = buildAiJudgement(student);
                   const chatDraft = buildRecommendedChatDraft(student);
@@ -652,6 +692,82 @@ function buildTagGroups(tags: TagSummary[], query: string): TagGroup[] {
   groups.push({ id: "uncategorized", name: "未分類", tags: uncategorized });
 
   return groups.filter((group) => group.tags.length > 0 || normalizedQuery);
+}
+
+function PaginationControls({
+  currentPage,
+  totalPages,
+  onPageChange
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  const pages = buildPaginationPages(currentPage, totalPages);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <Button
+        disabled={currentPage <= 1}
+        onClick={() => onPageChange(currentPage - 1)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        前へ
+      </Button>
+      {pages.map((page, index) =>
+        page === "ellipsis" ? (
+          <span className="px-2 text-muted-foreground" key={`ellipsis-${index}`}>
+            ...
+          </span>
+        ) : (
+          <Button
+            key={page}
+            onClick={() => onPageChange(page)}
+            size="sm"
+            type="button"
+            variant={page === currentPage ? "default" : "outline"}
+          >
+            {page}
+          </Button>
+        )
+      )}
+      <Button
+        disabled={currentPage >= totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        次へ
+      </Button>
+    </div>
+  );
+}
+
+function buildPaginationPages(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  const sorted = Array.from(pages)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+
+  const result: Array<number | "ellipsis"> = [];
+  for (const page of sorted) {
+    const previous = result[result.length - 1];
+    if (typeof previous === "number" && page - previous > 1) {
+      result.push("ellipsis");
+    }
+    result.push(page);
+  }
+
+  return result;
 }
 
 function Select({
