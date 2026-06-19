@@ -129,9 +129,7 @@ export default async function SettingsPage() {
   ]);
 
   const staffUsers = staffResult.data ?? [];
-  const visibleStaffUsers = staffUsers.filter(
-    (staff: any) => String(staff.name ?? "").toLowerCase() !== "admin"
-  );
+  const visibleStaffUsers = staffUsers;
   const resources = resourcesResult.data ?? [];
   const broadcasts = broadcastsResult.data ?? [];
   const messages = messagesResult.data ?? [];
