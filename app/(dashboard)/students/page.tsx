@@ -27,53 +27,56 @@ export default async function StudentsPage({
   searchParams?: { graduationYear?: string };
 }) {
   const supabase = createClient();
+  const selectedGraduationYear = Number(searchParams?.graduationYear);
+  const hasGraduationScope = Number.isFinite(selectedGraduationYear);
 
-  const [
-    studentsResult,
-    tagsResult,
-    staffResult,
-    eventParticipantsResult,
-    messagesResult,
-    recordingsResult
-  ] = await Promise.all([
-    fetchAllStudents(supabase),
+  const [studentsResult, tagsResult, staffResult] = await Promise.all([
+    fetchAllStudents(supabase, hasGraduationScope ? selectedGraduationYear : null),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
       .from("staff_users")
       .select("id, name, email")
       .eq("is_active", true)
-      .order("name"),
-    (supabase as any)
-      .from("event_participants")
-      .select(
-        `
-        student_id,
-        status,
-        memo,
-        created_at,
-        recruiting_events(id, title, event_type, starts_at, location)
-      `
-      ),
-    (supabase as any)
-      .from("messages")
-      .select("student_id, payload, sent_at")
-      .order("sent_at", { ascending: false })
-      .limit(5000),
-    (supabase as any)
-      .from("recordings")
-      .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
-      .order("recorded_at", { ascending: false })
-      .limit(3000)
+      .order("name")
   ]);
 
   const students = (studentsResult.data ?? []).map(normalizeStudentListItem);
-  const selectedGraduationYear = Number(searchParams?.graduationYear);
-  const scopedStudents = Number.isFinite(selectedGraduationYear)
-    ? students.filter(
-        (student) =>
-          !student.graduation_year || student.graduation_year === selectedGraduationYear
-      )
-    : students;
+  const studentIds = students.map((student) => student.id);
+  const [eventParticipantsResult, messagesResult, recordingsResult] =
+    studentIds.length === 0
+      ? [
+          { data: [], error: null },
+          { data: [], error: null },
+          { data: [], error: null }
+        ]
+      : await Promise.all([
+          (supabase as any)
+            .from("event_participants")
+            .select(
+              `
+              student_id,
+              status,
+              memo,
+              created_at,
+              recruiting_events(id, title, event_type, starts_at, location)
+            `
+            )
+            .in("student_id", studentIds),
+          (supabase as any)
+            .from("messages")
+            .select("student_id, payload, sent_at")
+            .in("student_id", studentIds)
+            .order("sent_at", { ascending: false })
+            .limit(2500),
+          (supabase as any)
+            .from("recordings")
+            .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
+            .in("student_id", studentIds)
+            .order("recorded_at", { ascending: false })
+            .limit(1500)
+        ]);
+
+  const scopedStudents = students;
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const hasOptionalEventError = isMissingOptionalEventTable(eventParticipantsResult.error);
@@ -179,16 +182,24 @@ export default async function StudentsPage({
   );
 }
 
-async function fetchAllStudents(supabase: ReturnType<typeof createClient>) {
+async function fetchAllStudents(
+  supabase: ReturnType<typeof createClient>,
+  graduationYear: number | null
+) {
   const pageSize = 1000;
   const rows: any[] = [];
 
   for (let from = 0; from < 10000; from += pageSize) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("students")
       .select(STUDENTS_SELECT)
-      .order("updated_at", { ascending: false })
-      .range(from, from + pageSize - 1);
+      .order("updated_at", { ascending: false });
+
+    if (graduationYear !== null) {
+      query = query.or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`);
+    }
+
+    const { data, error } = await query.range(from, from + pageSize - 1);
 
     if (error) {
       return { data: rows, error };

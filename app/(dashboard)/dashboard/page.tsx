@@ -55,7 +55,30 @@ export default async function DashboardPage({
   ] = await Promise.all([
     supabase
       .from("students")
-      .select("*, student_tags(tags(id, name, color))")
+      .select(
+        `
+        id,
+        graduation_year,
+        manual_next_action,
+        ai_next_action,
+        status,
+        motivation_rank,
+        last_inbound_at,
+        last_outbound_at,
+        created_at,
+        first_contact_date,
+        funnel_entry,
+        funnel_pool,
+        funnel_next,
+        funnel_is,
+        funnel_pharmacist_interview,
+        funnel_selection,
+        funnel_offer,
+        funnel_offer_accepted,
+        funnel_hired,
+        student_tags(tags(name))
+      `
+      )
       .order("updated_at", { ascending: false }),
     supabase.from("students").select("*", { count: "exact", head: true }),
     supabase
