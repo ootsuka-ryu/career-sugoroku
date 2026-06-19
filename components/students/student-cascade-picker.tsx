@@ -54,7 +54,7 @@ export function StudentCascadePicker({
     left: 16,
     top: 16,
     width: 920,
-    maxHeight: 560
+    height: 520
   });
 
   const selectedStudent = students.find((student) => student.id === value) ?? null;
@@ -111,17 +111,17 @@ export function StudentCascadePicker({
       const left = Math.min(Math.max(rect.left, 16), Math.max(16, viewportWidth - width - 16));
       const preferredTop = rect.bottom + 8;
       const availableBelow = viewportHeight - preferredTop - 16;
-      const maxHeight = Math.min(620, Math.max(340, viewportHeight - 32));
+      const height = Math.min(620, Math.max(360, viewportHeight - 32));
       const top =
         availableBelow >= 340
           ? preferredTop
-          : Math.max(16, Math.min(rect.top - 8, viewportHeight - maxHeight - 16));
+          : Math.max(16, Math.min(rect.top - 8, viewportHeight - height - 16));
 
       setDropdownStyle({
         left,
         top,
         width,
-        maxHeight: Math.min(maxHeight, viewportHeight - top - 16)
+        height: Math.min(height, viewportHeight - top - 16)
       });
     }
 
@@ -154,7 +154,7 @@ export function StudentCascadePicker({
 
       {open ? (
         <div
-          className="fixed z-[80] flex flex-col overflow-hidden rounded-md border bg-white shadow-lg"
+          className="fixed z-[80] flex min-h-0 flex-col overflow-hidden rounded-md border bg-white shadow-lg"
           style={dropdownStyle}
         >
           <div className="border-b p-3">
@@ -173,8 +173,7 @@ export function StudentCascadePicker({
             </p>
           </div>
           <div
-            className="grid min-h-0 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
-            style={{ height: Math.max(260, dropdownStyle.maxHeight - 96) }}
+            className="grid min-h-0 flex-1 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
           >
             <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground">
