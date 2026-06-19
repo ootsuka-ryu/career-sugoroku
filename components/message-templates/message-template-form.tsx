@@ -419,6 +419,7 @@ export function MessageTemplateForm({
                     }
                   >
                     <Textarea
+                      className="max-h-24 resize-y"
                       maxLength={60}
                       onChange={(event) =>
                         updatePanel(selectedPanelIndex, { description: event.target.value })
@@ -596,6 +597,7 @@ export function MessageTemplateForm({
 
                 <FieldBlock label="PC版・通知欄での代替テキスト">
                   <Textarea
+                    className="max-h-24 resize-y"
                     onChange={(event) => setPcAltText(event.target.value)}
                     placeholder="[LINEアプリよりご覧下さい]"
                     rows={3}
@@ -608,9 +610,10 @@ export function MessageTemplateForm({
         </div>
       ) : kind === "text" ? (
         <Textarea
+          className="max-h-48 resize-y"
           onChange={(event) => setBody(event.target.value)}
           placeholder="本文を入力"
-          rows={9}
+          rows={6}
           value={body}
         />
       ) : kind === "image" ? (
@@ -674,6 +677,7 @@ export function MessageTemplateForm({
               <div className="grid gap-3 md:grid-cols-[180px_1fr]">
                 <label className="text-sm font-medium">内容</label>
                 <Textarea
+                  className="max-h-36 resize-y"
                   onChange={(event) =>
                     updateAction(editingAction.panelIndex, editingAction.buttonIndex, {
                       value: event.target.value

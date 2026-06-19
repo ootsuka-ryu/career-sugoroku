@@ -175,8 +175,8 @@ export default async function EventsPage() {
                   />
 
                   {eventParticipants.length > 0 ? (
-                    <div className="overflow-hidden rounded-md border">
-                      <div className="grid grid-cols-[1.3fr_7rem_1.1fr_8rem_1.2fr_12rem] bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                    <div className="overflow-x-auto rounded-md border">
+                      <div className="grid min-w-[820px] grid-cols-[minmax(150px,1.4fr)_6.5rem_minmax(140px,1.1fr)_7.5rem_minmax(180px,1.2fr)_10rem] bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
                         <span>氏名</span>
                         <span>卒業年度</span>
                         <span>大学名</span>
@@ -189,7 +189,7 @@ export default async function EventsPage() {
                         return (
                           <form
                             action={updateEventParticipant}
-                            className="grid grid-cols-[1.3fr_7rem_1.1fr_8rem_1.2fr_12rem] items-center gap-2 border-t px-3 py-2 text-sm"
+                            className="grid min-w-[820px] grid-cols-[minmax(150px,1.4fr)_6.5rem_minmax(140px,1.1fr)_7.5rem_minmax(180px,1.2fr)_10rem] items-center gap-2 border-t px-3 py-2 text-sm"
                             key={`${participant.event_id}-${participant.student_id}`}
                           >
                             <input name="event_id" type="hidden" value={participant.event_id} />
@@ -213,7 +213,12 @@ export default async function EventsPage() {
                                 <option key={status}>{status}</option>
                               ))}
                             </select>
-                            <Input defaultValue={participant.memo ?? ""} name="memo" placeholder="メモ" />
+                            <Input
+                              aria-label="参加者メモ"
+                              defaultValue={participant.memo ?? ""}
+                              name="memo"
+                              placeholder="連絡・欠席理由など"
+                            />
                             <div className="flex gap-2">
                               <Button size="sm" type="submit" variant="outline">
                                 保存

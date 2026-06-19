@@ -402,7 +402,7 @@ export function RecordingConsole({
                 {aiDisplay.summary ? (
                   <div className="rounded-md bg-secondary/50 p-3 text-sm">
                     <p className="font-medium">AI要約</p>
-                    <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                    <p className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap text-muted-foreground">
                       {aiDisplay.summary}
                     </p>
                   </div>
@@ -410,7 +410,7 @@ export function RecordingConsole({
                 {aiDisplay.nextAction ? (
                   <div className="rounded-md bg-accent/10 p-3 text-sm">
                     <p className="font-medium">次アクション</p>
-                    <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                    <p className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap text-muted-foreground">
                       {aiDisplay.nextAction}
                     </p>
                   </div>
@@ -435,7 +435,7 @@ export function RecordingConsole({
                 {recording.transcript ? (
                   <details className="text-sm">
                     <summary className="cursor-pointer font-medium">文字起こし</summary>
-                    <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
+                    <p className="mt-2 max-h-40 overflow-auto rounded-md bg-secondary/30 p-2 whitespace-pre-wrap break-words text-muted-foreground">
                       {recording.transcript}
                     </p>
                   </details>

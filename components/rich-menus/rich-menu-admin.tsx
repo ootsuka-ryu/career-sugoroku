@@ -600,6 +600,7 @@ function AreaActionEditor({
 
         {action.type === "survey" ? (
           <select
+            aria-label="紐づける回答フォーム"
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             onChange={(event) => update({ value: event.target.value })}
             value={action.value}
@@ -613,10 +614,17 @@ function AreaActionEditor({
           </select>
         ) : action.type !== "none" ? (
           <Input
+            aria-label="タップ時の動作内容"
             onChange={(event) => update({ value: event.target.value })}
             placeholder={getActionPlaceholder(action.type)}
             value={action.value}
           />
+        ) : null}
+
+        {action.type !== "none" ? (
+          <p className="text-xs text-muted-foreground">
+            URLは https:// から入力します。テキストは学生がタップした時に送らせる文面、回答フォームは開かせたいフォームを選びます。
+          </p>
         ) : null}
 
         <div className="grid gap-3 md:grid-cols-4">

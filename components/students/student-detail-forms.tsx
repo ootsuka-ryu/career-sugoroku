@@ -124,6 +124,7 @@ export function StudentProfileForm({ student }: { student: StudentDetail }) {
       <div className="space-y-2">
         <Label htmlFor="notes">備考</Label>
         <Textarea
+          className="max-h-44 resize-y"
           defaultValue={localizeSampleText(student.notes) ?? ""}
           id="notes"
           name="notes"
@@ -138,9 +139,11 @@ export function StudentProfileForm({ student }: { student: StudentDetail }) {
       <div className="space-y-2">
         <Label htmlFor="manual_next_action">ネクストアクション</Label>
         <Textarea
+          className="max-h-32 resize-y"
           defaultValue={localizeSampleText(student.manual_next_action) ?? ""}
           id="manual_next_action"
           name="manual_next_action"
+          rows={3}
           placeholder="今後行う予定の内容を入力"
         />
         <p className="text-xs text-muted-foreground">
@@ -244,8 +247,10 @@ export function StudentActionForm({ studentId }: { studentId: string }) {
       <div className="space-y-2">
         <Label htmlFor="body">実施済アクション</Label>
         <Textarea
+          className="max-h-36 resize-y"
           id="body"
           name="body"
+          rows={4}
           onChange={(event) => setBody(event.target.value)}
           placeholder="すでに実施した内容、学生の反応、次に活かすメモを入力"
           value={body}

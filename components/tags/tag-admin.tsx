@@ -348,7 +348,7 @@ function BulkTagFolderMove({
   return (
     <form
       action={formAction}
-      className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-400 bg-green-50 px-3 py-3 shadow-sm"
+      className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-400 bg-green-50 px-3 py-3 shadow-sm"
       ref={setFormElement}
     >
       {selectedTagIds.map((tagId) => (
@@ -365,6 +365,7 @@ function BulkTagFolderMove({
       </div>
       <p className="max-w-md text-xs text-green-800">{TEXT.bulkMoveHint}</p>
       <select
+        aria-label="選択中タグの移動先フォルダ"
         className="h-9 min-w-[260px] rounded-md border border-green-300 bg-white px-3 text-sm font-medium"
         defaultValue=""
         name="folder_id"
