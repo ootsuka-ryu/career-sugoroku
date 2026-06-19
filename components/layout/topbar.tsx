@@ -67,14 +67,23 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
             </option>
           ))}
         </select>
-        <form className="relative flex-1" onSubmit={submitStudentSearch}>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-          <Input
-            className="border-white/30 bg-white pl-9 text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-white"
-            onChange={(event) => setStudentSearch(event.target.value)}
-            placeholder="学生名・大学・タグで検索"
-            value={studentSearch}
-          />
+        <form className="flex flex-1 gap-2" onSubmit={submitStudentSearch}>
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
+            <Input
+              className="border-white/30 bg-white pl-9 text-neutral-950 placeholder:text-neutral-500 focus-visible:ring-white"
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="学生名・大学・タグで検索"
+              value={studentSearch}
+            />
+          </div>
+          <Button
+            className="border-white/40 bg-white px-4 text-emerald-800 hover:bg-neutral-100"
+            type="submit"
+            variant="outline"
+          >
+            検索
+          </Button>
         </form>
       </div>
       <Button
