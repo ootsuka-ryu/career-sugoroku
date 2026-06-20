@@ -21,18 +21,24 @@ const STUDENTS_SELECT = `
   student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
 `;
 const RELATED_FETCH_CHUNK_SIZE = 200;
+const DEFAULT_GRADUATION_YEAR = 2028;
+const STUDENT_PAGE_SIZE = 100;
 
 export default async function StudentsPage({
   searchParams
 }: {
-  searchParams?: { graduationYear?: string };
+  searchParams?: { graduationYear?: string; page?: string; q?: string };
 }) {
   const supabase = createClient();
   const selectedGraduationYear = Number(searchParams?.graduationYear);
-  const hasGraduationScope = Number.isFinite(selectedGraduationYear);
+  const graduationYearFilter = Number.isFinite(selectedGraduationYear)
+    ? selectedGraduationYear
+    : DEFAULT_GRADUATION_YEAR;
+  const selectedPage = Number(searchParams?.page);
+  const currentPage = Number.isFinite(selectedPage) && selectedPage > 0 ? Math.floor(selectedPage) : 1;
 
   const [studentsResult, tagsResult, staffResult] = await Promise.all([
-    fetchAllStudents(supabase, hasGraduationScope ? selectedGraduationYear : null),
+    fetchStudentsPage(supabase, graduationYearFilter, currentPage),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
       .from("staff_users")
@@ -84,6 +90,8 @@ export default async function StudentsPage({
         ]);
 
   const scopedStudents = students;
+  const totalStudents = studentsResult.count ?? scopedStudents.length;
+  const totalPages = Math.max(1, Math.ceil(totalStudents / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const hasOptionalEventError = isMissingOptionalEventTable(eventParticipantsResult.error);
@@ -192,41 +200,130 @@ export default async function StudentsPage({
         students={scopedStudents}
         tags={tags}
       />
+      <StudentsPager
+        currentPage={currentPage}
+        graduationYear={graduationYearFilter}
+        query={searchParams?.q}
+        totalPages={totalPages}
+        totalStudents={totalStudents}
+      />
     </div>
   );
 }
 
-async function fetchAllStudents(
+async function fetchStudentsPage(
   supabase: ReturnType<typeof createClient>,
-  graduationYear: number | null
+  graduationYear: number,
+  page: number
 ) {
-  const pageSize = 1000;
-  const rows: any[] = [];
+  const from = (page - 1) * STUDENT_PAGE_SIZE;
+  const to = from + STUDENT_PAGE_SIZE - 1;
+  const query = supabase
+    .from("students")
+    .select(STUDENTS_SELECT, { count: "exact" })
+    .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
+    .order("updated_at", { ascending: false })
+    .range(from, to);
 
-  for (let from = 0; from < 10000; from += pageSize) {
-    let query = supabase
-      .from("students")
-      .select(STUDENTS_SELECT)
-      .order("updated_at", { ascending: false });
+  const { data, error, count } = await query;
 
-    if (graduationYear !== null) {
-      query = query.or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`);
-    }
+  return { data: data ?? [], error, count };
+}
 
-    const { data, error } = await query.range(from, from + pageSize - 1);
+function StudentsPager({
+  currentPage,
+  graduationYear,
+  query,
+  totalPages,
+  totalStudents
+}: {
+  currentPage: number;
+  graduationYear: number;
+  query?: string;
+  totalPages: number;
+  totalStudents: number;
+}) {
+  if (totalPages <= 1) return null;
 
-    if (error) {
-      return { data: rows, error };
-    }
+  const pages = buildPageNumbers(currentPage, totalPages);
 
-    rows.push(...(data ?? []));
+  return (
+    <nav className="flex flex-col gap-3 rounded-md border bg-card px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
+      <p className="text-muted-foreground">
+        1ページ100名ずつ表示中 / 全{totalStudents}名
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button asChild={currentPage > 1} disabled={currentPage <= 1} size="sm" variant="outline">
+          {currentPage > 1 ? (
+            <Link href={buildStudentsPageHref(currentPage - 1, graduationYear, query) as any}>前へ</Link>
+          ) : (
+            <span>前へ</span>
+          )}
+        </Button>
+        {pages.map((page, index) =>
+          page === "ellipsis" ? (
+            <span className="px-2 text-muted-foreground" key={`ellipsis-${index}`}>
+              ...
+            </span>
+          ) : (
+            <Button
+              asChild={page !== currentPage}
+              key={page}
+              size="sm"
+              variant={page === currentPage ? "default" : "outline"}
+            >
+              {page === currentPage ? (
+                <span>{page}</span>
+              ) : (
+                <Link href={buildStudentsPageHref(page, graduationYear, query) as any}>{page}</Link>
+              )}
+            </Button>
+          )
+        )}
+        <Button
+          asChild={currentPage < totalPages}
+          disabled={currentPage >= totalPages}
+          size="sm"
+          variant="outline"
+        >
+          {currentPage < totalPages ? (
+            <Link href={buildStudentsPageHref(currentPage + 1, graduationYear, query) as any}>次へ</Link>
+          ) : (
+            <span>次へ</span>
+          )}
+        </Button>
+      </div>
+    </nav>
+  );
+}
 
-    if (!data || data.length < pageSize) {
-      return { data: rows, error: null };
-    }
+function buildStudentsPageHref(page: number, graduationYear: number, query?: string) {
+  const params = new URLSearchParams();
+  params.set("graduationYear", String(graduationYear));
+  if (page > 1) params.set("page", String(page));
+  const trimmed = query?.trim();
+  if (trimmed) params.set("q", trimmed);
+  return `/students?${params.toString()}`;
+}
+
+function buildPageNumbers(currentPage: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
   }
 
-  return { data: rows, error: null };
+  const candidates = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  const sorted = Array.from(candidates)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+  const pages: Array<number | "ellipsis"> = [];
+
+  sorted.forEach((page, index) => {
+    const previous = sorted[index - 1];
+    if (previous && page - previous > 1) pages.push("ellipsis");
+    pages.push(page);
+  });
+
+  return pages;
 }
 
 async function fetchRowsForStudentChunks<T>(

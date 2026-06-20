@@ -15,7 +15,9 @@ type TopbarProps = {
 export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedGraduationYear = searchParams.get("graduationYear") ?? "all";
+  const graduationYearParam = searchParams.get("graduationYear");
+  const selectedGraduationYear =
+    graduationYearParam && /^\d{4}$/.test(graduationYearParam) ? graduationYearParam : "2028";
   const [studentSearch, setStudentSearch] = useState(searchParams.get("q") ?? "");
 
   useEffect(() => {
@@ -26,7 +28,8 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
     const params = new URLSearchParams();
     const trimmed = studentSearch.trim() || searchParams.get("q")?.trim() || "";
     if (trimmed) params.set("q", trimmed);
-    if (value !== "all") params.set("graduationYear", value);
+    params.set("graduationYear", value || "2028");
+    params.delete("page");
     const query = params.toString();
     router.push(query ? `/students?${query}` : "/students");
   }
@@ -36,9 +39,8 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
     const params = new URLSearchParams();
     const trimmed = studentSearch.trim();
     if (trimmed) params.set("q", trimmed);
-    if (selectedGraduationYear !== "all") {
-      params.set("graduationYear", selectedGraduationYear);
-    }
+    params.set("graduationYear", selectedGraduationYear || "2028");
+    params.delete("page");
     const query = params.toString();
     router.push(query ? `/students?${query}` : "/students");
   }
@@ -60,7 +62,6 @@ export function Topbar({ email, unreadNotifications = 0 }: TopbarProps) {
           onChange={(event) => updateGraduationYear(event.target.value)}
           value={selectedGraduationYear}
         >
-          <option value="all">全年卒</option>
           {Array.from({ length: 10 }, (_, index) => 2025 + index).map((year) => (
             <option key={year} value={year}>
               {year}卒
