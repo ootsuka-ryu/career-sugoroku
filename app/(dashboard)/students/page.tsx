@@ -176,13 +176,13 @@ export default async function StudentsPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard
-          description="現在Supabaseに登録されている学生"
+          description={`${graduationYearFilter}卒または卒年未登録の学生`}
           label="学生数"
-          value={`${scopedStudents.length}名`}
+          value={`${totalStudents}名`}
         />
         <SummaryCard
           description="専願、併願、A、B または旧志望度4以上"
-          label="高志望度"
+          label="ゴダイへの確度"
           value={`${highMotivationCount}名`}
         />
         <SummaryCard
