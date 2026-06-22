@@ -90,15 +90,6 @@ type TagGroup = {
 
 const STUDENTS_PER_PAGE = 100;
 
-const EVENT_COLUMN_PATTERNS = {
-  himejiTour: [/姫路/, /店舗見学/, /ツアー/],
-  realTalk: [/リアルトーク/i, /real\s*talk/i],
-  companyBriefing: [/会社説明会/, /個別会社説明/, /説明会/],
-  staffExchange: [/社員交流/, /交流会/],
-  pharmacistInterview: [/薬剤師インタビュー/, /インタビュー/],
-  selection: [/選考会/, /選考/]
-};
-
 export function StudentListTable({
   students,
   tags,
@@ -519,45 +510,32 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[2510px] table-fixed">
+          <Table className="min-w-[1480px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[6rem] whitespace-nowrap">卒業年度</TableHead>
+                <TableHead className="w-[6rem] whitespace-nowrap">卒年度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">確度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">写真</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">LINE</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">公式LINE画像</TableHead>
                 <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>
                 <TableHead className="w-[8rem] whitespace-nowrap">担当者</TableHead>
                 <TableHead className="w-[10rem] whitespace-nowrap">大学名</TableHead>
                 <TableHead className="w-[8rem] whitespace-nowrap">地元</TableHead>
                 <TableHead className="w-[9rem] whitespace-nowrap">初回接触</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">初回イベント</TableHead>
                 <TableHead className="w-[7rem] whitespace-nowrap">母集団日</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">ネクスト</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">姫路</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">リアル</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">会社説明</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">交流会</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">薬剤師面談</TableHead>
-                <TableHead className="w-[14rem] whitespace-nowrap">ネクストアクション</TableHead>
-                <TableHead className="w-[16rem] whitespace-nowrap">AI判断</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">選考会</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">奨学金</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">面接官</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">内定</TableHead>
-                <TableHead className="w-[6rem] whitespace-nowrap">内諾</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">ネクスト</TableHead>
+                <TableHead className="w-[16rem] whitespace-nowrap">AI判定</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visibleStudents.length > 0 ? (
                 visibleStudents.map((student) => {
-                  const studentEvents = eventsByStudent.get(student.id) ?? [];
                   const aiJudgement = buildAiJudgement(student);
                   const chatDraft = buildRecommendedChatDraft(student);
                   const chatReason = buildRecommendedChatReason(student) || aiJudgement;
                   return (
                     <TableRow key={student.id}>
-                      <TableCell>{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap">{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
                       <TableCell className="font-medium">
                         {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
                       </TableCell>
@@ -565,10 +543,7 @@ export function StudentListTable({
                         <StudentPhoto student={student} />
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col items-start gap-1">
-                          <StudentLinePhoto student={student} />
-                          <LineStatusBadge student={student} />
-                        </div>
+                        <StudentLinePhoto student={student} />
                       </TableCell>
                       <TableCell>
                         <div className="min-w-0">
@@ -603,14 +578,7 @@ export function StudentListTable({
                       <TableCell><Clamp>{localizeSampleText(student.university) || "-"}</Clamp></TableCell>
                       <TableCell><Clamp>{localizeSampleText(student.desired_area) || "-"}</Clamp></TableCell>
                       <TableCell><Clamp>{localizeSampleText(student.first_contact_method) || "-"}</Clamp></TableCell>
-                      <TableCell><Clamp>{getFirstParticipationEvent(studentEvents) || "-"}</Clamp></TableCell>
                       <TableCell>{getPopulationDate(student) || "-"}</TableCell>
-                      <TableCell className="text-lg">{student.funnel_next ? "✓" : "-"}</TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.himejiTour)}</TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.realTalk)}</TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.companyBriefing)}</TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.staffExchange)}</TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.pharmacistInterview)}</TableCell>
                       <TableCell>
                         <p className="line-clamp-3 text-sm">
                           {localizeSampleText(student.manual_next_action) ||
@@ -636,17 +604,12 @@ export function StudentListTable({
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>{getEventParticipationDates(studentEvents, EVENT_COLUMN_PATTERNS.selection)}</TableCell>
-                      <TableCell>{extractNoteField(student.notes, "奨学金金額")}</TableCell>
-                      <TableCell>{extractNoteField(student.notes, "面接官")}</TableCell>
-                      <TableCell>{extractNoteField(student.notes, "内定")}</TableCell>
-                      <TableCell>{extractNoteField(student.notes, "内定内諾")}</TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={24}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={12}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>
@@ -862,24 +825,6 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
   );
 }
 
-function LineStatusBadge({ student }: { student: StudentListItem }) {
-  const lineStatus = getStudentLineStatus(student);
-  const className =
-    lineStatus.tone === "ok"
-      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-      : lineStatus.tone === "info"
-        ? "border-blue-600 bg-blue-50 text-blue-700"
-        : lineStatus.tone === "warn"
-          ? "border-amber-500 bg-amber-50 text-amber-700"
-          : "border-neutral-300 bg-neutral-50 text-neutral-500";
-
-  return (
-    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${className}`}>
-      {lineStatus.label}
-    </span>
-  );
-}
-
 function normalizeSearchQuery(value: string) {
   return normalizeJapaneseSearchText(value);
 }
@@ -898,10 +843,6 @@ function getEventTime(participant: StudentEventSummary) {
   ).getTime();
 }
 
-function getFirstParticipationEvent(events: StudentEventSummary[]) {
-  return localizeSampleText(events[0]?.event?.title) ?? "";
-}
-
 function getPopulationDate(student: StudentListItem) {
   return formatDateOnly(
     student.first_contact_date ??
@@ -909,25 +850,6 @@ function getPopulationDate(student: StudentListItem) {
       student.last_outbound_at ??
       student.created_at
   );
-}
-
-function getEventParticipationDates(events: StudentEventSummary[], patterns: RegExp[]) {
-  const dates = events
-    .filter((participant) => {
-      const text = [
-        participant.event?.title,
-        participant.event?.event_type,
-        participant.event?.location,
-        participant.memo
-      ]
-        .filter(Boolean)
-        .join(" ");
-      return patterns.some((pattern) => pattern.test(text));
-    })
-    .map((participant) => formatDateOnly(participant.event?.starts_at ?? participant.created_at))
-    .filter(Boolean);
-
-  return Array.from(new Set(dates)).join(" / ") || "-";
 }
 
 function formatDateOnly(value: string | null | undefined) {
@@ -953,11 +875,4 @@ function buildAiJudgement(student: StudentListItem) {
   }
 
   return "";
-}
-
-function extractNoteField(notes: string | null, label: string) {
-  if (!notes) return "-";
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = notes.match(new RegExp(`${escaped}\\s*[:：]\\s*([^\\n]+)`));
-  return match?.[1]?.trim() || "-";
 }
