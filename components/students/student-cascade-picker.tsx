@@ -54,7 +54,7 @@ export function StudentCascadePicker({
     left: 16,
     top: 16,
     width: 920,
-    height: 520
+    height: 640
   });
 
   const selectedStudent = students.find((student) => student.id === value) ?? null;
@@ -136,7 +136,7 @@ export function StudentCascadePicker({
       const left = Math.min(Math.max(rect.left, 16), Math.max(16, viewportWidth - width - 16));
       const preferredTop = rect.bottom + 8;
       const availableBelow = viewportHeight - preferredTop - 16;
-      const preferredHeight = Math.min(620, Math.max(280, viewportHeight - 32));
+      const preferredHeight = Math.min(720, Math.max(320, viewportHeight - 32));
       const top = availableBelow >= 300 ? preferredTop : 16;
       const availableHeight = Math.max(260, viewportHeight - top - 16);
 
@@ -200,7 +200,7 @@ export function StudentCascadePicker({
           <div
             className="grid min-h-0 flex-1 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden"
           >
-            <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
+            <div className="min-h-0 overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2 pb-8">
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground">
                 地域
               </p>
@@ -226,7 +226,7 @@ export function StudentCascadePicker({
                 </button>
               ))}
             </div>
-            <div className="min-h-0 overflow-y-auto overscroll-contain border-r p-2">
+            <div className="min-h-0 overflow-y-auto overscroll-contain border-r p-2 pb-8">
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
                 大学
               </p>
@@ -247,7 +247,7 @@ export function StudentCascadePicker({
                 </button>
               ))}
             </div>
-            <div className="min-h-0 overflow-y-auto overscroll-contain p-2">
+            <div className="min-h-0 overflow-y-auto overscroll-contain p-2 pb-8">
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
                 学生
               </p>

@@ -310,6 +310,7 @@ export function StudentListTable({
     } else {
       params.delete("q");
     }
+    params.delete("page");
     const query = params.toString();
     router.replace((query ? `${pathname}?${query}` : pathname) as any);
   }
@@ -318,6 +319,7 @@ export function StudentListTable({
     setSearch("");
     const params = new URLSearchParams(routeSearchParams.toString());
     params.delete("q");
+    params.delete("page");
     const query = params.toString();
     router.replace((query ? `${pathname}?${query}` : pathname) as any);
     setTagSearch("");

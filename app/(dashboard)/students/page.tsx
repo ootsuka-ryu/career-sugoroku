@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { uniqueStaffByDisplayName } from "@/lib/staff/display";
+import {
+  buildJapaneseSearchIndex,
+  matchesJapaneseSearchQuery
+} from "@/lib/search/japanese";
 import { createClient } from "@/lib/supabase/server";
 import { isHighMotivationRank } from "@/lib/students/options";
 import { normalizeStudentListItem } from "@/lib/students/normalize";
@@ -44,9 +48,10 @@ export default async function StudentsPage({
     : DEFAULT_GRADUATION_YEAR;
   const selectedPage = Number(searchParams?.page);
   const currentPage = Number.isFinite(selectedPage) && selectedPage > 0 ? Math.floor(selectedPage) : 1;
+  const searchQuery = searchParams?.q?.trim() ?? "";
 
   const [studentsResult, statsResult, tagsResult, staffResult] = await Promise.all([
-    fetchStudentsPage(supabase, graduationYearFilter, currentPage),
+    fetchStudentsPage(supabase, graduationYearFilter, currentPage, searchQuery),
     fetchStudentStats(supabase, graduationYearFilter),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
@@ -167,8 +172,6 @@ export default async function StudentsPage({
         statsResult.error ||
         tagsResult.error ||
         staffResult.error ||
-        messagesResult.error ||
-        recordingsResult.error ||
         (!hasOptionalEventError && eventParticipantsResult.error)) && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
@@ -179,8 +182,6 @@ export default async function StudentsPage({
             <p>{getErrorMessage(statsResult.error)}</p>
             <p>{getErrorMessage(tagsResult.error)}</p>
             <p>{getErrorMessage(staffResult.error)}</p>
-            <p>{getErrorMessage(messagesResult.error)}</p>
-            <p>{getErrorMessage(recordingsResult.error)}</p>
             <p>{!hasOptionalEventError ? getErrorMessage(eventParticipantsResult.error) : null}</p>
           </CardContent>
         </Card>
@@ -226,10 +227,39 @@ export default async function StudentsPage({
 async function fetchStudentsPage(
   supabase: ReturnType<typeof createClient>,
   graduationYear: number,
-  page: number
+  page: number,
+  rawQuery = ""
 ) {
+  const trimmedQuery = rawQuery.trim();
   const from = (page - 1) * STUDENT_PAGE_SIZE;
   const to = from + STUDENT_PAGE_SIZE - 1;
+
+  if (trimmedQuery) {
+    const [{ data, error }, relatedStudentIds] = await Promise.all([
+      supabase
+        .from("students")
+        .select(STUDENTS_SELECT)
+        .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
+        .order("updated_at", { ascending: false })
+        .range(0, 4999),
+      fetchRelatedSearchStudentIds(supabase, trimmedQuery)
+    ]);
+
+    if (error) {
+      return { data: [], error, count: 0 };
+    }
+
+    const matched = (data ?? []).filter((student) =>
+      matchesStudentSearch(student, trimmedQuery, relatedStudentIds)
+    );
+
+    return {
+      data: matched.slice(from, to + 1),
+      error: null,
+      count: matched.length
+    };
+  }
+
   const query = supabase
     .from("students")
     .select(STUDENTS_SELECT, { count: "exact" })
@@ -240,6 +270,81 @@ async function fetchStudentsPage(
   const { data, error, count } = await query;
 
   return { data: data ?? [], error, count };
+}
+
+async function fetchRelatedSearchStudentIds(
+  supabase: ReturnType<typeof createClient>,
+  rawQuery: string
+) {
+  const matches = new Set<string>();
+
+  const [messagesResult, recordingsResult] = await Promise.all([
+    (supabase as any)
+      .from("messages")
+      .select("student_id, payload, sent_at")
+      .order("sent_at", { ascending: false })
+      .limit(2000),
+    (supabase as any)
+      .from("recordings")
+      .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
+      .order("recorded_at", { ascending: false })
+      .limit(2000)
+  ]);
+
+  for (const message of messagesResult.data ?? []) {
+    const text = extractMessageText(message.payload);
+    if (matchesJapaneseSearchQuery(buildJapaneseSearchIndex([text]), rawQuery)) {
+      matches.add(message.student_id);
+    }
+  }
+
+  for (const recording of recordingsResult.data ?? []) {
+    const index = buildJapaneseSearchIndex([
+      recording.transcript,
+      recording.ai_summary,
+      recording.ai_next_action
+    ]);
+    if (matchesJapaneseSearchQuery(index, rawQuery)) {
+      matches.add(recording.student_id);
+    }
+  }
+
+  return matches;
+}
+
+function matchesStudentSearch(
+  student: any,
+  rawQuery: string,
+  relatedStudentIds: Set<string>
+) {
+  if (relatedStudentIds.has(student.id)) return true;
+
+  const tagNames = (student.student_tags ?? [])
+    .map((row: any) => row?.tags?.name)
+    .filter(Boolean);
+  const staffValues = (student.student_assignees ?? [])
+    .flatMap((row: any) => [row?.staff_users?.name, row?.staff_users?.email])
+    .filter(Boolean);
+  const index = buildJapaneseSearchIndex([
+    student.real_name,
+    student.display_name,
+    student.kana,
+    student.university,
+    student.grade,
+    student.graduation_year?.toString(),
+    student.desired_area,
+    student.area,
+    student.first_contact_method,
+    student.first_event_name,
+    student.manual_next_action,
+    student.ai_next_action,
+    student.notes,
+    student.line_user_id ? "LINE送信可能 LINE連携済み" : "LINE未連携",
+    ...tagNames,
+    ...staffValues
+  ]);
+
+  return matchesJapaneseSearchQuery(index, rawQuery);
 }
 
 async function fetchStudentStats(supabase: ReturnType<typeof createClient>, graduationYear: number) {
