@@ -358,7 +358,7 @@ export function StudentListTable({
           ))}
         </Select>
         <Select value={motivationRank} onChange={setMotivationRank}>
-          <option value="all">志望度すべて</option>
+          <option value="all">ゴダイへの確度すべて</option>
           {motivationRanks.map((rank) => (
             <option key={rank} value={rank}>
               {rank}
@@ -523,7 +523,7 @@ export function StudentListTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[6rem] whitespace-nowrap">卒業年度</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">志望度</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">確度</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">写真</TableHead>
                 <TableHead className="w-[5rem] whitespace-nowrap">LINE</TableHead>
                 <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>

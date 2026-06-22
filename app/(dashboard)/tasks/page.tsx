@@ -49,7 +49,7 @@ export default async function TasksPage() {
         <Badge variant="accent">今日やること</Badge>
         <h1 className="mt-3 text-2xl font-semibold tracking-normal">今日やることリスト</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          返信待ち、面談後フォロー、高志望度の未連絡を自動で並べます。完了したらチェックで消えます。
+          返信待ち、面談後フォロー、ゴダイへの確度が高い未連絡を自動で並べます。完了したらチェックで消えます。
         </p>
       </div>
 
@@ -104,8 +104,8 @@ function buildGeneratedTasks(students: any[]): GeneratedTaskView[] {
     if (highMotivation && (!student.last_outbound_at || (outboundDays ?? 0) >= 7)) {
       tasks.push({
         key: `high-motivation-${student.id}-${student.updated_at}`,
-        title: "志望度が高い学生に連絡してください",
-        reason: `志望度: ${getMotivationRankLabel(null, student.motivation_level)}`,
+        title: "ゴダイへの確度が高い学生に連絡してください",
+        reason: `ゴダイへの確度: ${getMotivationRankLabel(null, student.motivation_level)}`,
         studentId: student.id,
         studentName,
         university,

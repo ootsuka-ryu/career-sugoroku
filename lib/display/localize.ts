@@ -5,7 +5,7 @@ const textMap: Record<string, string> = {
   "Tokyo Pharmacy University": "東京薬科大学",
   "Kitasato University": "北里大学",
   "Meiji Pharmaceutical University": "明治薬科大学",
-  "High Motivation": "高志望度",
+  "High Motivation": "ゴダイへの確度高",
   "Event Attended": "イベント参加済み",
   "Practical P2-P3": "実習 2-3期",
   "Waiting Reply": "返信待ち",

@@ -136,17 +136,15 @@ export function StudentCascadePicker({
       const left = Math.min(Math.max(rect.left, 16), Math.max(16, viewportWidth - width - 16));
       const preferredTop = rect.bottom + 8;
       const availableBelow = viewportHeight - preferredTop - 16;
-      const height = Math.min(620, Math.max(360, viewportHeight - 32));
-      const top =
-        availableBelow >= 340
-          ? preferredTop
-          : Math.max(16, Math.min(rect.top - 8, viewportHeight - height - 16));
+      const preferredHeight = Math.min(620, Math.max(280, viewportHeight - 32));
+      const top = availableBelow >= 300 ? preferredTop : 16;
+      const availableHeight = Math.max(260, viewportHeight - top - 16);
 
       setDropdownStyle({
         left,
         top,
         width,
-        height: Math.min(height, viewportHeight - top - 16)
+        height: Math.min(preferredHeight, availableHeight)
       });
     }
 

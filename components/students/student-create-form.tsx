@@ -73,7 +73,7 @@ export function StudentCreateForm({
               <option value="P3_4">3-4期</option>
             </select>
           </Field>
-          <Field label="志望度">
+          <Field label="ゴダイへの確度">
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" name="motivation_rank">
               <option value="">未設定</option>
               {motivationRanks.map((rank) => (

@@ -24,6 +24,14 @@ const RELATED_FETCH_CHUNK_SIZE = 200;
 const DEFAULT_GRADUATION_YEAR = 2028;
 const STUDENT_PAGE_SIZE = 100;
 
+type StudentStatSummary = {
+  id: string;
+  motivation_rank: string | null;
+  motivation_level: number | null;
+  last_outbound_at: string | null;
+  last_inbound_at: string | null;
+};
+
 export default async function StudentsPage({
   searchParams
 }: {
@@ -37,8 +45,9 @@ export default async function StudentsPage({
   const selectedPage = Number(searchParams?.page);
   const currentPage = Number.isFinite(selectedPage) && selectedPage > 0 ? Math.floor(selectedPage) : 1;
 
-  const [studentsResult, tagsResult, staffResult] = await Promise.all([
+  const [studentsResult, statsResult, tagsResult, staffResult] = await Promise.all([
     fetchStudentsPage(supabase, graduationYearFilter, currentPage),
+    fetchStudentStats(supabase, graduationYearFilter),
     supabase.from("tags").select("id, name, color").order("name"),
     supabase
       .from("staff_users")
@@ -90,7 +99,8 @@ export default async function StudentsPage({
         ]);
 
   const scopedStudents = students;
-  const totalStudents = studentsResult.count ?? scopedStudents.length;
+  const statStudents = (statsResult.data ?? []) as StudentStatSummary[];
+  const totalStudents = studentsResult.count ?? statStudents.length;
   const totalPages = Math.max(1, Math.ceil(totalStudents / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
@@ -116,12 +126,12 @@ export default async function StudentsPage({
     ai_next_action: row.ai_next_action,
     recorded_at: row.recorded_at
   })) as StudentRecordingSearchSummary[];
-  const waitingReplyCount = scopedStudents.filter((student) => {
+  const waitingReplyCount = statStudents.filter((student) => {
     if (!student.last_outbound_at) return false;
     if (!student.last_inbound_at) return true;
     return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
   }).length;
-  const highMotivationCount = scopedStudents.filter(
+  const highMotivationCount = statStudents.filter(
     (student) =>
       isHighMotivationRank(student.motivation_rank) ||
       (!student.motivation_rank && (student.motivation_level ?? 0) >= 4)
@@ -134,7 +144,7 @@ export default async function StudentsPage({
           <Badge variant="accent">学生管理</Badge>
           <h1 className="mt-3 text-2xl font-semibold tracking-normal">学生一覧</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            氏名、大学、タグ、担当者、志望度、返信なし条件で学生を絞り込めます。
+            氏名、大学、タグ、担当者、ゴダイへの確度、返信なし条件で学生を絞り込めます。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -154,6 +164,7 @@ export default async function StudentsPage({
       </div>
 
       {(studentsResult.error ||
+        statsResult.error ||
         tagsResult.error ||
         staffResult.error ||
         messagesResult.error ||
@@ -165,6 +176,7 @@ export default async function StudentsPage({
           </CardHeader>
           <CardContent className="space-y-1 text-sm text-destructive">
             <p>{getErrorMessage(studentsResult.error)}</p>
+            <p>{getErrorMessage(statsResult.error)}</p>
             <p>{getErrorMessage(tagsResult.error)}</p>
             <p>{getErrorMessage(staffResult.error)}</p>
             <p>{getErrorMessage(messagesResult.error)}</p>
@@ -181,7 +193,7 @@ export default async function StudentsPage({
           value={`${totalStudents}名`}
         />
         <SummaryCard
-          description="専願、併願、A、B または旧志望度4以上"
+          description="専願、併願、A、B または旧基準4以上"
           label="ゴダイへの確度"
           value={`${highMotivationCount}名`}
         />
@@ -228,6 +240,16 @@ async function fetchStudentsPage(
   const { data, error, count } = await query;
 
   return { data: data ?? [], error, count };
+}
+
+async function fetchStudentStats(supabase: ReturnType<typeof createClient>, graduationYear: number) {
+  const { data, error } = await supabase
+    .from("students")
+    .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
+    .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
+    .range(0, 4999);
+
+  return { data: (data ?? []) as StudentStatSummary[], error };
 }
 
 function StudentsPager({

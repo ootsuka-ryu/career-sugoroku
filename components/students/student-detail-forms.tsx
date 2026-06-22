@@ -73,7 +73,7 @@ export function StudentProfileForm({ student }: { student: StudentDetail }) {
           ]}
         />
         <SelectField
-          label="志望度"
+          label="ゴダイへの確度"
           name="motivation_rank"
           value={
             getMotivationRankLabel(student.motivation_rank, student.motivation_level) === "-"

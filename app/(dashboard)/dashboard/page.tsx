@@ -254,7 +254,7 @@ export default async function DashboardPage({
                           </Badge>
                           {student.motivation_level ? (
                             <Badge variant="accent">
-                              志望度 {student.motivation_level}
+                              確度 {student.motivation_level}
                             </Badge>
                           ) : null}
                         </div>

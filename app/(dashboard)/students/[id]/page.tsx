@@ -205,7 +205,7 @@ export default async function StudentDetailPage({
             <Badge variant="secondary">{localizeStatus(student.status)}</Badge>
             {getMotivationRankLabel(student.motivation_rank, student.motivation_level) !== "-" ? (
               <Badge variant="accent">
-                志望度 {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
+                確度 {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
               </Badge>
             ) : null}
             <Badge variant="outline">{getCandidateStageLabel(student.candidate_stage)}</Badge>

@@ -137,7 +137,7 @@ function FollowUpCard({
             {daysSince(student.last_outbound_at) ?? "-"}日返信なし
           </Badge>
           {student.motivation_level ? (
-            <Badge variant="accent">志望度 {student.motivation_level}</Badge>
+            <Badge variant="accent">確度 {student.motivation_level}</Badge>
           ) : null}
         </CardTitle>
       </CardHeader>

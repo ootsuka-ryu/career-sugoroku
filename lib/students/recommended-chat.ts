@@ -237,7 +237,7 @@ function buildStudentContext(student: RecommendedChatStudent) {
     .join("、");
 
   if (university || graduation) pieces.push([university, graduation].filter(Boolean).join(" / "));
-  if (motivation && motivation !== "-") pieces.push(`志望度${motivation}`);
+  if (motivation && motivation !== "-") pieces.push(`ゴダイへの確度${motivation}`);
   if (contact) pieces.push(`初回接触: ${contact}`);
   if (area) pieces.push(`希望エリア: ${area}`);
   if (tags) pieces.push(`タグ: ${tags}`);

@@ -275,11 +275,11 @@ function buildMockSuggestion(student: StudentForAi): NextActionSuggestion {
   if ((student.motivation_level ?? 0) >= 4) {
     return {
       priority: 78,
-      reason: "志望度が高いため、熱が冷める前に個別接点を作るとよい状態です。",
+      reason: "ゴダイへの確度が高いため、熱が冷める前に個別接点を作るとよい状態です。",
       nextAction: "担当者からLINEで個別面談または店舗見学の日程候補を送ってください。",
       urgency: "medium",
       recommendedChannel: "line",
-      tagCandidates: ["高志望度"]
+      tagCandidates: ["ゴダイへの確度高"]
     };
   }
 
