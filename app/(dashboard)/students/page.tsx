@@ -105,8 +105,9 @@ export default async function StudentsPage({
 
   const scopedStudents = students;
   const statStudents = (statsResult.data ?? []) as StudentStatSummary[];
-  const totalStudents = studentsResult.count ?? statStudents.length;
-  const totalPages = Math.max(1, Math.ceil(totalStudents / STUDENT_PAGE_SIZE));
+  const resultStudentsCount = studentsResult.count ?? students.length;
+  const summaryStudentsCount = statsResult.totalCount ?? resultStudentsCount;
+  const totalPages = Math.max(1, Math.ceil(resultStudentsCount / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
   const hasOptionalEventError = isMissingOptionalEventTable(eventParticipantsResult.error);
@@ -191,7 +192,7 @@ export default async function StudentsPage({
         <SummaryCard
           description={`${graduationYearFilter}卒または卒年未登録の学生`}
           label="学生数"
-          value={`${totalStudents}名`}
+          value={`${summaryStudentsCount}名`}
         />
         <SummaryCard
           description="専願、併願、A、B または旧基準4以上"
@@ -218,7 +219,7 @@ export default async function StudentsPage({
         graduationYear={graduationYearFilter}
         query={searchParams?.q}
         totalPages={totalPages}
-        totalStudents={totalStudents}
+        totalStudents={resultStudentsCount}
       />
     </div>
   );
@@ -348,13 +349,23 @@ function matchesStudentSearch(
 }
 
 async function fetchStudentStats(supabase: ReturnType<typeof createClient>, graduationYear: number) {
-  const { data, error } = await supabase
-    .from("students")
-    .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
-    .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
-    .range(0, 4999);
+  const [{ count, error: countError }, { data, error }] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`),
+    supabase
+      .from("students")
+      .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
+      .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
+      .range(0, 4999)
+  ]);
 
-  return { data: (data ?? []) as StudentStatSummary[], error };
+  return {
+    data: (data ?? []) as StudentStatSummary[],
+    error: error ?? countError,
+    totalCount: count ?? null
+  };
 }
 
 function StudentsPager({
