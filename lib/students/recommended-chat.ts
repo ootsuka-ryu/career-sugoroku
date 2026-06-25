@@ -74,14 +74,32 @@ const INTERNAL_TEXT_PATTERNS = [
   /確認・共有/,
   /JSON/i,
   /tagCandidates/i,
-  /recommendedChannel/i
+  /recommendedChannel/i,
+  /採用担当者が/,
+  /チーム内で/,
+  /フォロー計画/,
+  /情報提供計画/,
+  /直接ヒアリング/,
+  /優先的にアプローチ/,
+  /確認・共有/,
+  /今週中に/,
+  /学生に対して/,
+  /面談を設定/,
+  /候補日を確認/,
+  /検討を後押し/,
+  /対応方針/,
+  /早期安心希望層/,
+  /まだ決めきれない層/,
+  /早期内定者向け/,
+  /未決定者向け/
 ];
 
 export function buildRecommendedChatDraft(student: RecommendedChatStudent) {
   const explicitMessage =
     extractStudentMessage(student.ai_next_action) || extractStudentMessage(student.manual_next_action);
   if (explicitMessage) {
-    return normalizeSendableMessage(explicitMessage, student);
+    const normalized = normalizeSendableMessage(explicitMessage, student);
+    if (looksStudentFacing(normalized)) return normalized;
   }
 
   const action =

@@ -590,7 +590,28 @@ function cleanAiPlainText(value: string) {
     .replace(/^json\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
-  return extractJsonObject(text) ? "" : text;
+  if (!text) return "";
+  if (extractJsonObject(text)) return "";
+  if (looksLikeAiJson(text)) {
+    const summary = extractJsonStringField(text, "summary");
+    return summary || "";
+  }
+  return text;
+}
+
+function looksLikeAiJson(value: string) {
+  return /["'](?:summary|nextActions|tagCandidates|urgent)["']\s*:/.test(value);
+}
+
+function extractJsonStringField(value: string, field: string) {
+  const pattern = new RegExp(`["']${field}["']\\s*:\\s*["']([\\s\\S]*?)["']\\s*(?:,|\\}|\\])`);
+  const match = value.match(pattern);
+  if (!match?.[1]) return "";
+  return match[1]
+    .replace(/\\n/g, "\n")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\")
+    .trim();
 }
 
 function formatDateTime(value: string | null) {

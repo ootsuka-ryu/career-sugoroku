@@ -24,9 +24,30 @@ const STUDENTS_SELECT = `
   student_tags(tags(id, name, color)),
   student_assignees(staff_users!student_assignees_staff_id_fkey(id, name, email))
 `;
+const STUDENT_SEARCH_SELECT = `
+  id,
+  real_name,
+  display_name,
+  kana,
+  university,
+  grade,
+  graduation_year,
+  desired_area,
+  area,
+  first_contact_method,
+  first_event_name,
+  manual_next_action,
+  ai_next_action,
+  notes,
+  line_user_id,
+  updated_at,
+  student_tags(tags(name)),
+  student_assignees(staff_users!student_assignees_staff_id_fkey(name, email))
+`;
 const RELATED_FETCH_CHUNK_SIZE = 200;
 const DEFAULT_GRADUATION_YEAR = 2028;
 const STUDENT_PAGE_SIZE = 100;
+const STUDENT_RELATED_SEARCH_LIMIT = 600;
 
 type StudentStatSummary = {
   id: string;
@@ -91,7 +112,7 @@ export default async function StudentsPage({
               .select("student_id, payload, sent_at")
               .in("student_id", ids)
               .order("sent_at", { ascending: false })
-              .limit(400)
+              .limit(160)
           ),
           fetchRowsForStudentChunks<StudentRecordingSearchSummary>(studentIds, (ids) =>
             (supabase as any)
@@ -99,13 +120,13 @@ export default async function StudentsPage({
               .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
               .in("student_id", ids)
               .order("recorded_at", { ascending: false })
-              .limit(250)
+              .limit(100)
           )
         ]);
 
   const scopedStudents = students;
   const statStudents = (statsResult.data ?? []) as StudentStatSummary[];
-  const resultStudentsCount = studentsResult.count ?? students.length;
+  const resultStudentsCount = studentsResult.count ?? statsResult.totalCount ?? students.length;
   const summaryStudentsCount = statsResult.totalCount ?? resultStudentsCount;
   const totalPages = Math.max(1, Math.ceil(resultStudentsCount / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
@@ -239,7 +260,7 @@ async function fetchStudentsPage(
     const [{ data, error }, relatedStudentIds] = await Promise.all([
       supabase
         .from("students")
-        .select(STUDENTS_SELECT)
+        .select(STUDENT_SEARCH_SELECT)
         .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
         .order("updated_at", { ascending: false })
         .range(0, 4999),
@@ -250,14 +271,38 @@ async function fetchStudentsPage(
       return { data: [], error, count: 0 };
     }
 
-    const matched = (data ?? []).filter((student) =>
-      matchesStudentSearch(student, trimmedQuery, relatedStudentIds)
+    const matchedIds = (data ?? [])
+      .filter((student) => matchesStudentSearch(student, trimmedQuery, relatedStudentIds))
+      .map((student: any) => student.id)
+      .filter(Boolean);
+    const pageIds = matchedIds.slice(from, to + 1);
+
+    if (pageIds.length === 0) {
+      return {
+        data: [],
+        error: null,
+        count: matchedIds.length
+      };
+    }
+
+    const { data: pageData, error: pageError } = await supabase
+      .from("students")
+      .select(STUDENTS_SELECT)
+      .in("id", pageIds);
+
+    if (pageError) {
+      return { data: [], error: pageError, count: matchedIds.length };
+    }
+
+    const order = new Map(pageIds.map((id: string, index: number) => [id, index]));
+    const sortedPageData = (pageData ?? []).sort(
+      (left: any, right: any) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0)
     );
 
     return {
-      data: matched.slice(from, to + 1),
+      data: sortedPageData,
       error: null,
-      count: matched.length
+      count: matchedIds.length
     };
   }
 
@@ -278,18 +323,19 @@ async function fetchRelatedSearchStudentIds(
   rawQuery: string
 ) {
   const matches = new Set<string>();
+  if (rawQuery.trim().length < 2) return matches;
 
   const [messagesResult, recordingsResult] = await Promise.all([
     (supabase as any)
       .from("messages")
       .select("student_id, payload, sent_at")
       .order("sent_at", { ascending: false })
-      .limit(2000),
+      .limit(STUDENT_RELATED_SEARCH_LIMIT),
     (supabase as any)
       .from("recordings")
       .select("student_id, transcript, ai_summary, ai_next_action, recorded_at")
       .order("recorded_at", { ascending: false })
-      .limit(2000)
+      .limit(STUDENT_RELATED_SEARCH_LIMIT)
   ]);
 
   for (const message of messagesResult.data ?? []) {
@@ -364,7 +410,7 @@ async function fetchStudentStats(supabase: ReturnType<typeof createClient>, grad
   return {
     data: (data ?? []) as StudentStatSummary[],
     error: error ?? countError,
-    totalCount: count ?? null
+    totalCount: count ?? data?.length ?? null
   };
 }
 

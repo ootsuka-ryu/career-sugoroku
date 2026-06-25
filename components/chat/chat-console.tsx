@@ -542,7 +542,7 @@ function ChatComposer({
   return (
     <form
       action={formAction}
-      className="flex h-[42vh] max-h-[32rem] min-h-[16rem] shrink-0 flex-col border-t bg-card"
+      className="flex h-[34vh] max-h-[25rem] min-h-[13rem] shrink-0 flex-col border-t bg-card"
     >
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
@@ -600,7 +600,7 @@ function ChatComposer({
       ) : null}
 
       <Textarea
-        className="max-h-40 resize-y"
+        className="max-h-28 resize-y"
         ref={textareaRef}
         name="text"
         placeholder={
@@ -706,7 +706,7 @@ function ChatComposer({
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-card p-3 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
+      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t bg-card p-3 shadow-[0_-8px_18px_rgba(15,23,42,0.08)]">
         <p
           className={
             state.message
