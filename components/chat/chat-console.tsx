@@ -542,7 +542,7 @@ function ChatComposer({
   return (
     <form
       action={formAction}
-      className="flex h-[34vh] max-h-[25rem] min-h-[13rem] shrink-0 flex-col border-t bg-card"
+      className="flex h-[30vh] max-h-[22rem] min-h-[12rem] shrink-0 flex-col border-t bg-card"
     >
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
@@ -551,7 +551,7 @@ function ChatComposer({
       <input name="preview_image_url" type="hidden" value={previewImageUrl} />
       <input name="carousel_json" type="hidden" value={JSON.stringify(carouselItems)} />
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-card pb-2">
           <div className="flex flex-wrap gap-1">
             <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
@@ -600,7 +600,7 @@ function ChatComposer({
       ) : null}
 
       <Textarea
-        className="max-h-28 resize-y"
+        className="max-h-24 resize-y"
         ref={textareaRef}
         name="text"
         placeholder={
@@ -608,7 +608,7 @@ function ChatComposer({
             ? "LINEで送るメッセージを入力"
             : "必要であれば、画像や動画の前に送る文章を入力"
         }
-        rows={3}
+        rows={2}
         onChange={(event) => setText(event.target.value)}
         value={text}
       />
@@ -628,7 +628,7 @@ function ChatComposer({
       ) : null}
 
       {tab === "carousel" ? (
-        <div className="space-y-3 rounded-md border bg-secondary/30 p-4">
+        <div className="space-y-2 rounded-md border bg-secondary/30 p-3">
           <p className="font-medium">カルーセルテンプレート</p>
           <select
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -646,10 +646,10 @@ function ChatComposer({
               </optgroup>
             ))}
           </select>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             カルーセルは「テンプレート文管理」で作成し、ここでは呼び出して送信します。
           </p>
-          <div className="rounded-md bg-background p-3 text-sm">
+          <div className="rounded-md bg-background p-2 text-sm">
             選択中: {carouselItems.filter((item) => item.title || item.imageUrl || item.url).length}カード
           </div>
         </div>

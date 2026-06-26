@@ -153,16 +153,29 @@ export default async function StudentsPage({
     ai_next_action: row.ai_next_action,
     recorded_at: row.recorded_at
   })) as StudentRecordingSearchSummary[];
-  const waitingReplyCount = statStudents.filter((student) => {
-    if (!student.last_outbound_at) return false;
-    if (!student.last_inbound_at) return true;
-    return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
-  }).length;
-  const highMotivationCount = statStudents.filter(
-    (student) =>
-      isHighMotivationRank(student.motivation_rank) ||
-      (!student.motivation_rank && (student.motivation_level ?? 0) >= 4)
-  ).length;
+  const waitingReplyCount =
+    statsResult.waitingReplyCount ??
+    statStudents.filter((student) => {
+      if (!student.last_outbound_at) return false;
+      if (!student.last_inbound_at) return true;
+      return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
+    }).length;
+  const highMotivationCount =
+    statsResult.highMotivationCount ??
+    statStudents.filter(
+      (student) =>
+        isHighMotivationRank(student.motivation_rank) ||
+        (!student.motivation_rank && (student.motivation_level ?? 0) >= 4)
+    ).length;
+  const dataErrorMessages = [
+    studentsResult.error,
+    statsResult.error,
+    tagsResult.error,
+    staffResult.error,
+    !hasOptionalEventError ? eventParticipantsResult.error : null
+  ]
+    .map(getErrorMessage)
+    .filter((message): message is string => Boolean(message));
 
   return (
     <div className="space-y-6">
@@ -190,21 +203,15 @@ export default async function StudentsPage({
         </div>
       </div>
 
-      {(studentsResult.error ||
-        statsResult.error ||
-        tagsResult.error ||
-        staffResult.error ||
-        (!hasOptionalEventError && eventParticipantsResult.error)) && (
+      {dataErrorMessages.length > 0 && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
             <CardTitle className="text-destructive">データ取得エラー</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm text-destructive">
-            <p>{getErrorMessage(studentsResult.error)}</p>
-            <p>{getErrorMessage(statsResult.error)}</p>
-            <p>{getErrorMessage(tagsResult.error)}</p>
-            <p>{getErrorMessage(staffResult.error)}</p>
-            <p>{!hasOptionalEventError ? getErrorMessage(eventParticipantsResult.error) : null}</p>
+            {dataErrorMessages.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
           </CardContent>
         </Card>
       )}
@@ -263,7 +270,7 @@ async function fetchStudentsPage(
         .select(STUDENT_SEARCH_SELECT)
         .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
         .order("updated_at", { ascending: false })
-        .range(0, 4999),
+        .range(0, 1999),
       fetchRelatedSearchStudentIds(supabase, trimmedQuery)
     ]);
 
@@ -401,22 +408,37 @@ function matchesStudentSearch(
 }
 
 async function fetchStudentStats(supabase: ReturnType<typeof createClient>, graduationYear: number) {
-  const [{ count, error: countError }, { data, error }] = await Promise.all([
+  const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
+  const highMotivationScope = "motivation_rank.in.(専願,併願,A,B),motivation_level.gte.4";
+  const [{ count, error: countError }, { count: highMotivationCount }, { data }] = await Promise.all([
     supabase
       .from("students")
       .select("id", { count: "exact", head: true })
-      .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`),
+      .or(graduationScope),
+    supabase
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .or(graduationScope)
+      .or(highMotivationScope),
     supabase
       .from("students")
       .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
-      .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
-      .range(0, 4999)
+      .or(graduationScope)
+      .range(0, 1999)
   ]);
+  const statRows = (data ?? []) as StudentStatSummary[];
+  const waitingReplyCount = statRows.filter((student) => {
+    if (!student.last_outbound_at) return false;
+    if (!student.last_inbound_at) return true;
+    return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
+  }).length;
 
   return {
-    data: (data ?? []) as StudentStatSummary[],
-    error: error ?? countError,
-    totalCount: count ?? data?.length ?? null
+    data: statRows,
+    error: countError,
+    highMotivationCount: highMotivationCount ?? null,
+    totalCount: count ?? data?.length ?? null,
+    waitingReplyCount
   };
 }
 

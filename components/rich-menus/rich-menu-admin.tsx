@@ -254,7 +254,7 @@ export function RichMenuAdmin({
         </div>
 
         <div className="overflow-x-auto rounded-md border bg-white">
-          <div className="grid min-w-[1180px] grid-cols-[2rem_1.4fr_0.8fr_0.8fr_1.2fr_1.1fr_1.5fr] bg-slate-100 px-4 py-3 text-sm font-medium text-slate-600">
+          <div className="grid min-w-[1040px] grid-cols-[2rem_1.35fr_0.8fr_0.75fr_1fr_1fr_1.35fr] bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600">
             <span></span>
             <span>リッチメニュー名</span>
             <span>メニュー初期状態</span>
@@ -266,7 +266,7 @@ export function RichMenuAdmin({
           {filteredMenus.length > 0 ? (
             filteredMenus.map((menu) => (
               <div
-                className="grid min-w-[1180px] grid-cols-[2rem_1.4fr_0.8fr_0.8fr_1.2fr_1.1fr_1.5fr] items-center border-t px-4 py-3 text-sm"
+                className="grid min-w-[1040px] grid-cols-[2rem_1.35fr_0.8fr_0.75fr_1fr_1fr_1.35fr] items-center border-t px-3 py-2 text-sm"
                 key={menu.id}
               >
                 <input type="checkbox" />

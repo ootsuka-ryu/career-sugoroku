@@ -86,7 +86,7 @@ export default async function EventsPage() {
         </p>
       </div>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(34rem,0.75fr)_minmax(0,1fr)] 2xl:grid-cols-[minmax(40rem,0.85fr)_minmax(0,1fr)]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(46rem,1fr)_minmax(0,1fr)] 2xl:grid-cols-[minmax(56rem,1.1fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>イベントを作成</CardTitle>
@@ -110,7 +110,7 @@ export default async function EventsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-4">
-                  <div className="grid gap-3 md:grid-cols-4">
+                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
                     <InfoCard
                       icon={<CalendarDays className="h-5 w-5 text-primary" />}
                       label="日時"

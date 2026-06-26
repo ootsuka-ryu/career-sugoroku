@@ -512,21 +512,21 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1180px] table-fixed">
+          <Table className="min-w-[1080px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5.5rem] whitespace-nowrap">卒年度</TableHead>
-                <TableHead className="w-[4.75rem] whitespace-nowrap">確度</TableHead>
-                <TableHead className="w-[4.5rem] whitespace-nowrap">写真</TableHead>
-                <TableHead className="w-[5.5rem] whitespace-nowrap">LINE</TableHead>
-                <TableHead className="w-[10.5rem] whitespace-nowrap">氏名</TableHead>
-                <TableHead className="w-[6.5rem] whitespace-nowrap">担当者</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">大学名</TableHead>
-                <TableHead className="w-[6.5rem] whitespace-nowrap">地元</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">初回接触</TableHead>
-                <TableHead className="w-[6.5rem] whitespace-nowrap">母集団日</TableHead>
-                <TableHead className="w-[10.5rem] whitespace-nowrap">ネクスト</TableHead>
-                <TableHead className="w-[13.5rem] whitespace-nowrap">AI判定</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">卒年度</TableHead>
+                <TableHead className="w-[4.25rem] whitespace-nowrap">確度</TableHead>
+                <TableHead className="w-[4rem] whitespace-nowrap">写真</TableHead>
+                <TableHead className="w-[5rem] whitespace-nowrap">公式LINE</TableHead>
+                <TableHead className="w-[9.5rem] whitespace-nowrap">氏名</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">担当者</TableHead>
+                <TableHead className="w-[8.5rem] whitespace-nowrap">大学名</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">地元</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">初回接触</TableHead>
+                <TableHead className="w-[5.75rem] whitespace-nowrap">母集団日</TableHead>
+                <TableHead className="w-[8.5rem] whitespace-nowrap">ネクスト</TableHead>
+                <TableHead className="w-[12rem] whitespace-nowrap">AI判定</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
