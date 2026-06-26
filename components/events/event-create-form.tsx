@@ -33,7 +33,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event-title">イベント名</Label>
           <Input id="event-title" name="title" placeholder="イベント名" required />
@@ -81,7 +81,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
         </select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event-description">イベント内容・注意事項</Label>
           <Textarea

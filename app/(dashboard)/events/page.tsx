@@ -86,7 +86,7 @@ export default async function EventsPage() {
         </p>
       </div>
 
-      <section className="grid gap-4 xl:grid-cols-[0.42fr_0.58fr]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(34rem,0.75fr)_minmax(0,1fr)] 2xl:grid-cols-[minmax(40rem,0.85fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader>
             <CardTitle>イベントを作成</CardTitle>
