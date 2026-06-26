@@ -306,16 +306,22 @@ async function fetchStudentsPage(
     };
   }
 
-  const query = supabase
-    .from("students")
-    .select(STUDENTS_SELECT, { count: "exact" })
-    .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
-    .order("updated_at", { ascending: false })
-    .range(from, to);
+  const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
+  const [pageResult, countResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select(STUDENTS_SELECT)
+      .or(graduationScope)
+      .order("updated_at", { ascending: false })
+      .range(from, to),
+    supabase.from("students").select("id", { count: "exact", head: true }).or(graduationScope)
+  ]);
 
-  const { data, error, count } = await query;
-
-  return { data: data ?? [], error, count };
+  return {
+    data: pageResult.data ?? [],
+    error: pageResult.error ?? countResult.error,
+    count: countResult.count ?? pageResult.data?.length ?? 0
+  };
 }
 
 async function fetchRelatedSearchStudentIds(

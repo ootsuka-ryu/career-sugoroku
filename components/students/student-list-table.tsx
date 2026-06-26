@@ -338,7 +338,7 @@ export function StudentListTable({
         <form onSubmit={submitSearch}>
           <Input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="氏名・大学・次アクションで検索"
+            placeholder="氏名・大学・チャット/録音内容で検索"
             value={search}
           />
         </form>
@@ -392,8 +392,8 @@ export function StudentListTable({
                 value={tagSearch}
               />
               {tagPickerOpen ? (
-                <div className="absolute left-0 top-full z-30 mt-2 grid w-full min-w-[720px] max-w-[900px] grid-cols-[230px_minmax(0,1fr)] overflow-hidden rounded-md border bg-white shadow-lg">
-                  <div className="max-h-80 overflow-auto border-r bg-secondary/40 p-2">
+                <div className="absolute left-0 top-full z-30 mt-2 grid w-full min-w-[720px] max-w-[980px] grid-cols-[230px_minmax(0,1fr)] overflow-hidden rounded-md border bg-white shadow-lg">
+                  <div className="max-h-[56vh] overflow-y-auto overscroll-contain border-r bg-secondary/40 p-2">
                     {tagGroups.length > 0 ? (
                       tagGroups.map((group) => {
                         const active = activeTagGroup?.id === group.id;
@@ -420,7 +420,7 @@ export function StudentListTable({
                       </p>
                     )}
                   </div>
-                  <div className="max-h-80 overflow-auto p-3">
+                  <div className="max-h-[56vh] overflow-y-auto overscroll-contain p-3">
                     {activeTagGroup ? (
                       <>
                         <div className="mb-2 flex items-center justify-between gap-2">
@@ -465,7 +465,7 @@ export function StudentListTable({
             </Select>
           </div>
           {selectedTags.length > 0 ? (
-            <div className="mt-2 flex max-h-20 flex-wrap items-center gap-1.5 overflow-auto rounded-md border bg-secondary/30 p-2">
+            <div className="mt-2 flex max-h-16 flex-wrap items-center gap-1.5 overflow-y-auto rounded-md border bg-secondary/30 p-2">
               <span className="mr-1 text-xs text-muted-foreground">
                 選択中 {selectedTags.length}件
               </span>
@@ -512,21 +512,21 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1280px] table-fixed">
+          <Table className="min-w-[1180px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[6rem] whitespace-nowrap">卒年度</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">確度</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">写真</TableHead>
-                <TableHead className="w-[7rem] whitespace-nowrap">公式LINE画像</TableHead>
-                <TableHead className="w-[12rem] whitespace-nowrap">氏名</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">担当者</TableHead>
-                <TableHead className="w-[10rem] whitespace-nowrap">大学名</TableHead>
-                <TableHead className="w-[8rem] whitespace-nowrap">地元</TableHead>
-                <TableHead className="w-[9rem] whitespace-nowrap">初回接触</TableHead>
-                <TableHead className="w-[7rem] whitespace-nowrap">母集団日</TableHead>
-                <TableHead className="w-[12rem] whitespace-nowrap">ネクスト</TableHead>
-                <TableHead className="w-[16rem] whitespace-nowrap">AI判定</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">卒年度</TableHead>
+                <TableHead className="w-[4.75rem] whitespace-nowrap">確度</TableHead>
+                <TableHead className="w-[4.5rem] whitespace-nowrap">写真</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">LINE</TableHead>
+                <TableHead className="w-[10.5rem] whitespace-nowrap">氏名</TableHead>
+                <TableHead className="w-[6.5rem] whitespace-nowrap">担当者</TableHead>
+                <TableHead className="w-[9rem] whitespace-nowrap">大学名</TableHead>
+                <TableHead className="w-[6.5rem] whitespace-nowrap">地元</TableHead>
+                <TableHead className="w-[8rem] whitespace-nowrap">初回接触</TableHead>
+                <TableHead className="w-[6.5rem] whitespace-nowrap">母集団日</TableHead>
+                <TableHead className="w-[10.5rem] whitespace-nowrap">ネクスト</TableHead>
+                <TableHead className="w-[13.5rem] whitespace-nowrap">AI判定</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -537,7 +537,7 @@ export function StudentListTable({
                   const chatReason = buildRecommendedChatReason(student) || aiJudgement;
                   return (
                     <TableRow key={student.id}>
-                      <TableCell className="whitespace-nowrap">{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
                       <TableCell className="font-medium">
                         {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
                       </TableCell>

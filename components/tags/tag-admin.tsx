@@ -348,13 +348,13 @@ function BulkTagFolderMove({
   return (
     <form
       action={formAction}
-      className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-400 bg-green-50 px-3 py-3 shadow-sm"
+      className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-500 bg-white px-3 py-3 shadow-md"
       ref={setFormElement}
     >
       {selectedTagIds.map((tagId) => (
         <input key={tagId} name="tag_ids" type="hidden" value={tagId} />
       ))}
-      <div className="flex min-w-[170px] items-center gap-2">
+      <div className="flex min-w-[180px] items-center gap-2">
         <span className="rounded-md bg-green-700 px-3 py-1.5 text-sm font-semibold text-white">
           {TEXT.bulkAction}
         </span>
@@ -366,7 +366,7 @@ function BulkTagFolderMove({
       <p className="max-w-md text-xs text-green-800">{TEXT.bulkMoveHint}</p>
       <select
         aria-label="選択中タグの移動先フォルダ"
-        className="h-9 min-w-[260px] rounded-md border border-green-300 bg-white px-3 text-sm font-medium"
+        className="h-9 min-w-[280px] rounded-md border border-green-500 bg-white px-3 text-sm font-medium"
         defaultValue=""
         name="folder_id"
         onChange={(event) => {

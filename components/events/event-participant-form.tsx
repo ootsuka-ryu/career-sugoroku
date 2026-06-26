@@ -24,7 +24,10 @@ export function EventParticipantForm({
   const defaultStatus = statuses[0] ?? "参加";
 
   return (
-    <form action={addEventParticipant} className="grid gap-2 md:grid-cols-[1fr_140px_1fr_auto]">
+    <form
+      action={addEventParticipant}
+      className="grid gap-2 lg:grid-cols-[minmax(24rem,1.5fr)_9rem_minmax(12rem,1fr)_auto]"
+    >
       <input name="event_id" type="hidden" value={eventId} />
       <input name="student_id" type="hidden" value={studentId} />
       <StudentCascadePicker
