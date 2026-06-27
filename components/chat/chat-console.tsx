@@ -542,7 +542,7 @@ function ChatComposer({
   return (
     <form
       action={formAction}
-      className="flex h-[30vh] max-h-[22rem] min-h-[12rem] shrink-0 flex-col border-t bg-card"
+      className="flex h-[24vh] max-h-[18rem] min-h-[10rem] shrink-0 flex-col border-t bg-card"
     >
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />

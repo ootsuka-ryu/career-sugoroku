@@ -48,6 +48,22 @@ const RELATED_FETCH_CHUNK_SIZE = 200;
 const DEFAULT_GRADUATION_YEAR = 2028;
 const STUDENT_PAGE_SIZE = 100;
 const STUDENT_RELATED_SEARCH_LIMIT = 600;
+const STUDENT_SEARCH_RECENT_LIMIT = 700;
+const STUDENT_SEARCH_DIRECT_LIMIT = 500;
+const STUDENT_REPLY_STATS_LIMIT = 1000;
+const STUDENT_SEARCH_COLUMNS = [
+  "real_name",
+  "display_name",
+  "kana",
+  "university",
+  "desired_area",
+  "area",
+  "first_contact_method",
+  "first_event_name",
+  "manual_next_action",
+  "ai_next_action",
+  "notes"
+] as const;
 
 type StudentStatSummary = {
   id: string;
@@ -56,6 +72,8 @@ type StudentStatSummary = {
   last_outbound_at: string | null;
   last_inbound_at: string | null;
 };
+
+type StudentSearchCandidate = Record<string, any> & { id?: string };
 
 export default async function StudentsPage({
   searchParams
@@ -264,31 +282,56 @@ async function fetchStudentsPage(
   const to = from + STUDENT_PAGE_SIZE - 1;
 
   if (trimmedQuery) {
-    const [{ data, error }, relatedStudentIds] = await Promise.all([
-      supabase
-        .from("students")
-        .select(STUDENT_SEARCH_SELECT)
-        .or(`graduation_year.is.null,graduation_year.eq.${graduationYear}`)
-        .order("updated_at", { ascending: false })
-        .range(0, 1999),
-      fetchRelatedSearchStudentIds(supabase, trimmedQuery)
-    ]);
+    const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
+    const directFilter = buildStudentDirectSearchFilter(trimmedQuery);
+    const directSearchPromise = directFilter
+      ? supabase
+          .from("students")
+          .select(STUDENT_SEARCH_SELECT)
+          .or(graduationScope)
+          .or(directFilter)
+          .order("updated_at", { ascending: false })
+          .limit(STUDENT_SEARCH_DIRECT_LIMIT)
+      : Promise.resolve({ data: [] as StudentSearchCandidate[], error: null });
+    const [{ data: directData, error: directError }, { data: recentData, error: recentError }, relatedStudentIds] =
+      await Promise.all([
+        directSearchPromise,
+        supabase
+          .from("students")
+          .select(STUDENT_SEARCH_SELECT)
+          .or(graduationScope)
+          .order("updated_at", { ascending: false })
+          .limit(STUDENT_SEARCH_RECENT_LIMIT),
+        fetchRelatedSearchStudentIds(supabase, trimmedQuery)
+      ]);
 
-    if (error) {
-      return { data: [], error, count: 0 };
+    if (directError || recentError) {
+      return { data: [], error: directError ?? recentError, count: 0 };
     }
 
-    const matchedIds = (data ?? [])
-      .filter((student) => matchesStudentSearch(student, trimmedQuery, relatedStudentIds))
-      .map((student: any) => student.id)
-      .filter(Boolean);
-    const pageIds = matchedIds.slice(from, to + 1);
+    const directDataRows = (directData ?? []) as StudentSearchCandidate[];
+    const recentDataRows = (recentData ?? []) as StudentSearchCandidate[];
+    const directIds = new Set(directDataRows.map((student) => student.id).filter(Boolean) as string[]);
+    const candidates = new Map<string, StudentSearchCandidate>();
+    for (const student of [...directDataRows, ...recentDataRows]) {
+      if (student?.id) candidates.set(student.id, student);
+    }
+
+    const matchedIds = Array.from(candidates.values()).flatMap((student) => {
+      const id = student.id;
+      if (!id) return [];
+      return directIds.has(id) || matchesStudentSearch(student, trimmedQuery, relatedStudentIds) ? [id] : [];
+    });
+
+    const relatedMissingIds = Array.from(relatedStudentIds).filter((id) => !candidates.has(id));
+    const allMatchedIds = [...matchedIds, ...relatedMissingIds];
+    const pageIds = allMatchedIds.slice(from, to + 1);
 
     if (pageIds.length === 0) {
       return {
         data: [],
         error: null,
-        count: matchedIds.length
+        count: allMatchedIds.length
       };
     }
 
@@ -298,7 +341,7 @@ async function fetchStudentsPage(
       .in("id", pageIds);
 
     if (pageError) {
-      return { data: [], error: pageError, count: matchedIds.length };
+      return { data: [], error: pageError, count: allMatchedIds.length };
     }
 
     const order = new Map(pageIds.map((id: string, index: number) => [id, index]));
@@ -309,7 +352,7 @@ async function fetchStudentsPage(
     return {
       data: sortedPageData,
       error: null,
-      count: matchedIds.length
+      count: allMatchedIds.length
     };
   }
 
@@ -329,6 +372,17 @@ async function fetchStudentsPage(
     error: pageResult.error ?? countResult.error,
     count: countResult.count ?? pageResult.data?.length ?? 0
   };
+}
+
+function buildStudentDirectSearchFilter(rawQuery: string) {
+  const query = rawQuery.trim().replace(/[%*,()]/g, " ");
+  const parts = Array.from(
+    new Set([query, query.replace(/\s+/g, "")].map((part) => part.trim()).filter((part) => part.length >= 2))
+  );
+
+  return parts
+    .flatMap((part) => STUDENT_SEARCH_COLUMNS.map((column) => `${column}.ilike.%${part}%`))
+    .join(",");
 }
 
 async function fetchRelatedSearchStudentIds(
@@ -424,7 +478,9 @@ async function fetchStudentStats(supabase: ReturnType<typeof createClient>, grad
       .from("students")
       .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
       .or(graduationScope)
-      .range(0, 1999)
+      .not("last_outbound_at", "is", null)
+      .order("last_outbound_at", { ascending: false })
+      .limit(STUDENT_REPLY_STATS_LIMIT)
   ]);
   const statRows = (data ?? []) as StudentStatSummary[];
   const waitingReplyCount = statRows.filter((student) => {

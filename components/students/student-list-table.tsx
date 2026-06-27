@@ -512,7 +512,7 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1080px] table-fixed">
+          <Table className="min-w-[1000px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[5rem] whitespace-nowrap">卒年度</TableHead>

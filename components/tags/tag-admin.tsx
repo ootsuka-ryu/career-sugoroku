@@ -348,7 +348,7 @@ function BulkTagFolderMove({
   return (
     <form
       action={formAction}
-      className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border border-green-500 bg-white px-3 py-3 shadow-md"
+      className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-3 rounded-md border-2 border-green-600 bg-white px-3 py-3 shadow-lg"
       ref={setFormElement}
     >
       {selectedTagIds.map((tagId) => (
@@ -374,6 +374,7 @@ function BulkTagFolderMove({
             formElement.requestSubmit();
           }
         }}
+        disabled={folders.length === 0}
         required
       >
         <option value="" disabled>
@@ -387,6 +388,9 @@ function BulkTagFolderMove({
           </option>
         ))}
       </select>
+      {folders.length === 0 ? (
+        <p className="text-xs text-destructive">移動先フォルダがまだありません。先に「新しいフォルダ」から作成してください。</p>
+      ) : null}
       <Button onClick={onMoved} size="sm" type="button" variant="outline">
         {TEXT.clearSelection}
       </Button>
