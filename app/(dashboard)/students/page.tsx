@@ -145,7 +145,7 @@ export default async function StudentsPage({
   const scopedStudents = students;
   const statStudents = (statsResult.data ?? []) as StudentStatSummary[];
   const resultStudentsCount = studentsResult.count ?? statsResult.totalCount ?? students.length;
-  const summaryStudentsCount = statsResult.totalCount ?? resultStudentsCount;
+  const summaryStudentsCount = resultStudentsCount;
   const totalPages = Math.max(1, Math.ceil(resultStudentsCount / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);

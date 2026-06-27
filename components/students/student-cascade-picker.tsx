@@ -54,7 +54,7 @@ export function StudentCascadePicker({
     left: 16,
     top: 16,
     width: 920,
-    height: 640
+    height: 720
   });
 
   const selectedStudent = students.find((student) => student.id === value) ?? null;
@@ -136,9 +136,9 @@ export function StudentCascadePicker({
       const left = Math.min(Math.max(rect.left, 16), Math.max(16, viewportWidth - width - 16));
       const preferredTop = rect.bottom + 8;
       const availableBelow = viewportHeight - preferredTop - 16;
-      const preferredHeight = Math.min(640, Math.max(320, viewportHeight - 32));
-      const top = availableBelow >= 300 ? preferredTop : 16;
-      const availableHeight = Math.max(260, viewportHeight - top - 16);
+      const preferredHeight = Math.min(720, Math.max(360, viewportHeight - 32));
+      const top = availableBelow >= 360 ? preferredTop : 16;
+      const availableHeight = Math.max(320, viewportHeight - top - 16);
 
       setDropdownStyle({
         left,
@@ -180,7 +180,7 @@ export function StudentCascadePicker({
       {open ? (
         <div
           className="fixed z-[80] flex min-h-0 flex-col overflow-hidden rounded-md border bg-white shadow-lg"
-          style={dropdownStyle}
+          style={{ ...dropdownStyle, maxHeight: "calc(100vh - 2rem)" }}
         >
           <div className="border-b p-3">
             <div className="relative">
@@ -197,9 +197,9 @@ export function StudentCascadePicker({
               <span className="ml-1 font-medium text-foreground">{filteredStudentCount}名</span>
             </p>
           </div>
-          <div className="grid min-h-0 flex-1 grid-cols-[160px_240px_minmax(280px,1fr)] overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-[170px_260px_minmax(320px,1fr)] overflow-hidden">
             <div
-              className="min-h-0 overflow-y-scroll overscroll-contain border-r bg-secondary/40 p-2 pb-10"
+              className="min-h-0 overflow-y-scroll overscroll-contain border-r bg-secondary/40 p-2 pb-16"
               style={{ scrollbarGutter: "stable" }}
             >
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground">
@@ -228,7 +228,7 @@ export function StudentCascadePicker({
               ))}
             </div>
             <div
-              className="min-h-0 overflow-y-scroll overscroll-contain border-r p-2 pb-10"
+              className="min-h-0 overflow-y-scroll overscroll-contain border-r p-2 pb-16"
               style={{ scrollbarGutter: "stable" }}
             >
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">
@@ -252,7 +252,7 @@ export function StudentCascadePicker({
               ))}
             </div>
             <div
-              className="min-h-0 overflow-y-scroll overscroll-contain p-2 pb-10"
+              className="min-h-0 overflow-y-scroll overscroll-contain p-2 pb-16"
               style={{ scrollbarGutter: "stable" }}
             >
               <p className="sticky top-0 z-10 -mx-2 mb-1 border-b bg-white px-3 py-2 text-xs font-semibold text-muted-foreground">

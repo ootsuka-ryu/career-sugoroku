@@ -512,13 +512,13 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1000px] table-fixed">
+          <Table className="min-w-[1080px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5rem] whitespace-nowrap">卒年度</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">卒年度</TableHead>
                 <TableHead className="w-[4.25rem] whitespace-nowrap">確度</TableHead>
                 <TableHead className="w-[4rem] whitespace-nowrap">写真</TableHead>
-                <TableHead className="w-[5rem] whitespace-nowrap">公式LINE</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">LINE画像</TableHead>
                 <TableHead className="w-[9.5rem] whitespace-nowrap">氏名</TableHead>
                 <TableHead className="w-[5.5rem] whitespace-nowrap">担当者</TableHead>
                 <TableHead className="w-[8.5rem] whitespace-nowrap">大学名</TableHead>
@@ -537,7 +537,7 @@ export function StudentListTable({
                   const chatReason = buildRecommendedChatReason(student) || aiJudgement;
                   return (
                     <TableRow key={student.id}>
-                      <TableCell className="whitespace-nowrap text-sm">{student.graduation_year ? `${student.graduation_year}卒` : "-"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">{formatGraduationYear(student.graduation_year)}</TableCell>
                       <TableCell className="font-medium">
                         {getMotivationRankLabel(student.motivation_rank, student.motivation_level)}
                       </TableCell>
@@ -582,7 +582,7 @@ export function StudentListTable({
                       <TableCell><Clamp>{localizeSampleText(student.first_contact_method) || "-"}</Clamp></TableCell>
                       <TableCell>{getPopulationDate(student) || "-"}</TableCell>
                       <TableCell>
-                        <p className="line-clamp-3 text-sm">
+                        <p className="line-clamp-2 text-sm">
                           {localizeSampleText(student.manual_next_action) ||
                             extractNextAction(student.ai_next_action) ||
                             localizeSampleText(student.ai_next_action) ||
@@ -591,7 +591,7 @@ export function StudentListTable({
                       </TableCell>
                       <TableCell>
                         <div className="space-y-2">
-                          <p className="line-clamp-3 text-sm text-muted-foreground">
+                          <p className="line-clamp-2 text-sm text-muted-foreground">
                             {localizeSampleText(aiJudgement) || "-"}
                           </p>
                           {chatDraft ? (
@@ -768,6 +768,14 @@ function Clamp({ children }: { children: ReactNode }) {
   return <span className="line-clamp-2 break-words text-sm">{children}</span>;
 }
 
+function formatGraduationYear(value: string | number | null | undefined) {
+  if (value == null || value === "") return "-";
+  const text = String(value);
+  const year = text.match(/\d{4}/)?.[0];
+  if (year) return `${year}年卒`;
+  return text.replace(/卒業/g, "卒");
+}
+
 function StudentPhoto({ student }: { student: StudentListItem }) {
   const name =
     localizeSampleText(student.real_name) ||
@@ -776,7 +784,7 @@ function StudentPhoto({ student }: { student: StudentListItem }) {
 
   if (student.photo_url) {
     return (
-      <div className="h-10 w-10 overflow-hidden rounded-full border">
+      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border">
         <img
           alt={`${name}の写真`}
           className="h-full w-full object-cover"
@@ -791,7 +799,7 @@ function StudentPhoto({ student }: { student: StudentListItem }) {
   }
 
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-secondary text-muted-foreground">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-secondary text-muted-foreground">
       <UserRound className="h-5 w-5" />
     </div>
   );
@@ -807,7 +815,7 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
     return (
       <img
         alt={`${name}のLINE画像`}
-        className="h-10 w-10 rounded-full border object-cover"
+        className="h-10 w-10 shrink-0 rounded-full border object-cover"
         src={student.line_picture_url}
       />
     );
@@ -817,8 +825,8 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
     <div
       className={
         student.line_user_id
-          ? "flex h-10 w-10 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700"
-          : "flex h-10 w-10 items-center justify-center rounded-full border bg-secondary text-muted-foreground opacity-50"
+          ? "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700"
+          : "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-secondary text-muted-foreground opacity-50"
       }
       title={student.line_user_id ? "LINE連携済み・画像未取得" : "LINE未連携"}
     >

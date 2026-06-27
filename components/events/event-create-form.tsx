@@ -33,7 +33,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 2xl:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event-title">イベント名</Label>
           <Input id="event-title" name="title" placeholder="イベント名" required />
@@ -81,11 +81,11 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
         </select>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 2xl:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event-description">イベント内容・注意事項</Label>
           <Textarea
-            className="max-h-32 resize-y"
+            className="min-h-24 max-h-40 resize-y"
             id="event-description"
             name="description"
             placeholder="イベント内容・注意事項"
@@ -94,7 +94,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
         <div className="space-y-2">
           <Label htmlFor="event-next-action">次回案内・フォロー内容</Label>
           <Textarea
-            className="max-h-32 resize-y"
+            className="min-h-24 max-h-40 resize-y"
             id="event-next-action"
             name="next_action"
             placeholder="次回案内・フォロー内容"
@@ -108,7 +108,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
           申込時に自動メッセージを送信
         </label>
         <Textarea
-          className="mt-2 max-h-36 resize-y"
+          className="mt-2 min-h-28 max-h-44 resize-y"
           name="signup_message_template"
           rows={4}
           defaultValue={DEFAULT_SIGNUP_MESSAGE}
@@ -124,7 +124,7 @@ export function EventCreateForm({ surveys }: { surveys: SurveyOption[] }) {
           開催3日以上前の申込者へ前日リマインドを予約
         </label>
         <Textarea
-          className="mt-2 max-h-36 resize-y"
+          className="mt-2 min-h-28 max-h-44 resize-y"
           name="reminder_message_template"
           rows={4}
           defaultValue={DEFAULT_REMINDER_MESSAGE}

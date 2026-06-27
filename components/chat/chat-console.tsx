@@ -542,7 +542,7 @@ function ChatComposer({
   return (
     <form
       action={formAction}
-      className="flex h-[24vh] max-h-[18rem] min-h-[10rem] shrink-0 flex-col border-t bg-card"
+      className="flex h-[32vh] max-h-[24rem] min-h-[14rem] shrink-0 flex-col border-t bg-card"
     >
       <input name="student_id" type="hidden" value={studentId} />
       <input name="message_kind" type="hidden" value={tab === "pdf" ? "text" : tab} />
@@ -551,7 +551,7 @@ function ChatComposer({
       <input name="preview_image_url" type="hidden" value={previewImageUrl} />
       <input name="carousel_json" type="hidden" value={JSON.stringify(carouselItems)} />
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 pb-4">
         <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b bg-card pb-2">
           <div className="flex flex-wrap gap-1">
             <ComposerTab active={tab === "text"} onClick={() => setTab("text")}>
