@@ -498,12 +498,12 @@ export function StudentListTable({
       <div className="overflow-hidden rounded-md border bg-card">
         <div className="flex flex-col gap-3 border-b px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <span>
-            {filteredStudents.length > 0
-              ? `${pageStart + 1}-${pageEnd} / ${filteredStudents.length}名を表示`
-              : `0 / ${students.length}名を表示`}
-            {filteredStudents.length > 0 && filteredStudents.length !== students.length
-              ? `（全${students.length}名）`
-              : null}
+            {filteredStudents.length === 0
+              ? `0名を表示 / このページ ${students.length}名`
+              : filteredStudents.length === students.length
+                ? `このページ ${students.length}名を表示`
+                : `条件一致 ${filteredStudents.length}名 / このページ ${students.length}名`}
+            {filteredStudents.length > STUDENTS_PER_PAGE ? `（${pageStart + 1}-${pageEnd}件目）` : null}
           </span>
           <PaginationControls
             currentPage={safeCurrentPage}
@@ -518,7 +518,7 @@ export function StudentListTable({
                 <TableHead className="w-[5.5rem] whitespace-nowrap">卒年度</TableHead>
                 <TableHead className="w-[4.25rem] whitespace-nowrap">確度</TableHead>
                 <TableHead className="w-[4rem] whitespace-nowrap">写真</TableHead>
-                <TableHead className="w-[5.5rem] whitespace-nowrap">LINE画像</TableHead>
+                <TableHead className="w-[5.5rem] whitespace-nowrap">公式LINE</TableHead>
                 <TableHead className="w-[9.5rem] whitespace-nowrap">氏名</TableHead>
                 <TableHead className="w-[5.5rem] whitespace-nowrap">担当者</TableHead>
                 <TableHead className="w-[8.5rem] whitespace-nowrap">大学名</TableHead>
@@ -814,7 +814,7 @@ function StudentLinePhoto({ student }: { student: StudentListItem }) {
   if (student.line_picture_url) {
     return (
       <img
-        alt={`${name}のLINE画像`}
+        alt={`${name}の公式LINE画像`}
         className="h-10 w-10 shrink-0 rounded-full border object-cover"
         src={student.line_picture_url}
       />

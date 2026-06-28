@@ -811,7 +811,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button disabled={pending} type="submit">
+    <Button className="min-w-28 shadow-sm" disabled={pending} type="submit">
       <Send className="mr-2 h-4 w-4" />
       {pending ? "送信中..." : "送信"}
     </Button>

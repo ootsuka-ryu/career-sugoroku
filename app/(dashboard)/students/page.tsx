@@ -145,7 +145,7 @@ export default async function StudentsPage({
   const scopedStudents = students;
   const statStudents = (statsResult.data ?? []) as StudentStatSummary[];
   const resultStudentsCount = studentsResult.count ?? statsResult.totalCount ?? students.length;
-  const summaryStudentsCount = resultStudentsCount;
+  const summaryStudentsCount = statsResult.totalCount ?? resultStudentsCount;
   const totalPages = Math.max(1, Math.ceil(resultStudentsCount / STUDENT_PAGE_SIZE));
   const tags = (tagsResult.data ?? []) as TagSummary[];
   const staffUsers = uniqueStaffByDisplayName((staffResult.data ?? []) as StaffSummary[]);
@@ -236,7 +236,7 @@ export default async function StudentsPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard
-          description={`${graduationYearFilter}卒または卒年未登録の学生`}
+          description={`${graduationYearFilter}卒または卒年未登録の総人数`}
           label="学生数"
           value={`${summaryStudentsCount}名`}
         />
@@ -369,7 +369,7 @@ async function fetchStudentsPage(
 
   return {
     data: pageResult.data ?? [],
-    error: pageResult.error ?? countResult.error,
+    error: pageResult.error ?? null,
     count: countResult.count ?? pageResult.data?.length ?? 0
   };
 }
@@ -518,7 +518,7 @@ function StudentsPager({
   return (
     <nav className="flex flex-col gap-3 rounded-md border bg-card px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
       <p className="text-muted-foreground">
-        1ページ100名ずつ表示中 / 全{totalStudents}名
+        1ページ100名ずつ表示（{currentPage} / {totalPages}ページ） / 条件一致 {totalStudents}名
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild={currentPage > 1} disabled={currentPage <= 1} size="sm" variant="outline">
