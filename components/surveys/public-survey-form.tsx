@@ -61,6 +61,9 @@ export function PublicSurveyForm({
   const [state, formAction] = useFormState(submitPublicSurvey, initialState);
   const visibleSections = sections.filter((section) => section.is_visible !== false);
   const visibleQuestions = questions.filter((question) => question.is_visible !== false);
+  const hasAnswerableQuestions = visibleQuestions.some(
+    (question) => question.type !== "heading"
+  );
   const [sectionId, setSectionId] = useState(visibleSections[0]?.id ?? "__no_section__");
   const [visitedSectionIds, setVisitedSectionIds] = useState<string[]>(
     visibleSections[0]?.id ? [visibleSections[0].id] : ["__no_section__"]
@@ -133,9 +136,9 @@ export function PublicSurveyForm({
   if (state.ok) {
     return (
       <div className="survey-card rounded-lg border bg-card p-8 text-center">
-        <h2 className="text-xl font-semibold">送信完了</h2>
+        <h2 className="text-xl font-semibold">送信が完了しました</h2>
         <p className="mt-3 text-muted-foreground">
-          {state.message || thankYouMessage || "回答ありがとうございました。"}
+          {state.message || thankYouMessage || "回答を送信しました。ありがとうございます。"}
         </p>
         {state.redirectUrl || redirectUrl ? (
           <Button
@@ -153,7 +156,11 @@ export function PublicSurveyForm({
   }
 
   return (
-    <form action={formAction} className="survey-card space-y-5 rounded-lg border bg-card p-5" noValidate>
+    <form
+      action={formAction}
+      className="survey-card space-y-6 rounded-xl border bg-card p-5 shadow-sm sm:p-7"
+      noValidate
+    >
       <input name="survey_id" type="hidden" value={surveyId} />
       <input name="line_user_id" type="hidden" value={lineUserId ?? ""} />
       <input name="student_id" type="hidden" value={studentId ?? ""} />
@@ -165,18 +172,24 @@ export function PublicSurveyForm({
       ))}
 
       {visibleSections.length > 0 ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span className="whitespace-nowrap text-base">
             {currentSectionIndex + 1} / {visibleSections.length}
           </span>
           <div className="h-2 flex-1 rounded-full bg-secondary">
             <div
-              className="h-2 rounded-full bg-primary"
+              className="h-2 rounded-full bg-primary transition-all"
               style={{
                 width: `${((currentSectionIndex + 1) / Math.max(visibleSections.length, 1)) * 100}%`
               }}
             />
           </div>
+        </div>
+      ) : null}
+
+      {!hasAnswerableQuestions ? (
+        <div className="rounded-lg border bg-secondary/30 p-6 text-center text-muted-foreground">
+          回答項目がまだありません。管理画面で質問を追加してください。
         </div>
       ) : null}
 
@@ -191,7 +204,7 @@ export function PublicSurveyForm({
             const isCurrent = visitedSectionId === sectionId;
 
             return (
-              <div className={isCurrent ? "space-y-5" : "hidden"} key={visitedSectionId}>
+              <div className={isCurrent ? "space-y-6" : "hidden"} key={visitedSectionId}>
                 <SectionHeader section={visitedSection} />
                 {sectionQuestions.map((question) => (
                   <QuestionField
@@ -230,8 +243,8 @@ export function PublicSurveyForm({
         </p>
       ) : null}
 
-      {isSectionMode && !isLastSection ? (
-        <Button className="w-full" onClick={moveToNextSection} type="button">
+      {!hasAnswerableQuestions ? null : isSectionMode && !isLastSection ? (
+        <Button className="h-12 w-full text-base" onClick={moveToNextSection} type="button">
           次へ
         </Button>
       ) : (
@@ -244,10 +257,12 @@ export function PublicSurveyForm({
 function SectionHeader({ section }: { section?: PublicSection }) {
   if (!section) return null;
   return (
-    <div className="rounded-md bg-secondary/50 p-4">
-      <h2 className="text-lg font-semibold">{section.title}</h2>
+    <div className="rounded-lg bg-secondary/60 p-5">
+      <h2 className="text-xl font-semibold">{section.title}</h2>
       {section.description ? (
-        <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+          {section.description}
+        </p>
       ) : null}
     </div>
   );
@@ -275,55 +290,52 @@ function QuestionField({
 
   if (question.type === "heading") {
     return (
-      <div className="space-y-2 rounded-md border-l-4 border-primary bg-secondary/30 p-4">
-        <h3 className="font-semibold">{question.label}</h3>
+      <div className="space-y-2 rounded-lg border-l-4 border-primary bg-secondary/30 p-5">
+        <h3 className="text-lg font-semibold">{question.label}</h3>
         {question.description ? (
-          <p className="text-sm text-muted-foreground">{question.description}</p>
+          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
+            {question.description}
+          </p>
         ) : null}
       </div>
     );
   }
 
   return (
-    <fieldset className="space-y-3 rounded-md border p-4">
-      <legend className="px-1 text-sm font-medium">
+    <fieldset className="space-y-4 rounded-lg border p-5">
+      <legend className="px-1 text-base font-medium">
         {question.label}
         {question.is_required ? <span className="ml-1 text-destructive">*</span> : null}
       </legend>
       {question.description ? (
-        <p className="text-sm text-muted-foreground">{question.description}</p>
+        <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
+          {question.description}
+        </p>
       ) : null}
       {question.attached_image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt=""
-          className="max-h-64 rounded-md object-cover"
+          className="max-h-80 rounded-md object-cover"
           src={question.attached_image_url}
         />
       ) : null}
       {question.type === "text" ? (
-        question.validation_type === "email" || question.validation_type === "phone" ? (
-          <Input
-            name={name}
-            pattern={getPattern(question.validation_type)}
-            placeholder={question.placeholder ?? ""}
-            required={question.is_required}
-            type={question.validation_type === "email" ? "email" : "tel"}
-          />
-        ) : (
-          <Input
-            name={name}
-            placeholder={question.placeholder ?? ""}
-            required={question.is_required}
-          />
-        )
+        <Input
+          className="h-12 text-base"
+          name={name}
+          pattern={getPattern(question.validation_type)}
+          placeholder={question.placeholder ?? ""}
+          required={question.is_required}
+          type={question.validation_type === "email" ? "email" : question.validation_type === "phone" ? "tel" : "text"}
+        />
       ) : null}
       {question.type === "file_upload" ? (
-        <Input name={name} required={question.is_required} type="file" />
+        <Input className="h-12 text-base" name={name} required={question.is_required} type="file" />
       ) : null}
       {question.type === "select" ? (
         <select
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          className="h-12 w-full rounded-md border border-input bg-background px-3 text-base"
           name={name}
           onChange={(event) => branchIfNeeded(event.target.value)}
           required={question.is_required}
@@ -337,10 +349,11 @@ function QuestionField({
         </select>
       ) : null}
       {question.type === "radio" ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {options.map((option) => (
-            <label className="flex items-center gap-2 text-sm" key={option}>
+            <label className="flex items-center gap-3 text-base" key={option}>
               <input
+                className="h-5 w-5"
                 name={name}
                 onChange={() => branchIfNeeded(option)}
                 required={question.is_required}
@@ -353,10 +366,11 @@ function QuestionField({
         </div>
       ) : null}
       {question.type === "checkbox" ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {options.map((option) => (
-            <label className="flex items-center gap-2 text-sm" key={option}>
+            <label className="flex items-center gap-3 text-base" key={option}>
               <input
+                className="h-5 w-5"
                 name={name}
                 onChange={() => branchIfNeeded(option)}
                 type="checkbox"
@@ -380,7 +394,7 @@ function getPattern(validationType: string) {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button className="w-full" disabled={pending} type="submit">
+    <Button className="h-12 w-full text-base" disabled={pending} type="submit">
       {pending ? "送信中..." : "回答を送信"}
     </Button>
   );

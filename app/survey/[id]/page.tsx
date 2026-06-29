@@ -77,19 +77,21 @@ export default async function PublicSurveyPage({
     (a: { order: number }, b: { order: number }) => a.order - b.order
   );
   const isPersonalLineUrl = searchParams.source === "personal-line";
-  const canAnswer = survey.is_active && (survey.is_visible !== false || isPersonalLineUrl);
+  const canAnswer = isPersonalLineUrl || (survey.is_active && survey.is_visible !== false);
 
   return (
     <main className="min-h-screen bg-background px-4 py-8">
       {survey.custom_css ? <style>{survey.custom_css}</style> : null}
-      <div className="survey-page mx-auto max-w-2xl space-y-6">
+      <div className="survey-page mx-auto max-w-3xl space-y-6">
         <div>
-          <p className="text-sm font-medium text-primary">薬学生LINE採用CRM</p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-normal">
+          <p className="text-base font-semibold text-primary">薬学生LINE採用CRM</p>
+          <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-normal sm:text-4xl">
             {survey.public_title || survey.title}
           </h1>
           {survey.description ? (
-            <p className="mt-2 text-sm text-muted-foreground">{survey.description}</p>
+            <p className="mt-5 whitespace-pre-line text-base leading-8 text-muted-foreground">
+              {survey.description}
+            </p>
           ) : null}
         </div>
 

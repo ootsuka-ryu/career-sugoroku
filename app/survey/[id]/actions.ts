@@ -36,7 +36,7 @@ export async function submitPublicSurvey(
   const parsed = submitSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return { ok: false, message: "回答情報を確認してください。" };
+    return { ok: false, message: "入力内容を確認してください。" };
   }
 
   const input = parsed.data;
@@ -77,7 +77,7 @@ export async function submitPublicSurvey(
   }
 
   const isPersonalLineUrl = input.source === "personal-line";
-  if (!survey.is_active || (survey.is_visible === false && !isPersonalLineUrl)) {
+  if (!isPersonalLineUrl && (!survey.is_active || survey.is_visible === false)) {
     return { ok: false, message: "このアンケートは現在公開されていません。" };
   }
 
@@ -126,7 +126,7 @@ export async function submitPublicSurvey(
     ) {
       return {
         ok: false,
-        message: `必須項目「${question.label}」を入力してください。`
+        message: `「${question.label}」を入力してください。`
       };
     }
 
@@ -168,12 +168,7 @@ export async function submitPublicSurvey(
   if (student) {
     await applyProfileUpdates(supabase, student.id, questions, answers);
     await applyTagRules(supabase, student.id, questions, answers);
-    await recordSurveyParticipation(
-      supabase,
-      student.id,
-      surveyTitle,
-      response.id
-    );
+    await recordSurveyParticipation(supabase, student.id, surveyTitle, response.id);
   }
 
   await notifySurveyResponse(
@@ -218,7 +213,7 @@ async function recordSurveyParticipation(
       .eq("id", studentId)
       .maybeSingle();
 
-    const nextLine = `${dateText}：${normalizedTitle}の申し込みあり。参加案内・日程確認を行う。`;
+    const nextLine = `${dateText}：${normalizedTitle}の申し込みあり。参加枠・日程確認を行う。`;
     const current = String(student?.manual_next_action ?? "").trim();
 
     await supabase
@@ -234,8 +229,8 @@ async function recordSurveyParticipation(
       student_id: studentId,
       staff_id: null,
       action_type: "event",
-      title: "実施済アクション",
-      body: `${dateText}：${normalizedTitle}に回答。イベント参加後の対応として自動転記しました。`,
+      title: "実施済みイベント回答",
+      body: `${dateText}：${normalizedTitle}に回答。イベント参加後の対応として自動記録しました。`,
       executed_at: now.toISOString()
     });
   }
@@ -244,11 +239,11 @@ async function recordSurveyParticipation(
 }
 
 function isEventLikeSurvey(title: string) {
-  return /イベント|説明会|見学|座談会|交流会|インターン|セミナー|申込|申し込み|参加/.test(title);
+  return /イベント|説明会|見学|座談|交流会|インターン|セミナー|申込|申し込み|参加/.test(title);
 }
 
 function isApplicationSurvey(title: string) {
-  return /申込|申し込み|予約|参加希望|説明会|見学|座談会|交流会|インターン|セミナー/.test(title);
+  return /申込|申し込み|予約|参加希望|説明会|見学|座談|交流会|インターン|セミナー/.test(title);
 }
 
 function isPostEventSurvey(title: string) {
@@ -382,10 +377,10 @@ async function notifySurveyResponse(
   const respondentText = respondentName
     ? `回答者: ${respondentName}`
     : studentId
-      ? "回答者: 学生情報に紐づき済み"
-      : "回答者: 未紐付け";
+      ? "回答者: 学生情報に紐づけ済み"
+      : "回答者: 未紐づけ";
   const mergeText = needsManualMerge
-    ? "\n学生情報と未紐付けです。回答結果から紐付けしてください。"
+    ? "\n学生情報と未紐づけです。回答結果から紐づけしてください。"
     : "";
 
   await createNotificationsForStaff(supabase, targets, {
