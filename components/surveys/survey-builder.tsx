@@ -82,6 +82,7 @@ type QuestionItem = {
   is_visible: boolean;
   attached_image_url: string | null;
   branch_rules_jsonb: Json;
+  settings_jsonb: Json;
   tag_rules: Array<{
     tag: TagSummary | null;
     when_answer_matches_jsonb: Json;
@@ -116,6 +117,21 @@ const compactTextareaClass =
   "min-h-9 rounded border-slate-300 bg-white px-3 py-2 text-sm shadow-none focus-visible:ring-1";
 const compactSelectClass =
   "h-9 rounded border border-slate-300 bg-white px-3 text-sm shadow-none";
+
+const profileTargetOptions = [
+  { value: "real_name", label: "氏名" },
+  { value: "display_name", label: "システム表示名" },
+  { value: "kana", label: "カナ" },
+  { value: "university", label: "大学" },
+  { value: "graduation_year", label: "卒業年度" },
+  { value: "grade", label: "学年" },
+  { value: "phone", label: "電話番号" },
+  { value: "email", label: "メール" },
+  { value: "desired_area", label: "希望エリア" },
+  { value: "desired_job_type", label: "希望職種" }
+] as const;
+
+type ProfileTargetValue = (typeof profileTargetOptions)[number]["value"];
 
 const questionTypeIcons: Record<QuestionType, ReactNode> = {
   heading: <Heading2 className="h-4 w-4" />,
@@ -638,6 +654,7 @@ function QuestionEditFields({
     questionType === "radio" || questionType === "checkbox" || questionType === "select";
   const isHeading = questionType === "heading";
   const isNewQuestion = heading.startsWith("新しい");
+  const profileTargets = getProfileTargets(defaultQuestion?.settings_jsonb);
 
   return (
     <div>
@@ -736,6 +753,15 @@ function QuestionEditFields({
           </>
         )}
 
+        {!isHeading ? (
+          <div className="grid gap-3 md:grid-cols-[9rem_1fr] md:items-start">
+            <Label className="pt-2 md:text-right">回答の登録先</Label>
+            <ProfileTargetPicker defaultValue={profileTargets} />
+          </div>
+        ) : (
+          <input name="profile_targets_text" type="hidden" value="" />
+        )}
+
         {needsOptions ? (
           <div className="grid gap-3 md:grid-cols-[9rem_1fr] md:items-start">
             <Label className="pt-2 md:text-right">選択肢</Label>
@@ -790,6 +816,73 @@ function QuestionEditFields({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function getProfileTargets(settings: Json | undefined | null): ProfileTargetValue[] {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return [];
+
+  const record = settings as { profileTargets?: unknown; profile_targets?: unknown };
+  const raw = record.profileTargets ?? record.profile_targets;
+  if (!Array.isArray(raw)) return [];
+
+  const allowed = new Set(profileTargetOptions.map((option) => option.value));
+  return raw.filter(
+    (value): value is ProfileTargetValue =>
+      typeof value === "string" && allowed.has(value as ProfileTargetValue)
+  );
+}
+
+function ProfileTargetPicker({ defaultValue }: { defaultValue: ProfileTargetValue[] }) {
+  const [selected, setSelected] = useState<ProfileTargetValue[]>(defaultValue);
+
+  const toggle = (value: ProfileTargetValue) => {
+    setSelected((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+    );
+  };
+
+  return (
+    <div className="rounded border bg-muted/30 p-3">
+      <input name="profile_targets_text" type="hidden" value={selected.join("\n")} />
+      {selected.length > 0 ? (
+        <div className="mb-2 overflow-hidden rounded border bg-background">
+          {selected.map((value) => {
+            const option = profileTargetOptions.find((item) => item.value === value);
+            return (
+              <div
+                className="flex items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0"
+                key={value}
+              >
+                <span className="text-sm font-medium">{option?.label ?? value}</span>
+                <Button onClick={() => toggle(value)} size="sm" type="button" variant="outline">
+                  削除
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mb-2 text-sm text-muted-foreground">登録先は未設定です。</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {profileTargetOptions.map((option) => (
+          <Button
+            disabled={selected.includes(option.value)}
+            key={option.value}
+            onClick={() => toggle(option.value)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            + {option.label}
+          </Button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        選んだ項目は、回答送信時に学生情報へ上書き反映されます。
+      </p>
     </div>
   );
 }

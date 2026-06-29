@@ -61,6 +61,7 @@ export async function submitPublicSurvey(
         is_required,
         is_visible,
         validation_type,
+        settings_jsonb,
         survey_question_tags(
           tag_id,
           when_answer_matches_jsonb

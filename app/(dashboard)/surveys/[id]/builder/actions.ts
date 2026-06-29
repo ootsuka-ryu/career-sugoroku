@@ -55,7 +55,8 @@ const questionSchema = z.object({
   is_visible: z.string().optional(),
   attached_image_url: z.string().trim().url().optional().or(z.literal("")),
   branch_rules_text: z.string().trim().optional(),
-  tag_rules_text: z.string().trim().optional()
+  tag_rules_text: z.string().trim().optional(),
+  profile_targets_text: z.string().trim().optional()
 });
 
 const updateQuestionSchema = questionSchema.extend({
@@ -190,7 +191,7 @@ export async function duplicateSurveySection(
   const { data: questions } = await supabase
     .from("survey_questions")
     .select(
-      "type, label, description, placeholder, validation_type, options_jsonb, is_required, is_visible, attached_image_url, branch_rules_jsonb, order"
+      "type, label, description, placeholder, validation_type, options_jsonb, is_required, is_visible, attached_image_url, branch_rules_jsonb, settings_jsonb, order"
     )
     .eq("section_id", parsed.data.section_id)
     .order("order");
@@ -210,7 +211,8 @@ export async function duplicateSurveySection(
         is_required: question.is_required,
         is_visible: question.is_visible,
         attached_image_url: question.attached_image_url,
-        branch_rules_jsonb: question.branch_rules_jsonb ?? []
+        branch_rules_jsonb: question.branch_rules_jsonb ?? [],
+        settings_jsonb: question.settings_jsonb ?? {}
       }))
     );
   }
@@ -334,6 +336,7 @@ export async function addSurveyQuestion(
       placeholder: input.placeholder || null,
       validation_type: input.validation_type,
       options_jsonb: parseOptions(input.options_text),
+      settings_jsonb: buildQuestionSettings(input.profile_targets_text),
       is_required: input.is_required === "on",
       is_visible: input.is_visible !== "off",
       attached_image_url: input.attached_image_url || null,
@@ -375,6 +378,7 @@ export async function updateSurveyQuestion(
       placeholder: input.placeholder || null,
       validation_type: input.validation_type,
       options_jsonb: parseOptions(input.options_text),
+      settings_jsonb: buildQuestionSettings(input.profile_targets_text),
       is_required: input.is_required === "on",
       is_visible: input.is_visible !== "off",
       attached_image_url: input.attached_image_url || null,
@@ -454,6 +458,31 @@ function parseOptions(value?: string) {
     .split(/\r?\n|,/)
     .map((option) => option.trim())
     .filter(Boolean);
+}
+
+const profileTargetValues = new Set([
+  "real_name",
+  "display_name",
+  "kana",
+  "university",
+  "graduation_year",
+  "grade",
+  "phone",
+  "email",
+  "desired_area",
+  "desired_job_type"
+]);
+
+function buildQuestionSettings(value?: string) {
+  const profileTargets = parseProfileTargets(value);
+  return profileTargets.length > 0 ? { profileTargets } : {};
+}
+
+function parseProfileTargets(value?: string) {
+  return (value ?? "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter((item) => profileTargetValues.has(item));
 }
 
 function parseBranchRules(value?: string) {

@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       id,
       label,
       validation_type,
+      settings_jsonb,
       survey_question_tags(
         tag_id,
         when_answer_matches_jsonb
