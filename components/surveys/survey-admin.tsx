@@ -5,6 +5,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
+  Check,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -17,17 +18,20 @@ import {
   ListChecks,
   ListFilter,
   MoreVertical,
+  Pencil,
   Plus,
   Power,
   Search,
   Send,
   Trash2,
-  Type
+  Type,
+  X
 } from "lucide-react";
 import {
   createSurvey,
   createSurveyFolder,
   moveSurveysToFolder,
+  renameSurveyFolder,
   toggleSurveyActive,
   type SurveyActionState
 } from "@/app/(dashboard)/surveys/actions";
@@ -290,6 +294,7 @@ export function SurveyAdmin({
     initialState
   );
   const [folderId, setFolderId] = useState("all");
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [tab, setTab] = useState<"options" | "design" | "auto">("options");
@@ -556,9 +561,13 @@ export function SurveyAdmin({
             <FolderButton
               active={folderId === folder.id}
               count={counts.get(folder.id) ?? 0}
+              editing={editingFolderId === folder.id}
+              folder={folder}
               key={folder.id}
               label={folder.name}
+              onCancelEdit={() => setEditingFolderId(null)}
               onClick={() => selectFolder(folder.id)}
+              onEdit={() => setEditingFolderId(folder.id)}
             />
           ))}
         </nav>
@@ -1107,28 +1116,92 @@ function FolderButton({
   active,
   label,
   count,
-  onClick
+  onClick,
+  folder,
+  editing = false,
+  onEdit,
+  onCancelEdit
 }: {
   active: boolean;
   label: string;
   count: number;
   onClick: () => void;
+  folder?: FolderItem;
+  editing?: boolean;
+  onEdit?: () => void;
+  onCancelEdit?: () => void;
 }) {
+  if (editing && folder && onCancelEdit) {
+    return <RenameFolderForm folder={folder} onDone={onCancelEdit} />;
+  }
+
   return (
-    <button
+    <div
       className={
         active
           ? "flex w-full items-center gap-2 rounded-md bg-amber-50 px-2 py-2 text-left text-sm font-medium"
           : "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-secondary"
       }
-      onClick={onClick}
-      type="button"
     >
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
-      <Folder className="h-4 w-4 text-amber-500" />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={onClick} type="button">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <Folder className="h-4 w-4 text-amber-500" />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+      </button>
       <span className="text-xs text-muted-foreground">{count}</span>
-    </button>
+      {folder && onEdit ? (
+        <Button
+          aria-label={`${label}の名前を変更`}
+          className="h-7 w-7 shrink-0"
+          onClick={onEdit}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function RenameFolderForm({ folder, onDone }: { folder: FolderItem; onDone: () => void }) {
+  const [state, formAction] = useFormState(renameSurveyFolder, initialState);
+
+  useEffect(() => {
+    if (state.ok) onDone();
+  }, [onDone, state.ok]);
+
+  return (
+    <form action={formAction} className="rounded-md bg-amber-50 p-2">
+      <input name="folder_id" type="hidden" value={folder.id} />
+      <div className="flex items-center gap-1">
+        <Input
+          autoFocus
+          className="h-8 flex-1"
+          defaultValue={folder.name}
+          name="name"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") onDone();
+          }}
+        />
+        <RenameFolderSubmitButton />
+        <Button aria-label="キャンセル" className="h-8 w-8" onClick={onDone} size="icon" type="button" variant="ghost">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
+function RenameFolderSubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button aria-label="保存" className="h-8 w-8" disabled={pending} size="icon" type="submit" variant="outline">
+      <Check className="h-4 w-4" />
+    </Button>
   );
 }
 

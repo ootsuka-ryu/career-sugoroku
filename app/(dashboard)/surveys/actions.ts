@@ -34,6 +34,11 @@ const folderSchema = z.object({
   description: z.string().trim().optional()
 });
 
+const folderRenameSchema = z.object({
+  folder_id: z.string().uuid(),
+  name: z.string().trim().min(1, "フォルダ名を入力してください。")
+});
+
 type DraftPayload = {
   sections?: Array<{
     id?: string;
@@ -142,6 +147,37 @@ export async function createSurveyFolder(
 
   revalidatePath("/surveys");
   return { ok: true, message: "フォルダを作成しました。" };
+}
+
+export async function renameSurveyFolder(
+  _prevState: SurveyActionState = initialState,
+  formData: FormData
+): Promise<SurveyActionState> {
+  const parsed = folderRenameSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.errors[0]?.message ?? "フォルダ名を確認してください。"
+    };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, message: "ログインが必要です。" };
+
+  const { error } = await supabase
+    .from("survey_folders")
+    .update({ name: parsed.data.name })
+    .eq("id", parsed.data.folder_id);
+
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/surveys");
+  return { ok: true, message: "フォルダ名を変更しました。" };
 }
 
 export async function moveSurveysToFolder(
