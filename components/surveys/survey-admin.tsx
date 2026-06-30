@@ -1044,7 +1044,7 @@ function ChoiceListEditor({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="space-y-3">
         {normalizedChoices.map((choice, index) => (
-          <div className="rounded-md border bg-background p-3" key={`${index}-${choice.label}`}>
+          <div className="rounded-md border bg-background p-3" key={index}>
             <div className="grid gap-2 md:grid-cols-[5rem_1fr_auto] md:items-center">
               <span className="rounded bg-secondary px-2 py-1 text-center text-sm">
                 選択肢{index + 1}
