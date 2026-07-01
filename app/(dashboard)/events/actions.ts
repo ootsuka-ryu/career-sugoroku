@@ -183,6 +183,7 @@ export async function addEventParticipant(formData: FormData) {
   });
 
   if (event) {
+    await updateStudentEventProgress(supabase, input.student_id, event, input.status);
     await maybeHandleParticipantMessaging({
       supabase,
       event,
@@ -225,6 +226,7 @@ export async function updateEventParticipant(formData: FormData) {
   });
 
   if (event) {
+    await updateStudentEventProgress(supabase, input.student_id, event, input.status);
     await maybeHandleParticipantMessaging({
       supabase,
       event,
@@ -319,6 +321,7 @@ export async function updateEventMessageSettings(
 const EVENT_SELECT_FOR_MESSAGES = [
   "id",
   "title",
+  "event_type",
   "starts_at",
   "location",
   "signup_message_enabled",
@@ -330,6 +333,7 @@ const EVENT_SELECT_FOR_MESSAGES = [
 type EventForMessages = {
   id: string;
   title: string;
+  event_type: string | null;
   starts_at: string | null;
   location: string | null;
   signup_message_enabled?: boolean | null;
@@ -349,7 +353,7 @@ async function fetchEventForMessages(supabase: any, eventId: string): Promise<Ev
 
   const fallback = await supabase
     .from("recruiting_events")
-    .select("id, title, starts_at, location")
+    .select("id, title, event_type, starts_at, location")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -362,6 +366,36 @@ async function fetchEventForMessages(supabase: any, eventId: string): Promise<Ev
         reminder_message_template: null
       }
     : null;
+}
+
+async function updateStudentEventProgress(
+  supabase: any,
+  studentId: string,
+  event: EventForMessages,
+  status: string
+) {
+  const update = getGodaiEventDateUpdate(event, status);
+  if (!update) return;
+
+  const { error } = await supabase.from("students").update(update).eq("id", studentId);
+  if (error?.message?.includes("event_") || error?.message?.includes("funnel_")) return;
+}
+
+function getGodaiEventDateUpdate(event: EventForMessages, status: string) {
+  if (!isSignupStatus(status)) return null;
+
+  const date = event.starts_at ? event.starts_at.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const haystack = `${event.title ?? ""} ${event.event_type ?? ""}`;
+  const update: Record<string, boolean | string> = { funnel_is: true, funnel_next: true };
+
+  if (/H&B|Ｈ＆Ｂ|H＆B|フェス/.test(haystack)) update.event_hb_fes_date = date;
+  else if (/姫路|日帰り|ツアー/.test(haystack)) update.event_himeji_tour_date = date;
+  else if (/リアルトーク/.test(haystack)) update.event_real_talk_date = date;
+  else if (/個別会社説明会|会社説明会|説明会/.test(haystack)) update.event_company_session_date = date;
+  else if (/社員交流会|交流会/.test(haystack)) update.event_employee_exchange_date = date;
+  else return null;
+
+  return update;
 }
 
 async function maybeHandleParticipantMessaging({

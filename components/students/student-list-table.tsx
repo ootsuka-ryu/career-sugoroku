@@ -512,7 +512,7 @@ export function StudentListTable({
           />
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1080px] table-fixed">
+          <Table className="min-w-[1500px] table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[5.5rem] whitespace-nowrap">卒年度</TableHead>
@@ -527,6 +527,11 @@ export function StudentListTable({
                 <TableHead className="w-[5.75rem] whitespace-nowrap">母集団日</TableHead>
                 <TableHead className="w-[8.5rem] whitespace-nowrap">ネクスト</TableHead>
                 <TableHead className="w-[12rem] whitespace-nowrap">AI判定</TableHead>
+                <TableHead className="w-[6.5rem] whitespace-nowrap">H&Bフェス</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">姫路ツアー</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">リアルトーク</TableHead>
+                <TableHead className="w-[7.5rem] whitespace-nowrap">個別説明会</TableHead>
+                <TableHead className="w-[7rem] whitespace-nowrap">社員交流会</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -606,12 +611,27 @@ export function StudentListTable({
                           ) : null}
                         </div>
                       </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatDateOnly(student.event_hb_fes_date) || "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatDateOnly(student.event_himeji_tour_date) || "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatDateOnly(student.event_real_talk_date) || "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatDateOnly(student.event_company_session_date) || "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatDateOnly(student.event_employee_exchange_date) || "-"}
+                      </TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={12}>
+                  <TableCell className="h-28 text-center text-muted-foreground" colSpan={17}>
                     条件に合う学生がいません。
                   </TableCell>
                 </TableRow>

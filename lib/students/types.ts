@@ -59,6 +59,11 @@ export type StudentListItem = {
   funnel_offer: boolean;
   funnel_offer_accepted: boolean;
   funnel_hired: boolean;
+  event_hb_fes_date: string | null;
+  event_himeji_tour_date: string | null;
+  event_real_talk_date: string | null;
+  event_company_session_date: string | null;
+  event_employee_exchange_date: string | null;
   tags: TagSummary[];
   assignees: StaffSummary[];
 };

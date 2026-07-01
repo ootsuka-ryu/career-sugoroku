@@ -238,7 +238,12 @@ async function applyProfileUpdates({
     "funnel_selection",
     "funnel_offer",
     "funnel_offer_accepted",
-    "funnel_hired"
+    "funnel_hired",
+    "event_hb_fes_date",
+    "event_himeji_tour_date",
+    "event_real_talk_date",
+    "event_company_session_date",
+    "event_employee_exchange_date"
   ];
 
   for (const key of allowedKeys) {
@@ -672,6 +677,8 @@ async function fetchStudentContext(
           funnel_entry, funnel_uncontacted, funnel_pool, funnel_next, funnel_is,
           funnel_pharmacist_interview, funnel_selection, funnel_offer,
           funnel_offer_accepted, funnel_hired,
+          event_hb_fes_date, event_himeji_tour_date, event_real_talk_date,
+          event_company_session_date, event_employee_exchange_date,
           student_tags(tags(name)),
           student_assignees(staff_users!student_assignees_staff_id_fkey(name))
         `

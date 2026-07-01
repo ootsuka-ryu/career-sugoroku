@@ -33,6 +33,11 @@ export type RecordingProfileUpdates = {
   funnel_offer?: boolean;
   funnel_offer_accepted?: boolean;
   funnel_hired?: boolean;
+  event_hb_fes_date?: string | null;
+  event_himeji_tour_date?: string | null;
+  event_real_talk_date?: string | null;
+  event_company_session_date?: string | null;
+  event_employee_exchange_date?: string | null;
 };
 
 export type RecordingSummary = {
@@ -96,7 +101,7 @@ export async function summarizeRecordingWithClaude({
           "参加イベント、タグ、予定、プロフィールに反映できるものは構造化して返してください。",
           "返答はMarkdownやコードフェンスを付けず、JSONオブジェクトだけにしてください。",
           "JSON形式: {\"summary\":\"短い要約\",\"nextActions\":[\"誰がいつ何をするか\"],\"tagCandidates\":[\"追加タグ\"],\"urgent\":false,\"profileUpdates\":{},\"eventUpdates\":[{\"eventTitle\":\"店舗見学\",\"eventDate\":\"2026-06-10\",\"status\":\"参加\",\"memo\":\"\"}],\"scheduleUpdates\":[{\"title\":\"電話する\",\"dueAt\":\"2026-06-07T10:00:00+09:00\",\"memo\":\"\"}],\"needsStudentConfirmation\":false,\"confirmationReason\":\"\",\"mentionedStudentName\":null}",
-          "profileUpdatesで使えるキー: real_name,kana,university,grade,graduation_year,phone,email,desired_job_type,desired_area,motivation_rank,candidate_stage,first_contact_method,first_contact_date,manual_next_action,funnel_next,funnel_is,funnel_pharmacist_interview,funnel_selection,funnel_offer,funnel_offer_accepted,funnel_hired。",
+          "profileUpdatesで使えるキー: real_name,kana,university,grade,graduation_year,phone,email,desired_job_type,desired_area,motivation_rank,candidate_stage,first_contact_method,first_contact_date,manual_next_action,funnel_next,funnel_is,funnel_pharmacist_interview,funnel_selection,funnel_offer,funnel_offer_accepted,funnel_hired,event_hb_fes_date,event_himeji_tour_date,event_real_talk_date,event_company_session_date,event_employee_exchange_date。",
           "eventUpdates.statusは必ず 申込,参加,欠席,キャンセル のどれかにしてください。"
         ].join("\n"),
         messages: [
@@ -184,7 +189,12 @@ function normalizeProfileUpdates(value: unknown): RecordingProfileUpdates {
     "candidate_stage",
     "first_contact_method",
     "first_contact_date",
-    "manual_next_action"
+    "manual_next_action",
+    "event_hb_fes_date",
+    "event_himeji_tour_date",
+    "event_real_talk_date",
+    "event_company_session_date",
+    "event_employee_exchange_date"
   ];
   for (const key of stringKeys) {
     const text = cleanString(row[key]);

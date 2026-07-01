@@ -66,6 +66,7 @@ export default async function DashboardPage({
         last_inbound_at,
         last_outbound_at,
         created_at,
+        first_contact_method,
         first_contact_date,
         funnel_entry,
         funnel_pool,
@@ -76,6 +77,11 @@ export default async function DashboardPage({
         funnel_offer,
         funnel_offer_accepted,
         funnel_hired,
+        event_hb_fes_date,
+        event_himeji_tour_date,
+        event_real_talk_date,
+        event_company_session_date,
+        event_employee_exchange_date,
         student_tags(tags(name))
       `
       )

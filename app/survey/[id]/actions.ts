@@ -235,7 +235,12 @@ async function recordSurveyParticipation(
     });
   }
 
-  await applyRecruitingFunnelFromSurveyTitle(supabase, studentId, normalizedTitle);
+  await applyRecruitingFunnelFromSurveyTitle(
+    supabase,
+    studentId,
+    normalizedTitle,
+    now.toISOString().slice(0, 10)
+  );
 }
 
 function isEventLikeSurvey(title: string) {
@@ -254,8 +259,13 @@ function formatJapaneseDate(date: Date) {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-async function applyRecruitingFunnelFromSurveyTitle(supabase: any, studentId: string, title: string) {
-  const update: Record<string, boolean> = {};
+async function applyRecruitingFunnelFromSurveyTitle(
+  supabase: any,
+  studentId: string,
+  title: string,
+  submittedDate: string
+) {
+  const update: Record<string, boolean | string> = {};
 
   if (isApplicationSurvey(title) || isEventLikeSurvey(title)) update.funnel_next = true;
   if (/姫路|ツアー|オンラインイベント|H&B|会社説明会|説明会|インターン|IS/.test(title)) {
@@ -267,10 +277,30 @@ async function applyRecruitingFunnelFromSurveyTitle(supabase: any, studentId: st
   if (/内定内諾|内諾/.test(title)) update.funnel_offer_accepted = true;
   if (/入社/.test(title)) update.funnel_hired = true;
 
+  Object.assign(update, getGodaiEventDateUpdateFromText(title, submittedDate));
+
   if (Object.keys(update).length === 0) return;
 
   const { error } = await supabase.from("students").update(update).eq("id", studentId);
-  if (error?.message?.includes("funnel_")) return;
+  if (error?.message?.includes("funnel_") || error?.message?.includes("event_")) return;
+}
+
+function getGodaiEventDateUpdateFromText(text: string, date: string) {
+  const update: Record<string, boolean | string> = {};
+
+  if (/H&B|Ｈ＆Ｂ|H＆B|フェス/.test(text)) update.event_hb_fes_date = date;
+  else if (/姫路|日帰り|ツアー|蟋ｫ霍ｯ|繝・い繝ｼ/.test(text)) update.event_himeji_tour_date = date;
+  else if (/リアルトーク/.test(text)) update.event_real_talk_date = date;
+  else if (/個別会社説明会|会社説明会|説明会|莨夂､ｾ隱ｬ譏惹ｼ嘶隱ｬ譏惹ｼ・/.test(text)) {
+    update.event_company_session_date = date;
+  } else if (/社員交流会|交流会/.test(text)) update.event_employee_exchange_date = date;
+
+  if (Object.keys(update).length > 0) {
+    update.funnel_is = true;
+    update.funnel_next = true;
+  }
+
+  return update;
 }
 
 async function findSurveyStudent(

@@ -50,14 +50,24 @@ export function normalizeStudentListItem(row: any): StudentListItem {
     funnel_uncontacted: row.funnel_uncontacted ?? !row.last_inbound_at,
     funnel_pool: row.funnel_pool ?? Boolean(row.last_inbound_at || row.last_outbound_at),
     funnel_next: row.funnel_next ?? hasMatchingTag(row.student_tags, ["ネクスト"]),
-    funnel_is: row.funnel_is ?? hasMatchingTag(row.student_tags, ["IS", "インターン", "ツアー", "説明会", "交流"]),
+    funnel_is:
+      row.funnel_is ??
+      (hasGodaiEventDate(row) ||
+        hasMatchingTag(row.student_tags, ["IS", "インターン", "ツアー", "説明会", "交流"])),
     funnel_pharmacist_interview:
-      row.funnel_pharmacist_interview ?? hasMatchingTag(row.student_tags, ["薬剤師インタビュー", "インタビュー"]),
+      row.funnel_pharmacist_interview ??
+      hasMatchingTag(row.student_tags, ["薬剤師インタビュー", "インタビュー"]),
     funnel_selection:
       row.funnel_selection ?? ["専願", "併願"].includes(String(row.motivation_rank ?? "")),
     funnel_offer: row.funnel_offer ?? hasMatchingTag(row.student_tags, ["内定出し", "内定"]),
-    funnel_offer_accepted: row.funnel_offer_accepted ?? hasMatchingTag(row.student_tags, ["内定内諾", "内諾"]),
+    funnel_offer_accepted:
+      row.funnel_offer_accepted ?? hasMatchingTag(row.student_tags, ["内定内諾", "内諾"]),
     funnel_hired: row.funnel_hired ?? hasMatchingTag(row.student_tags, ["入社"]),
+    event_hb_fes_date: row.event_hb_fes_date ?? null,
+    event_himeji_tour_date: row.event_himeji_tour_date ?? null,
+    event_real_talk_date: row.event_real_talk_date ?? null,
+    event_company_session_date: row.event_company_session_date ?? null,
+    event_employee_exchange_date: row.event_employee_exchange_date ?? null,
     tags: extractTags(row.student_tags),
     assignees: extractAssignees(row.student_assignees)
   };
@@ -83,6 +93,16 @@ function extractAssignees(relations: RelationList<StudentAssigneeRelation>) {
   return (relations ?? [])
     .map((relation) => relation.staff_users)
     .filter(Boolean) as StaffSummary[];
+}
+
+function hasGodaiEventDate(row: any) {
+  return Boolean(
+    row.event_hb_fes_date ||
+      row.event_himeji_tour_date ||
+      row.event_real_talk_date ||
+      row.event_company_session_date ||
+      row.event_employee_exchange_date
+  );
 }
 
 function hasMatchingTag(relations: RelationList<StudentTagRelation>, keywords: string[]) {
