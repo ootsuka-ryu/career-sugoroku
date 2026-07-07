@@ -236,12 +236,12 @@ export default async function StudentsPage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <SummaryCard
-          description={`${graduationYearFilter}卒または卒年未登録の総人数`}
+          description={`${graduationYearFilter}卒として登録されている学生`}
           label="学生数"
           value={`${summaryStudentsCount}名`}
         />
         <SummaryCard
-          description="専願、併願、A、B または旧基準4以上"
+          description="専願、併願、A、B または旧志望度4以上"
           label="ゴダイへの確度"
           value={`${highMotivationCount}名`}
         />
@@ -282,13 +282,12 @@ async function fetchStudentsPage(
   const to = from + STUDENT_PAGE_SIZE - 1;
 
   if (trimmedQuery) {
-    const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
     const directFilter = buildStudentDirectSearchFilter(trimmedQuery);
     const directSearchPromise = directFilter
       ? supabase
           .from("students")
           .select(STUDENT_SEARCH_SELECT)
-          .or(graduationScope)
+          .eq("graduation_year", graduationYear)
           .or(directFilter)
           .order("updated_at", { ascending: false })
           .limit(STUDENT_SEARCH_DIRECT_LIMIT)
@@ -299,7 +298,7 @@ async function fetchStudentsPage(
         supabase
           .from("students")
           .select(STUDENT_SEARCH_SELECT)
-          .or(graduationScope)
+          .eq("graduation_year", graduationYear)
           .order("updated_at", { ascending: false })
           .limit(STUDENT_SEARCH_RECENT_LIMIT),
         fetchRelatedSearchStudentIds(supabase, trimmedQuery)
@@ -324,7 +323,11 @@ async function fetchStudentsPage(
     });
 
     const relatedMissingIds = Array.from(relatedStudentIds).filter((id) => !candidates.has(id));
-    const allMatchedIds = [...matchedIds, ...relatedMissingIds];
+    const scopedRelatedMissingIds =
+      relatedMissingIds.length > 0
+        ? await filterStudentIdsByGraduationYear(supabase, relatedMissingIds, graduationYear)
+        : [];
+    const allMatchedIds = [...matchedIds, ...scopedRelatedMissingIds];
     const pageIds = allMatchedIds.slice(from, to + 1);
 
     if (pageIds.length === 0) {
@@ -338,6 +341,7 @@ async function fetchStudentsPage(
     const { data: pageData, error: pageError } = await supabase
       .from("students")
       .select(STUDENTS_SELECT)
+      .eq("graduation_year", graduationYear)
       .in("id", pageIds);
 
     if (pageError) {
@@ -356,15 +360,14 @@ async function fetchStudentsPage(
     };
   }
 
-  const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
   const [pageResult, countResult] = await Promise.all([
     supabase
       .from("students")
       .select(STUDENTS_SELECT)
-      .or(graduationScope)
+      .eq("graduation_year", graduationYear)
       .order("updated_at", { ascending: false })
       .range(from, to),
-    supabase.from("students").select("id", { count: "exact", head: true }).or(graduationScope)
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("graduation_year", graduationYear)
   ]);
 
   return {
@@ -372,6 +375,24 @@ async function fetchStudentsPage(
     error: pageResult.error ?? null,
     count: countResult.count ?? pageResult.data?.length ?? 0
   };
+}
+
+async function filterStudentIdsByGraduationYear(
+  supabase: ReturnType<typeof createClient>,
+  ids: string[],
+  graduationYear: number
+) {
+  const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("students")
+    .select("id")
+    .eq("graduation_year", graduationYear)
+    .in("id", uniqueIds);
+
+  if (error) return [];
+  const scopedIds = new Set(((data ?? []) as Array<{ id: string | null }>).map((row) => row.id).filter(Boolean));
+  return uniqueIds.filter((id) => scopedIds.has(id));
 }
 
 function buildStudentDirectSearchFilter(rawQuery: string) {
@@ -462,22 +483,21 @@ function matchesStudentSearch(
 }
 
 async function fetchStudentStats(supabase: ReturnType<typeof createClient>, graduationYear: number) {
-  const graduationScope = `graduation_year.is.null,graduation_year.eq.${graduationYear}`;
   const highMotivationScope = "motivation_rank.in.(専願,併願,A,B),motivation_level.gte.4";
   const [{ count, error: countError }, { count: highMotivationCount }, { data }] = await Promise.all([
     supabase
       .from("students")
       .select("id", { count: "exact", head: true })
-      .or(graduationScope),
+      .eq("graduation_year", graduationYear),
     supabase
       .from("students")
       .select("id", { count: "exact", head: true })
-      .or(graduationScope)
+      .eq("graduation_year", graduationYear)
       .or(highMotivationScope),
     supabase
       .from("students")
       .select("id, motivation_rank, motivation_level, last_outbound_at, last_inbound_at")
-      .or(graduationScope)
+      .eq("graduation_year", graduationYear)
       .not("last_outbound_at", "is", null)
       .order("last_outbound_at", { ascending: false })
       .limit(STUDENT_REPLY_STATS_LIMIT)

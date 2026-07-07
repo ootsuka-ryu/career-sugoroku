@@ -1,492 +1,357 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  CalendarClock,
-  MessageSquareWarning,
-  Sparkles,
-  UsersRound
-} from "lucide-react";
-import { AiNextActionRunner } from "@/components/dashboard/ai-next-action-runner";
-import { EmptyState } from "@/components/dashboard/empty-state";
-import { MetricCard } from "@/components/dashboard/metric-card";
+import { redirect } from "next/navigation";
+import { LineChart, MessageCircle, Users } from "lucide-react";
+
 import { RecruitingGoalBoard } from "@/components/dashboard/recruiting-goal-board";
 import { SaveSnapshotButton } from "@/components/dashboard/save-snapshot-button";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { localizeSampleText } from "@/lib/display/localize";
-import { daysSince, formatDateTime } from "@/lib/format";
 import {
-  formatRate,
   getPreviousYearMonthlyCounts,
   recruitingMetrics,
   type RecruitingMetricCounts
 } from "@/lib/recruiting/funnel";
 import { calculateRecruitingMetrics } from "@/lib/recruiting/metrics";
 import { createClient } from "@/lib/supabase/server";
-import { getMotivationRankLabel } from "@/lib/students/options";
 
-type TopStudent = {
-  id: string;
-  display_name: string | null;
-  real_name: string | null;
-  university: string | null;
-  motivation_level: number | null;
-  motivation_rank: string | null;
-  last_inbound_at: string | null;
-  last_outbound_at: string | null;
-  ai_next_action: string | null;
-  updated_at: string;
+type PageProps = {
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 };
 
-export default async function DashboardPage({
-  searchParams
-}: {
-  searchParams?: { graduationYear?: string };
-}) {
-  const supabase = createClient();
-  const [
-    allStudentsResult,
-    studentsCountResult,
-    unreadMessagesResult,
-    scheduledBroadcastsResult,
-    topStudentsResult,
-    waitingStudentsResult,
-    snapshotsResult
-  ] = await Promise.all([
-    supabase
-      .from("students")
-      .select(
-        `
-        id,
-        graduation_year,
-        manual_next_action,
-        ai_next_action,
-        status,
-        motivation_rank,
-        last_inbound_at,
-        last_outbound_at,
-        created_at,
-        first_contact_method,
-        first_contact_date,
-        funnel_entry,
-        funnel_pool,
-        funnel_next,
-        funnel_is,
-        funnel_pharmacist_interview,
-        funnel_selection,
-        funnel_offer,
-        funnel_offer_accepted,
-        funnel_hired,
-        event_hb_fes_date,
-        event_himeji_tour_date,
-        event_real_talk_date,
-        event_company_session_date,
-        event_employee_exchange_date,
-        student_tags(tags(name))
-      `
-      )
-      .order("updated_at", { ascending: false }),
-    supabase.from("students").select("*", { count: "exact", head: true }),
-    supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .eq("direction", "in")
-      .is("read_at", null),
-    supabase
-      .from("broadcasts")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "scheduled"),
-    supabase
-      .from("students")
-      .select(
-        "id, display_name, real_name, university, motivation_level, motivation_rank, last_inbound_at, last_outbound_at, ai_next_action, updated_at"
-      )
-      .not("ai_next_action", "is", null)
-      .order("updated_at", { ascending: false })
-      .limit(10),
-    supabase
-      .from("students")
-      .select(
-        "id, display_name, real_name, university, motivation_level, motivation_rank, last_inbound_at, last_outbound_at, ai_next_action, updated_at"
-      )
-      .not("last_outbound_at", "is", null)
-      .order("last_outbound_at", { ascending: false })
-      .limit(30),
-    (supabase as any)
-      .from("recruiting_monthly_snapshots")
-      .select("id, graduation_year, snapshot_month, metrics_jsonb, created_at")
-      .order("snapshot_month", { ascending: false })
+const DASHBOARD_STUDENT_SELECT = `
+  id,
+  graduation_year,
+  motivation_rank,
+  motivation_level,
+  status,
+  manual_next_action,
+  ai_next_action,
+  first_contact_method,
+  first_contact_date,
+  first_event_name,
+  last_inbound_at,
+  last_outbound_at,
+  line_user_id,
+  created_at,
+  updated_at,
+  notes,
+  funnel_pool,
+  funnel_next,
+  funnel_is,
+  funnel_pharmacist_interview,
+  funnel_selection,
+  funnel_offer,
+  funnel_offer_accepted,
+  funnel_hired,
+  event_hb_fes_date,
+  event_himeji_tour_date,
+  event_real_talk_date,
+  event_company_session_date,
+  event_employee_exchange_date,
+  student_tags(tags(name))
+`;
+
+const FALLBACK_STUDENT_SELECT = `
+  id,
+  graduation_year,
+  motivation_rank,
+  motivation_level,
+  status,
+  manual_next_action,
+  ai_next_action,
+  first_contact_method,
+  first_contact_date,
+  first_event_name,
+  last_inbound_at,
+  last_outbound_at,
+  line_user_id,
+  created_at,
+  updated_at,
+  notes,
+  student_tags(tags(name))
+`;
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const graduationYearParam = Array.isArray(resolvedSearchParams.graduationYear)
+    ? resolvedSearchParams.graduationYear[0]
+    : resolvedSearchParams.graduationYear;
+
+  const yearRows = await fetchGraduationYears(supabase);
+  const yearOptions = Array.from(new Set([2028, 2027, ...yearRows])).sort((a, b) => b - a);
+  const selectedGraduationYear = Number.isFinite(Number(graduationYearParam))
+    ? Number(graduationYearParam)
+    : (yearOptions[0] ?? 2028);
+
+  const [selectedStudents, selectedStudentCount, snapshots] = await Promise.all([
+    fetchStudentsForMetrics(supabase, selectedGraduationYear),
+    countStudentsByGraduationYear(supabase, selectedGraduationYear),
+    fetchSnapshots(supabase, selectedGraduationYear)
   ]);
 
-  const allStudents = allStudentsResult.data ?? [];
-  const graduationYears = Array.from(
-    new Set(
-      allStudents
-        .map((student: any) => student.graduation_year)
-        .filter((year: unknown): year is number => typeof year === "number")
-    )
-  ).sort((a, b) => a - b);
-  const selectedGraduationYear =
-    Number(searchParams?.graduationYear) ||
-    graduationYears[0] ||
-    2027;
-  const selectedStudents = allStudents.filter(
-    (student: any) => student.graduation_year === selectedGraduationYear
-  );
-  const recruitingCounts = calculateRecruitingMetrics(selectedStudents);
+  const studentCountForCard = selectedStudentCount ?? selectedStudents.length;
+  const counts = calculateRecruitingMetrics(selectedStudents);
+  counts.entry = studentCountForCard;
+
   const previousCounts = getPreviousYearMonthlyCounts(
     selectedGraduationYear,
     new Date().getMonth() + 1
   );
-  const snapshots = snapshotsResult.error
-    ? []
-    : (snapshotsResult.data ?? []).filter(
-        (snapshot: any) => snapshot.graduation_year === selectedGraduationYear
-      );
-
-  const topStudents = ((topStudentsResult.data ?? []) as TopStudent[])
-    .map((student) => ({
-      ...student,
-      priority: parsePriority(student.ai_next_action)
-    }))
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, 10);
-
-  const waitingStudents = ((waitingStudentsResult.data ?? []) as TopStudent[])
-    .filter((student) => {
-      if (!student.last_outbound_at) return false;
-      if (!student.last_inbound_at) return true;
-      return new Date(student.last_outbound_at) > new Date(student.last_inbound_at);
-    })
-    .slice(0, 10);
-
-  const metrics = [
-    {
-      title: "管理学生数",
-      value: String(studentsCountResult.count ?? 0),
-      description: "登録されている学生",
-      icon: UsersRound
-    },
-    {
-      title: "未読チャット",
-      value: String(unreadMessagesResult.count ?? 0),
-      description: "学生から届いた未読メッセージ",
-      icon: MessageSquareWarning
-    },
-    {
-      title: "今日の対応候補",
-      value: String(topStudents.length),
-      description: "AI提案がある学生 TOP 10",
-      icon: Sparkles
-    },
-    {
-      title: "予約配信",
-      value: String(scheduledBroadcastsResult.count ?? 0),
-      description: "送信待ちのLINE配信",
-      icon: CalendarClock
-    }
-  ];
+  const highCertaintyCount = selectedStudents.filter(isHighCertainty).length;
+  const waitingCount = selectedStudents.filter(isWaitingReply).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+    <main className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <Badge variant="accent">Step 8</Badge>
-          <h1 className="mt-3 text-2xl font-semibold tracking-normal">
+          <span className="rounded bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
             ダッシュボード
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            AIが学生ごとの次アクションを提案し、優先して見るべき学生をまとめます。
+          </span>
+          <h1 className="mt-3 text-3xl font-bold">採用進捗ダッシュボード</h1>
+          <p className="text-sm text-muted-foreground">
+            卒業年度ごとに、進捗サマリー・月次目標・経営会議用データを確認できます。
           </p>
         </div>
-        <AiNextActionRunner />
+        <SaveSnapshotButton graduationYear={selectedGraduationYear} />
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <MetricCard key={metric.title} {...metric} />
+      <div className="flex flex-wrap gap-2">
+        {yearOptions.map((year) => (
+          <Link
+            className={
+              selectedGraduationYear === year
+                ? "rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                : "rounded-md border bg-background px-4 py-2 text-sm font-semibold hover:bg-secondary"
+            }
+            href={`/dashboard?graduationYear=${year}`}
+            key={year}
+          >
+            {year}卒
+          </Link>
         ))}
+      </div>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          icon={<Users className="h-5 w-5 text-primary" />}
+          label="学生数"
+          subtext={`${selectedGraduationYear}卒として登録されている学生`}
+          value={`${studentCountForCard}名`}
+        />
+        <MetricCard
+          icon={<LineChart className="h-5 w-5 text-primary" />}
+          label="ゴダイへの確度"
+          subtext="専願、併願、A、B または旧志望度4以上"
+          value={`${highCertaintyCount}名`}
+        />
+        <MetricCard
+          icon={<MessageCircle className="h-5 w-5 text-primary" />}
+          label="返信待ち"
+          subtext="こちらの送信後に返信がない学生"
+          value={`${waitingCount}名`}
+        />
       </section>
 
-      <RecruitingGoalBoard
-        counts={recruitingCounts}
-        previousCounts={previousCounts}
-        selectedGraduationYear={selectedGraduationYear}
-        snapshots={snapshots}
-        students={selectedStudents.map((student: any) => ({
-          id: student.id,
-          first_contact_date: student.first_contact_date ?? null,
-          created_at: student.created_at ?? null
-        }))}
-      />
-
-      <RecruitingFunnelDashboard
-        counts={recruitingCounts}
-        graduationYears={graduationYears}
-        previousCounts={previousCounts}
-        selectedGraduationYear={selectedGraduationYear}
-        snapshots={snapshots}
-      />
-
-      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>今日対応すべき学生 TOP 10</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {topStudents.length === 0 ? (
-              <EmptyState
-                description="右上のAI更新ボタンを押すと、学生ごとの次アクションが作られます。"
-                icon={Sparkles}
-                title="AI提案はまだありません"
-              />
-            ) : (
-              <div className="space-y-3">
-                {topStudents.map((student) => (
-                  <div
-                    className="rounded-md border bg-card p-4"
-                    key={student.id}
-                  >
-                    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-medium">
-                            {localizeSampleText(student.real_name) ||
-                              localizeSampleText(student.display_name) ||
-                              "名前未設定"}
-                          </p>
-                          <Badge variant="secondary">
-                            優先度 {student.priority}
-                          </Badge>
-                          {student.motivation_level ? (
-                            <Badge variant="accent">
-                              確度 {student.motivation_level}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {localizeSampleText(student.university) || "大学未登録"} / 最終受信{" "}
-                          {formatDateTime(student.last_inbound_at)} / 最終送信{" "}
-                          {formatDateTime(student.last_outbound_at)}
-                        </p>
-                        <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
-                          {localizeSampleText(student.ai_next_action) || student.ai_next_action}
-                        </p>
-                      </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/students/${student.id}`}>詳細</Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle>返信なし候補</CardTitle>
-              <Button asChild size="sm" variant="outline">
-                <Link href="/follow-ups">一覧</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {waitingStudents.length === 0 ? (
-              <EmptyState
-                description="こちらから送ったあと、学生からの返信がない候補を表示します。"
-                icon={MessageSquareWarning}
-                title="返信待ちはありません"
-              />
-            ) : (
-              <div className="space-y-3">
-                {waitingStudents.map((student) => (
-                  <Link
-                    className="block rounded-md border p-3 transition-colors hover:bg-secondary"
-                    href={`/students/${student.id}`}
-                    key={student.id}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium">
-                        {localizeSampleText(student.real_name) ||
-                          localizeSampleText(student.display_name) ||
-                          "名前未設定"}
-                      </p>
-                      <Badge variant="outline">
-                        {daysSince(student.last_outbound_at) ?? "-"}日
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {localizeSampleText(student.university) || "大学未登録"}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-    </div>
-  );
-}
-
-function parsePriority(value: string | null) {
-  if (!value) return 0;
-  const match = value.match(/優先度\s+(\d+)/);
-  return match ? Number(match[1]) : 50;
-}
-
-function RecruitingFunnelDashboard({
-  counts,
-  graduationYears,
-  previousCounts,
-  selectedGraduationYear,
-  snapshots
-}: {
-  counts: RecruitingMetricCounts;
-  graduationYears: number[];
-  previousCounts: Partial<RecruitingMetricCounts> | null;
-  selectedGraduationYear: number;
-  snapshots: any[];
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-          <div>
-            <CardTitle>採用進捗ダッシュボード</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              スプレッドシートの進捗表と同じ考え方で、卒業年度ごとに集計します。
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <form>
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue={selectedGraduationYear}
-                name="graduationYear"
-              >
-                {graduationYears.length === 0 ? (
-                  <option value={selectedGraduationYear}>{selectedGraduationYear}年卒</option>
-                ) : (
-                  graduationYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}年卒
-                    </option>
-                  ))
-                )}
-              </select>
-              <Button className="ml-2" type="submit" variant="outline">
-                表示
-              </Button>
-            </form>
-            <SaveSnapshotButton graduationYear={selectedGraduationYear} />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="overflow-x-auto">
-          <table className="min-w-[980px] border text-sm">
-            <thead>
-              <tr className="bg-blue-700 text-white">
-                <th className="border px-3 py-2 text-left">区分</th>
-                {recruitingMetrics.map((metric) => (
-                  <th className="border px-3 py-2 text-center" key={metric.key}>
-                    {metric.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-white">
-                <th className="border px-3 py-2 text-left">{selectedGraduationYear}年卒</th>
-                {recruitingMetrics.map((metric) => (
-                  <td className="border px-3 py-2 text-center font-semibold" key={metric.key}>
-                    {counts[metric.key]}
-                  </td>
-                ))}
-              </tr>
-              <tr className="bg-blue-50">
-                <th className="border px-3 py-2 text-left">CV</th>
-                {recruitingMetrics.map((metric, index) => {
-                  const previousMetric = recruitingMetrics[index - 1];
-                  return (
-                    <td className="border px-3 py-2 text-center" key={metric.key}>
-                      {index === 0 ? "-" : formatRate(counts[metric.key], counts[previousMetric.key])}
-                    </td>
-                  );
-                })}
-              </tr>
-              <tr className="bg-amber-50">
-                <th className="border px-3 py-2 text-left">前年同月</th>
-                {recruitingMetrics.map((metric) => (
-                  <td className="border px-3 py-2 text-center" key={metric.key}>
-                    {previousCounts?.[metric.key] ?? "-"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="bg-amber-100">
-                <th className="border px-3 py-2 text-left">前年比</th>
-                {recruitingMetrics.map((metric) => (
-                  <td className="border px-3 py-2 text-center" key={metric.key}>
-                    {previousCounts?.[metric.key]
-                      ? `${((counts[metric.key] / Number(previousCounts[metric.key])) * 100).toFixed(1)}%`
-                      : "-"}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <h3 className="mb-2 font-semibold">月次保存データ</h3>
-          <div className="max-h-80 overflow-auto rounded-md border">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead className="sticky top-0 bg-secondary">
+      <Card>
+        <CardHeader>
+          <CardTitle>進捗サマリー</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            エントリーは選択した卒年の管理学生数です。その他の項目は学生情報・会話・イベント日付から自動集計します。
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="min-w-[980px] border text-sm">
+              <thead className="bg-primary text-primary-foreground">
                 <tr>
-                  <th className="border-b px-3 py-2 text-left">月</th>
+                  <th className="border px-3 py-2 text-left">区分</th>
                   {recruitingMetrics.map((metric) => (
-                    <th className="border-b px-3 py-2 text-center" key={metric.key}>
+                    <th className="whitespace-nowrap border px-3 py-2 text-center" key={metric.key}>
                       {metric.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {snapshots.length > 0 ? (
-                  snapshots.map((snapshot) => (
-                    <tr key={snapshot.id}>
-                      <td className="border-b px-3 py-2">
-                        {formatSnapshotMonth(snapshot.snapshot_month)}
-                      </td>
-                      {recruitingMetrics.map((metric) => (
-                        <td className="border-b px-3 py-2 text-center" key={metric.key}>
-                          {snapshot.metrics_jsonb?.[metric.key] ?? 0}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-3 py-6 text-center text-muted-foreground" colSpan={10}>
-                      保存済みの月次データはまだありません。
+                <tr>
+                  <th className="border px-3 py-2 text-left">{selectedGraduationYear}卒</th>
+                  {recruitingMetrics.map((metric) => (
+                    <td className="border px-3 py-2 text-center font-semibold" key={metric.key}>
+                      {counts[metric.key]}
                     </td>
-                  </tr>
-                )}
+                  ))}
+                </tr>
+                <tr className="bg-secondary">
+                  <th className="border px-3 py-2 text-left">内容</th>
+                  {recruitingMetrics.map((metric) => (
+                    <td className="border px-3 py-2 text-xs text-muted-foreground" key={metric.key}>
+                      {metricSubtext(metric.key)}
+                    </td>
+                  ))}
+                </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      <RecruitingGoalBoard
+        counts={counts}
+        previousCounts={previousCounts}
+        selectedGraduationYear={selectedGraduationYear}
+        snapshots={snapshots}
+        students={selectedStudents.map((student) => ({
+          id: student.id,
+          created_at: student.created_at ?? null,
+          first_contact_date: student.first_contact_date ?? null
+        }))}
+      />
+    </main>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  subtext,
+  value
+}: {
+  icon: ReactNode;
+  label: string;
+  subtext: string;
+  value: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <CardTitle className="text-base">{label}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold">{value}</div>
+        <p className="mt-1 text-xs text-muted-foreground">{subtext}</p>
       </CardContent>
     </Card>
   );
 }
 
-function formatSnapshotMonth(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+async function fetchGraduationYears(supabase: any) {
+  const years = new Set<number>();
+  const pageSize = 1000;
+  for (let from = 0; from < 5000; from += pageSize) {
+    const { data, error } = await supabase
+      .from("students")
+      .select("graduation_year")
+      .not("graduation_year", "is", null)
+      .range(from, from + pageSize - 1);
+
+    if (error || !data?.length) break;
+    for (const row of data) {
+      const year = Number(row.graduation_year);
+      if (Number.isFinite(year)) years.add(year);
+    }
+    if (data.length < pageSize) break;
+  }
+  return Array.from(years);
+}
+
+async function countStudentsByGraduationYear(supabase: any, graduationYear: number) {
+  const { count, error } = await supabase
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("graduation_year", graduationYear);
+
+  if (error) return null;
+  return count ?? 0;
+}
+
+async function fetchStudentsForMetrics(supabase: any, graduationYear: number) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; from < 5000; from += pageSize) {
+    const { data, error } = await supabase
+      .from("students")
+      .select(DASHBOARD_STUDENT_SELECT)
+      .eq("graduation_year", graduationYear)
+      .range(from, from + pageSize - 1);
+
+    if (error) return fetchStudentsFallback(supabase, graduationYear);
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function fetchStudentsFallback(supabase: any, graduationYear: number) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; from < 5000; from += pageSize) {
+    const { data, error } = await supabase
+      .from("students")
+      .select(FALLBACK_STUDENT_SELECT)
+      .eq("graduation_year", graduationYear)
+      .range(from, from + pageSize - 1);
+
+    if (error) return rows;
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
+
+async function fetchSnapshots(supabase: any, graduationYear: number) {
+  const { data, error } = await supabase
+    .from("recruiting_monthly_snapshots")
+    .select("id,snapshot_month,metrics_jsonb")
+    .eq("graduation_year", graduationYear)
+    .order("snapshot_month", { ascending: false })
+    .limit(24);
+
+  if (error) return [];
+  return data ?? [];
+}
+
+function isHighCertainty(row: any) {
+  const value = String(row.motivation_rank ?? row.motivation_level ?? "").trim().toUpperCase();
+  return ["専願", "併願", "A", "B", "4", "5"].some((token) => value.includes(token));
+}
+
+function isWaitingReply(row: any) {
+  if (!row.last_outbound_at) return false;
+  if (!row.last_inbound_at) return true;
+  return new Date(row.last_outbound_at).getTime() > new Date(row.last_inbound_at).getTime();
+}
+
+function metricSubtext(key: keyof RecruitingMetricCounts) {
+  switch (key) {
+    case "entry":
+      return "選択した卒年の管理学生数";
+    case "pool":
+      return "一度でも会話が成立";
+    case "next":
+      return "初回接触以外の接点あり";
+    case "is":
+      return "主要イベントに参加";
+    case "interview":
+      return "薬剤師インタビュー";
+    case "selection":
+      return "選考会";
+    case "offer":
+      return "内定出し";
+    case "offerAccepted":
+      return "内定内諾";
+    case "hired":
+      return "入社";
+    default:
+      return "";
+  }
 }

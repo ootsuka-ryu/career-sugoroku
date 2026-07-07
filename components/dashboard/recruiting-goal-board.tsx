@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { BarChart3, PencilLine } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -211,7 +212,7 @@ export function RecruitingGoalBoard({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              現在は28卒の目標表を登録しています。卒業年度を28卒に切り替えると表示されます。
+              現在は28卒の月次目標表を登録しています。卒業年度を28卒に切り替えると表示されます。
             </p>
           )}
         </CardContent>
@@ -224,7 +225,7 @@ export function RecruitingGoalBoard({
             経営会議用 進捗サマリー
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            自動計算値を初期表示し、会議用に必要な数字だけ直接修正できます。
+            自動集計値を初期表示し、会議用に必要な数字だけ直接修正できます。
           </p>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -63,6 +63,8 @@ export function getPreviousYearMonthlyCounts(graduationYear: number, month: numb
 }
 
 export const previousYear2027ByMonth: Record<number, Partial<RecruitingMetricCounts>> = {
+  1: { entry: 803, pool: 501, next: 194, is: 4, interview: 15, selection: 5, offer: 4, offerAccepted: 3 },
+  2: { entry: 816, pool: 510, next: 198, is: 4, interview: 17, selection: 6, offer: 6, offerAccepted: 4 },
   3: { entry: 201, pool: 75, next: 30, is: 2 },
   4: { entry: 231, pool: 113, next: 56, is: 2 },
   5: { entry: 313, pool: 150, next: 78, is: 2 },
@@ -72,9 +74,7 @@ export const previousYear2027ByMonth: Record<number, Partial<RecruitingMetricCou
   9: { entry: 628, pool: 364, next: 153, is: 4, interview: 8, selection: 2, offer: 2, offerAccepted: 2 },
   10: { entry: 690, pool: 422, next: 155, is: 4, interview: 9, selection: 2, offer: 2, offerAccepted: 2 },
   11: { entry: 744, pool: 462, next: 189, is: 4, interview: 10, selection: 3, offer: 3, offerAccepted: 2 },
-  12: { entry: 783, pool: 490, next: 192, is: 4, interview: 14, selection: 3, offer: 3, offerAccepted: 3 },
-  1: { entry: 803, pool: 501, next: 194, is: 4, interview: 15, selection: 5, offer: 4, offerAccepted: 3 },
-  2: { entry: 816, pool: 510, next: 198, is: 4, interview: 17, selection: 6, offer: 6, offerAccepted: 4 }
+  12: { entry: 783, pool: 490, next: 192, is: 4, interview: 14, selection: 3, offer: 3, offerAccepted: 3 }
 };
 
 export function formatRate(numerator: number, denominator: number) {

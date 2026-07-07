@@ -12,14 +12,14 @@ const GODAI_EVENT_COLUMNS = [
 ] as const;
 
 const GODAI_EVENT_PATTERN =
-  /H&B|Ｈ＆Ｂ|H＆B|H and B|フェス|姫路|日帰り|ツアー|リアルトーク|個別会社説明会|会社説明会|社員交流会|交流会/;
+  /H&B|Ｈ＆Ｂ|H and B|フェス|姫路|日帰りツアー|リアルトーク|個別会社説明会|会社説明会|社員交流会|交流会/i;
 const NEXT_ACTIVITY_PATTERN =
-  /ネクスト|Zoom|ZOOM|面談|面接|セミナー|説明会|店舗見学|見学|インターン|IS|H&B|Ｈ＆Ｂ|H＆B|フェス|姫路|日帰り|ツアー|リアルトーク|個別会社説明会|社員交流会|薬剤師インタビュー|選考会|内定/;
-const INTERVIEW_PATTERN = /薬剤師インタビュー|薬剤師面談|インタビュー/;
-const SELECTION_PATTERN = /選考会|選考|面接|専願|併願/;
-const OFFER_PATTERN = /内定出し|内定通知|内定を出|内定です|内定を伝/;
-const OFFER_ACCEPTED_PATTERN = /内定内諾|内諾|承諾/;
-const HIRED_PATTERN = /入社/;
+  /ネクスト|Zoom|ZOOM|面談|面接|セミナー|説明会|店舗見学|見学|インターン|IS|H&B|Ｈ＆Ｂ|フェス|姫路|日帰りツアー|リアルトーク|個別会社説明会|会社説明会|社員交流会|交流会|薬剤師インタビュー|選考会|内定/i;
+const INTERVIEW_PATTERN = /薬剤師インタビュー|薬剤師面談|インタビュー/i;
+const SELECTION_PATTERN = /選考会|選考|面接|専願|併願/i;
+const OFFER_PATTERN = /内定出し|内定通知|内定を出|内定です|内定を伝/i;
+const OFFER_ACCEPTED_PATTERN = /内定内諾|内諾|承諾/i;
+const HIRED_PATTERN = /入社/i;
 
 export function calculateRecruitingMetrics(rows: any[]): RecruitingMetricCounts {
   const counts = emptyRecruitingMetricCounts();

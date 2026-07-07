@@ -39,10 +39,11 @@ export async function saveRecruitingMonthlySnapshot(
     revalidatePath("/dashboard");
     return {
       ok: true,
-      message: `${parsed.data.graduation_year}年卒の${result.snapshotMonth.slice(0, 7)}データを保存しました。`
+      message: `${parsed.data.graduation_year}卒の${result.snapshotMonth.slice(0, 7)}データを保存しました。`
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "月次データを保存できませんでした。";
+    const message =
+      error instanceof Error ? error.message : "月次データを保存できませんでした。";
     if (message.includes("recruiting_monthly_snapshots") || message.includes("schema cache")) {
       return {
         ok: false,
