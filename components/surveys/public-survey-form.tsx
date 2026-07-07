@@ -135,9 +135,9 @@ export function PublicSurveyForm({
 
   if (state.ok) {
     return (
-      <div className="survey-card rounded-lg border bg-card p-8 text-center">
+      <div className="survey-card rounded-[18px] border border-[#d6b77f] bg-[#fffaf2] p-6 text-center shadow-sm">
         <h2 className="text-xl font-semibold">送信が完了しました</h2>
-        <p className="mt-3 text-muted-foreground">
+        <p className="mt-3 text-[#725a43]">
           {state.message || thankYouMessage || "回答を送信しました。ありがとうございます。"}
         </p>
         {state.redirectUrl || redirectUrl ? (
@@ -158,7 +158,7 @@ export function PublicSurveyForm({
   return (
     <form
       action={formAction}
-      className="survey-card space-y-6 rounded-xl border bg-card p-5 shadow-sm sm:p-7"
+      className="public-survey-form survey-card space-y-5 rounded-[18px] border border-[#d6b77f] bg-[#fffaf2] p-4 shadow-sm sm:p-5"
       noValidate
     >
       <input name="survey_id" type="hidden" value={surveyId} />
@@ -172,13 +172,13 @@ export function PublicSurveyForm({
       ))}
 
       {visibleSections.length > 0 ? (
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <span className="whitespace-nowrap text-base">
+        <div className="flex items-center gap-3 text-sm text-[#725a43]">
+          <span className="whitespace-nowrap text-base font-medium">
             {currentSectionIndex + 1} / {visibleSections.length}
           </span>
-          <div className="h-2 flex-1 rounded-full bg-secondary">
+          <div className="h-2 flex-1 rounded-full bg-[#ead6b8]">
             <div
-              className="h-2 rounded-full bg-primary transition-all"
+              className="h-2 rounded-full bg-[#149447] transition-all"
               style={{
                 width: `${((currentSectionIndex + 1) / Math.max(visibleSections.length, 1)) * 100}%`
               }}
@@ -188,7 +188,7 @@ export function PublicSurveyForm({
       ) : null}
 
       {!hasAnswerableQuestions ? (
-        <div className="rounded-lg border bg-secondary/30 p-6 text-center text-muted-foreground">
+        <div className="rounded-[14px] border border-[#d6b77f] bg-[#fffdf8] p-5 text-center text-[#725a43]">
           回答項目がまだありません。管理画面で質問を追加してください。
         </div>
       ) : null}
@@ -204,7 +204,7 @@ export function PublicSurveyForm({
             const isCurrent = visitedSectionId === sectionId;
 
             return (
-              <div className={isCurrent ? "space-y-6" : "hidden"} key={visitedSectionId}>
+              <div className={isCurrent ? "space-y-5" : "hidden"} key={visitedSectionId}>
                 <SectionHeader section={visitedSection} />
                 {sectionQuestions.map((question) => (
                   <QuestionField
@@ -244,7 +244,7 @@ export function PublicSurveyForm({
       ) : null}
 
       {!hasAnswerableQuestions ? null : isSectionMode && !isLastSection ? (
-        <Button className="h-12 w-full text-base" onClick={moveToNextSection} type="button">
+        <Button className="h-11 w-full rounded-[10px] bg-[#149447] text-base hover:bg-[#0f7c3b]" onClick={moveToNextSection} type="button">
           次へ
         </Button>
       ) : (
@@ -257,10 +257,10 @@ export function PublicSurveyForm({
 function SectionHeader({ section }: { section?: PublicSection }) {
   if (!section) return null;
   return (
-    <div className="rounded-lg bg-secondary/60 p-5">
-      <h2 className="text-xl font-semibold">{section.title}</h2>
+    <div className="rounded-[14px] border-l-4 border-[#149447] bg-[#fffdf8] p-4 shadow-sm">
+      <h2 className="text-lg font-semibold text-[#2f241b]">{section.title}</h2>
       {section.description ? (
-        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#725a43]">
           {section.description}
         </p>
       ) : null}
@@ -290,10 +290,10 @@ function QuestionField({
 
   if (question.type === "heading") {
     return (
-      <div className="space-y-2 rounded-lg border-l-4 border-primary bg-secondary/30 p-5">
-        <h3 className="text-lg font-semibold">{question.label}</h3>
+      <div className="space-y-2 rounded-[14px] border-l-4 border-[#149447] bg-[#fffdf8] p-4 shadow-sm">
+        <h3 className="text-lg font-semibold text-[#2f241b]">{question.label}</h3>
         {question.description ? (
-          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
+          <p className="whitespace-pre-line text-sm leading-6 text-[#725a43]">
             {question.description}
           </p>
         ) : null}
@@ -302,13 +302,17 @@ function QuestionField({
   }
 
   return (
-    <fieldset className="space-y-4 rounded-lg border p-5">
-      <legend className="px-1 text-base font-medium">
+    <fieldset className="space-y-3 rounded-[14px] border-2 border-[#d6b77f] bg-[#fffdf8] px-4 pb-4 pt-3">
+      <legend className="px-2 text-base font-semibold text-[#5a402a]">
         {question.label}
-        {question.is_required ? <span className="ml-1 text-destructive">*</span> : null}
+        {question.is_required ? (
+          <span className="ml-2 rounded-md bg-[#c83b32] px-2 py-0.5 text-xs font-semibold text-white">
+            必須
+          </span>
+        ) : null}
       </legend>
       {question.description ? (
-        <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
+        <p className="whitespace-pre-line text-sm leading-6 text-[#725a43]">
           {question.description}
         </p>
       ) : null}
@@ -322,7 +326,7 @@ function QuestionField({
       ) : null}
       {question.type === "text" ? (
         <Input
-          className="h-12 text-base"
+          className="h-11 rounded-[10px] border-2 border-[#d6b77f] bg-white px-4 text-base text-[#2f241b] shadow-none focus-visible:ring-[#149447]"
           name={name}
           pattern={getPattern(question.validation_type)}
           placeholder={question.placeholder ?? ""}
@@ -331,11 +335,11 @@ function QuestionField({
         />
       ) : null}
       {question.type === "file_upload" ? (
-        <Input className="h-12 text-base" name={name} required={question.is_required} type="file" />
+        <Input className="h-11 rounded-[10px] border-2 border-[#d6b77f] bg-white text-base text-[#2f241b] shadow-none focus-visible:ring-[#149447]" name={name} required={question.is_required} type="file" />
       ) : null}
       {question.type === "select" ? (
         <select
-          className="h-12 w-full rounded-md border border-input bg-background px-3 text-base"
+          className="h-11 w-full rounded-[10px] border-2 border-[#d6b77f] bg-white px-4 text-base text-[#2f241b] focus:outline-none focus:ring-2 focus:ring-[#149447]"
           name={name}
           onChange={(event) => branchIfNeeded(event.target.value)}
           required={question.is_required}
@@ -349,11 +353,11 @@ function QuestionField({
         </select>
       ) : null}
       {question.type === "radio" ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {options.map((option) => (
-            <label className="flex items-center gap-3 text-base" key={option}>
+            <label className="survey-choice flex min-h-12 items-center gap-3 rounded-[10px] border-2 border-[#d6b77f] bg-white px-4 py-3 text-base text-[#3d2f24]" key={option}>
               <input
-                className="h-5 w-5"
+                className="h-5 w-5 accent-[#149447]"
                 name={name}
                 onChange={() => branchIfNeeded(option)}
                 required={question.is_required}
@@ -366,11 +370,11 @@ function QuestionField({
         </div>
       ) : null}
       {question.type === "checkbox" ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {options.map((option) => (
-            <label className="flex items-center gap-3 text-base" key={option}>
+            <label className="survey-choice flex min-h-12 items-center gap-3 rounded-[10px] border-2 border-[#d6b77f] bg-white px-4 py-3 text-base text-[#3d2f24]" key={option}>
               <input
-                className="h-5 w-5"
+                className="h-5 w-5 accent-[#149447]"
                 name={name}
                 onChange={() => branchIfNeeded(option)}
                 type="checkbox"
@@ -394,7 +398,7 @@ function getPattern(validationType: string) {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button className="h-12 w-full text-base" disabled={pending} type="submit">
+    <Button className="h-11 w-full rounded-[10px] bg-[#149447] text-base hover:bg-[#0f7c3b]" disabled={pending} type="submit">
       {pending ? "送信中..." : "回答を送信"}
     </Button>
   );

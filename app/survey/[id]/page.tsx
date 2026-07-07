@@ -80,16 +80,15 @@ export default async function PublicSurveyPage({
   const canAnswer = isPersonalLineUrl || (survey.is_active && survey.is_visible !== false);
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8">
+    <main className="min-h-screen bg-[#fff7ec] px-3 py-5 text-[#3d2f24] sm:px-4 sm:py-8">
       {survey.custom_css ? <style>{survey.custom_css}</style> : null}
-      <div className="survey-page mx-auto max-w-3xl space-y-6">
-        <div>
-          <p className="text-base font-semibold text-primary">薬学生LINE採用CRM</p>
-          <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-normal sm:text-4xl">
+      <div className="survey-page mx-auto max-w-[460px] space-y-4 sm:max-w-[520px]">
+        <div className="rounded-b-[22px] border-x border-b border-[#d6b77f] bg-[#fffaf2] px-5 pb-5 pt-2 shadow-sm">
+          <h1 className="text-[1.55rem] font-semibold leading-snug tracking-normal text-[#2f241b] sm:text-3xl">
             {survey.public_title || survey.title}
           </h1>
           {survey.description ? (
-            <p className="mt-5 whitespace-pre-line text-base leading-8 text-muted-foreground">
+            <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#725a43] sm:text-base">
               {survey.description}
             </p>
           ) : null}
@@ -107,7 +106,7 @@ export default async function PublicSurveyPage({
             thankYouMessage={survey.thank_you_message}
           />
         ) : (
-          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+          <div className="rounded-[18px] border border-[#d6b77f] bg-[#fffaf2] p-6 text-center text-[#725a43] shadow-sm">
             このアンケートは現在公開されていません。
           </div>
         )}

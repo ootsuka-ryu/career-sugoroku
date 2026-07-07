@@ -61,3 +61,25 @@
     @apply bg-primary text-primary-foreground;
   }
 }
+
+@layer components {
+  .public-survey-form input::placeholder,
+  .public-survey-form textarea::placeholder {
+    color: #cdbb9b;
+    opacity: 1;
+  }
+
+  .public-survey-form input::-webkit-input-placeholder,
+  .public-survey-form textarea::-webkit-input-placeholder {
+    color: #cdbb9b;
+  }
+
+  .public-survey-form select:invalid {
+    color: #bba784;
+  }
+
+  .public-survey-form .survey-choice:has(input:checked) {
+    border-color: #149447;
+    background: #f1fbf4;
+  }
+}
