@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { BarChart3, PencilLine } from "lucide-react";
 
+import { saveRecruitingGoalOverride } from "@/app/(dashboard)/dashboard/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,6 +22,12 @@ type SnapshotSource = {
   id: string;
   snapshot_month: string;
   metrics_jsonb: Partial<RecruitingMetricCounts> | null;
+};
+
+type GoalOverrideSource = {
+  row_key: string;
+  target_value: number | null;
+  actual_value: number | null;
 };
 
 type GoalRow = {
@@ -72,21 +79,21 @@ export function RecruitingGoalBoard({
   students,
   counts,
   previousCounts,
-  snapshots
+  snapshots,
+  goalOverrides
 }: {
   selectedGraduationYear: number;
   students: StudentGoalSource[];
   counts: RecruitingMetricCounts;
   previousCounts: Partial<RecruitingMetricCounts> | null;
   snapshots: SnapshotSource[];
+  goalOverrides: GoalOverrideSource[];
 }) {
   const visibleMetrics = useMemo(() => recruitingMetrics.slice(0, 8), []);
-  const [targetOverrides, setTargetOverrides] = useLocalNumberMap(
-    `recruiting-targets-${selectedGraduationYear}`
-  );
-  const [actualOverrides, setActualOverrides] = useLocalNumberMap(
-    `recruiting-actuals-${selectedGraduationYear}`
-  );
+  const [isSavingGoal, startSavingGoal] = useTransition();
+  const [goalSaveMessage, setGoalSaveMessage] = useState("");
+  const [targetOverrides, setTargetOverrides] = useState<Record<string, number>>({});
+  const [actualOverrides, setActualOverrides] = useState<Record<string, number>>({});
   const [meetingCurrentOverrides, setMeetingCurrentOverrides] = useLocalNumberMap(
     `recruiting-meeting-current-${selectedGraduationYear}`
   );
@@ -99,6 +106,22 @@ export function RecruitingGoalBoard({
 
   const actualByMonth = useMemo(() => countStudentsByMonth(students), [students]);
   const rows = selectedGraduationYear === 2028 ? targetRows28 : [];
+  useEffect(() => {
+    const nextTargets: Record<string, number> = {};
+    const nextActuals: Record<string, number> = {};
+    for (const override of goalOverrides) {
+      if (typeof override.target_value === "number") {
+        nextTargets[override.row_key] = override.target_value;
+      }
+      if (typeof override.actual_value === "number") {
+        nextActuals[override.row_key] = override.actual_value;
+      }
+    }
+    setTargetOverrides(nextTargets);
+    setActualOverrides(nextActuals);
+    setGoalSaveMessage("");
+  }, [goalOverrides, selectedGraduationYear]);
+
   const currentCounts = useMemo(() => {
     const next = { ...counts };
     for (const metric of visibleMetrics) {
@@ -166,13 +189,19 @@ export function RecruitingGoalBoard({
                         <td className="border px-2 py-1">
                           <NumberCell
                             value={target}
-                            onChange={(value) => setTargetOverrides(row.key, value)}
+                            onChange={(value) =>
+                              setTargetOverrides((current) => ({ ...current, [row.key]: value }))
+                            }
+                            onCommit={(value) => saveGoalRow(row.key, value, actual)}
                           />
                         </td>
                         <td className="border px-2 py-1">
                           <NumberCell
                             value={actual}
-                            onChange={(value) => setActualOverrides(row.key, value)}
+                            onChange={(value) =>
+                              setActualOverrides((current) => ({ ...current, [row.key]: value }))
+                            }
+                            onCommit={(value) => saveGoalRow(row.key, target, value)}
                           />
                         </td>
                         <td
@@ -209,6 +238,15 @@ export function RecruitingGoalBoard({
                   </tr>
                 </tbody>
               </table>
+              <p
+                className={
+                  goalSaveMessage.includes("Supabase")
+                    ? "mt-2 text-xs text-red-600"
+                    : "mt-2 text-xs text-muted-foreground"
+                }
+              >
+                {isSavingGoal ? "保存中..." : goalSaveMessage || "数字を変更すると自動保存されます。"}
+              </p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -336,20 +374,42 @@ export function RecruitingGoalBoard({
       </Card>
     </div>
   );
+
+  function saveGoalRow(rowKey: string, targetValue: number, actualValue: number) {
+    startSavingGoal(() => {
+      void saveRecruitingGoalOverride({
+        graduationYear: selectedGraduationYear,
+        rowKey,
+        targetValue,
+        actualValue
+      }).then((result) => setGoalSaveMessage(result.message));
+    });
+  }
 }
 
 function NumberCell({
   value,
-  onChange
+  onChange,
+  onCommit
 }: {
   value: number;
   onChange: (value: number) => void;
+  onCommit?: (value: number) => void;
 }) {
+  function parse(value: string) {
+    const numberValue = Number(value || 0);
+    return Number.isFinite(numberValue) ? Math.max(0, Math.trunc(numberValue)) : 0;
+  }
+
   return (
     <Input
       className="h-8 min-w-16 text-right"
       min={0}
-      onChange={(event) => onChange(Number(event.target.value || 0))}
+      onBlur={(event) => onCommit?.(parse(event.currentTarget.value))}
+      onChange={(event) => onChange(parse(event.target.value))}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
       type="number"
       value={value}
     />

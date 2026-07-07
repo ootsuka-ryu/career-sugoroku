@@ -14,6 +14,58 @@ const snapshotSchema = z.object({
   graduation_year: z.coerce.number().int().min(2020).max(2040)
 });
 
+const goalOverrideSchema = z.object({
+  graduationYear: z.coerce.number().int().min(2020).max(2040),
+  rowKey: z.string().min(1).max(80),
+  targetValue: z.coerce.number().int().min(0).max(1000000).nullable(),
+  actualValue: z.coerce.number().int().min(0).max(1000000).nullable()
+});
+
+export type SaveRecruitingGoalOverrideState = {
+  ok: boolean;
+  message: string;
+};
+
+export async function saveRecruitingGoalOverride(
+  input: z.input<typeof goalOverrideSchema>
+): Promise<SaveRecruitingGoalOverrideState> {
+  const parsed = goalOverrideSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: "入力値を確認してください。" };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  const staffId = user?.id ? await getExistingStaffId(supabase, user.id) : null;
+
+  const { error } = await supabase.from("recruiting_goal_overrides").upsert(
+    {
+      graduation_year: parsed.data.graduationYear,
+      row_key: parsed.data.rowKey,
+      target_value: parsed.data.targetValue,
+      actual_value: parsed.data.actualValue,
+      updated_by: staffId,
+      updated_at: new Date().toISOString()
+    },
+    { onConflict: "graduation_year,row_key" }
+  );
+
+  if (error) {
+    if (error.code === "42P01" || error.message.includes("recruiting_goal_overrides")) {
+      return {
+        ok: false,
+        message: "Supabaseで 22_recruiting_goal_overrides.sql を実行すると保存できます。"
+      };
+    }
+    return { ok: false, message: error.message };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true, message: "月次目標と実績を保存しました。" };
+}
+
 export async function saveRecruitingMonthlySnapshot(
   _prevState: SaveRecruitingSnapshotState,
   formData: FormData

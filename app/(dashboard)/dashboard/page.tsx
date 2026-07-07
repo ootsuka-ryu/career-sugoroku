@@ -20,6 +20,12 @@ type PageProps = {
     | Record<string, string | string[] | undefined>;
 };
 
+type GoalOverrideRow = {
+  row_key: string;
+  target_value: number | null;
+  actual_value: number | null;
+};
+
 const DASHBOARD_STUDENT_SELECT = `
   id,
   graduation_year,
@@ -92,10 +98,11 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     ? Number(graduationYearParam)
     : (yearOptions[0] ?? 2028);
 
-  const [selectedStudents, selectedStudentCount, snapshots] = await Promise.all([
+  const [selectedStudents, selectedStudentCount, snapshots, goalOverrides] = await Promise.all([
     fetchStudentsForMetrics(supabase, selectedGraduationYear),
     countStudentsByGraduationYear(supabase, selectedGraduationYear),
-    fetchSnapshots(supabase, selectedGraduationYear)
+    fetchSnapshots(supabase, selectedGraduationYear),
+    fetchGoalOverrides(supabase, selectedGraduationYear)
   ]);
 
   const studentCountForCard = selectedStudentCount ?? selectedStudents.length;
@@ -207,6 +214,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <RecruitingGoalBoard
         counts={counts}
         previousCounts={previousCounts}
+        goalOverrides={goalOverrides}
         selectedGraduationYear={selectedGraduationYear}
         snapshots={snapshots}
         students={selectedStudents.map((student) => ({
@@ -315,6 +323,19 @@ async function fetchSnapshots(supabase: any, graduationYear: number) {
     .eq("graduation_year", graduationYear)
     .order("snapshot_month", { ascending: false })
     .limit(24);
+
+  if (error) return [];
+  return data ?? [];
+}
+
+async function fetchGoalOverrides(
+  supabase: any,
+  graduationYear: number
+): Promise<GoalOverrideRow[]> {
+  const { data, error } = await supabase
+    .from("recruiting_goal_overrides")
+    .select("row_key,target_value,actual_value")
+    .eq("graduation_year", graduationYear);
 
   if (error) return [];
   return data ?? [];
