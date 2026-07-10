@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --c-bg: #080810;
+  --c-surface: #10101a;
+  --c-elevated: #1a1a28;
+  --c-border: #2a2a3e;
+  --c-text: #d8d8f0;
+  --c-muted: #606080;
+  --c-gold: #c8993a;
+  --c-gold-bright: #e4b84a;
+  --c-positive: #3a9060;
+  --c-negative: #903a3a;
+  --c-accent: #5848b0;
+
+  --background: var(--c-bg);
+  --foreground: var(--c-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Board cell current position glow */
+@keyframes cell-glow {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(200, 153, 58, 0.5); }
+  50% { box-shadow: 0 0 12px 3px rgba(200, 153, 58, 0.8); }
+}
+.cell-current {
+  animation: cell-glow 1.2s ease-in-out infinite;
+}
+
+/* Event card slide up from bottom */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Stat reveal fade in */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease forwards;
+}
+
+/* Value flash when stat changes */
+@keyframes value-flash {
+  0% { color: var(--c-gold-bright); transform: scale(1.15); }
+  100% { color: inherit; transform: scale(1); }
+}
+.animate-value-flash {
+  animation: value-flash 0.6s ease forwards;
+}
+
+/* ABILITY UP title pulse */
+@keyframes ability-up-pulse {
+  0%, 100% { letter-spacing: 0.25em; opacity: 1; }
+  50% { letter-spacing: 0.35em; opacity: 0.85; }
+}
+.animate-ability-up {
+  animation: ability-up-pulse 2s ease-in-out infinite;
+}
+
+/* Dice settle when result lands */
+@keyframes dice-settle {
+  0%   { transform: rotate(-6deg) scale(1.07); }
+  35%  { transform: rotate(4deg)  scale(1.03); }
+  60%  { transform: rotate(-2deg) scale(1.01); }
+  80%  { transform: rotate(1deg)  scale(1.005); }
+  100% { transform: rotate(0deg)  scale(1); }
+}
+.animate-dice-settle {
+  animation: dice-settle 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Dice border pulse while rolling */
+@keyframes pulse-border {
+  from { opacity: 0.3; }
+  to   { opacity: 0.8; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--c-surface); }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 2px; }
