@@ -1007,6 +1007,17 @@ function ChoiceListEditor({
     setChoices((current) => current.filter((_, choiceIndex) => choiceIndex !== index));
   }
 
+  function replaceChoicesWithTagFolder(folderTags: TagSummary[]) {
+    if (folderTags.length === 0) return;
+    setChoices(
+      folderTags.map((tag) => ({
+        label: tag.name,
+        tagId: tag.id,
+        targetSectionId: ""
+      }))
+    );
+  }
+
   return (
     <div className="rounded border bg-muted/20 p-3">
       <input name={name} type="hidden" value={optionsText} />
@@ -1049,6 +1060,7 @@ function ChoiceListEditor({
               <Label className="md:text-right">選択時に付けるタグ</Label>
               <TagRulePicker
                 onChange={(nextValue) => updateChoice(index, { tagId: nextValue })}
+                onFolderSelect={(folder) => replaceChoicesWithTagFolder(folder.tags)}
                 tags={tags}
                 value={choice.tagId}
               />

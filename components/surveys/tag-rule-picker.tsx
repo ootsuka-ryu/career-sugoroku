@@ -10,6 +10,7 @@ type TagRulePickerProps = {
   tags: TagSummary[];
   value: string;
   onChange: (value: string) => void;
+  onFolderSelect?: (folder: TagGroup) => void;
 };
 
 type TagGroup = {
@@ -18,7 +19,7 @@ type TagGroup = {
   tags: TagSummary[];
 };
 
-export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
+export function TagRulePicker({ tags, value, onChange, onFolderSelect }: TagRulePickerProps) {
   const [localTags, setLocalTags] = useState(tags);
   const [errorMessage, setErrorMessage] = useState("");
   const [isCreating, startTransition] = useTransition();
@@ -55,6 +56,17 @@ export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
   }
 
   function selectTag(nextValue: string) {
+    if (nextValue.startsWith("folder:")) {
+      const folderId = nextValue.slice("folder:".length);
+      const folder = groups.find((group) => group.id === folderId);
+      if (folder) {
+        onFolderSelect?.(folder);
+        setQuery("");
+      }
+      setErrorMessage("");
+      return;
+    }
+
     onChange(nextValue);
     setErrorMessage("");
     const tag = tagsById.get(nextValue);
@@ -117,6 +129,15 @@ export function TagRulePicker({ tags, value, onChange }: TagRulePickerProps) {
         value={tagsById.has(value) ? value : ""}
       >
         <option value="">タグを選択</option>
+        {onFolderSelect
+          ? groups.map((group) =>
+              group.tags.length > 0 ? (
+                <option key={`folder:${group.id}`} value={`folder:${group.id}`}>
+                  {group.name} を選択肢に展開
+                </option>
+              ) : null
+            )
+          : null}
         {groups.map((group) =>
           group.tags.length > 0 ? (
             <optgroup key={group.id} label={`${group.name} (${group.tags.length})`}>
