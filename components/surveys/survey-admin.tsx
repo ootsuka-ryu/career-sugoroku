@@ -1040,6 +1040,11 @@ function ChoiceListEditor({
     updateChoices(normalizedChoices.filter((_, choiceIndex) => choiceIndex !== index));
   }
 
+  function replaceChoicesWithTagFolder(folderTags: TagSummary[]) {
+    if (folderTags.length === 0) return;
+    updateChoices(folderTags.map((tag) => ({ label: tag.name, tagId: tag.id })));
+  }
+
   return (
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="space-y-3">
@@ -1078,6 +1083,7 @@ function ChoiceListEditor({
               <Label className="pt-2 text-sm text-muted-foreground md:text-right">タグ</Label>
               <TagRulePicker
                 onChange={(nextValue) => updateChoice(index, { tagId: nextValue })}
+                onFolderSelect={(folder) => replaceChoicesWithTagFolder(folder.tags)}
                 tags={tags}
                 value={choice.tagId}
               />
