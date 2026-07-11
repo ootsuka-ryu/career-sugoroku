@@ -104,6 +104,7 @@ function buildTagFolders(tags: TagItem[], customFolders: any[]): TagFolderGroup[
   const tagsByName = new Map(tags.map((tag) => [tag.name, tag]));
   const groupedTagIds = new Set<string>();
   const classificationNames = new Set(UNIVERSITY_CLASSIFICATION_TAG_NAMES);
+  const customFoldersByName = new Map(customFolders.map((folder) => [folder.name, folder]));
 
   const folders: TagFolderGroup[] = [];
   tags
@@ -127,9 +128,13 @@ function buildTagFolders(tags: TagItem[], customFolders: any[]): TagFolderGroup[
   }
 
   for (const folder of UNIVERSITY_TAG_FOLDERS) {
-    const folderTags = folder.tags
-      .map((name) => tagsByName.get(name))
-      .filter((tag): tag is TagItem => tag !== undefined && !groupedTagIds.has(tag.id));
+    const customFolder = customFoldersByName.get(folder.name);
+    const folderTags = [
+      ...folder.tags
+        .map((name) => tagsByName.get(name))
+        .filter((tag): tag is TagItem => tag !== undefined),
+      ...(customFolder ? tags.filter((tag) => tag.folder_id === customFolder.id) : [])
+    ].filter((tag) => !groupedTagIds.has(tag.id));
     folderTags.forEach((tag) => groupedTagIds.add(tag.id));
 
     folders.push({

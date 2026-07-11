@@ -135,7 +135,10 @@ export function TagAdmin({
   const allVisibleSelected =
     visibleTagIds.length > 0 && visibleTagIds.every((tagId) => selectedTagIdSet.has(tagId));
   const someVisibleSelected = visibleTagIds.some((tagId) => selectedTagIdSet.has(tagId));
-  const manualFolders = useMemo(() => folders.filter((folder) => isUuid(folder.id)), [folders]);
+  const movableFolders = useMemo(
+    () => folders.filter((folder) => folder.id !== "uncategorized"),
+    [folders]
+  );
   const clearSelectedTags = useCallback(() => setSelectedTagIds([]), []);
   const closeFolderForm = useCallback(() => setShowFolderForm(false), []);
   const handleFolderCreated = useCallback((folderId?: string) => {
@@ -240,7 +243,7 @@ export function TagAdmin({
           </div>
         </div>
         <BulkTagFolderMove
-          folders={manualFolders}
+          folders={movableFolders}
           onMoved={clearSelectedTags}
           selectedCount={selectedTagIds.length}
           selectedTagIds={selectedTagIds}
@@ -585,8 +588,4 @@ function formatDate(value?: string | null) {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(value));
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value);
 }

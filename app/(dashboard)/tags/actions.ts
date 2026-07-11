@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { UNIVERSITY_TAG_FOLDERS } from "@/lib/tags/university-folders";
 
 export type TagActionState = {
   ok: boolean;
@@ -58,8 +59,11 @@ const deleteSchema = z.object({
 
 const moveTagsSchema = z.object({
   tag_ids: z.array(z.string().uuid()).min(1),
-  folder_id: z.string().uuid().or(z.literal("none"))
+  folder_id: z.string().trim().min(1)
 });
+
+const uuidSchema = z.string().uuid();
+const universityFolderNames = new Set(UNIVERSITY_TAG_FOLDERS.map((folder) => folder.name));
 
 function actionErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -91,6 +95,65 @@ function revalidateTagScreens() {
 
 function missingTagFolderSetupMessage() {
   return MSG.folderSetupMissing;
+}
+
+async function resolveMoveTargetFolderId(
+  supabase: any,
+  folderValue: string,
+  userId: string
+): Promise<{ folderId: string | null; error: string | null }> {
+  if (folderValue === "none") return { folderId: null, error: null };
+  if (uuidSchema.safeParse(folderValue).success) return { folderId: folderValue, error: null };
+  if (!universityFolderNames.has(folderValue)) return { folderId: null, error: MSG.selectMoveTarget };
+
+  const existing = (await withActionTimeout(
+    supabase.from("tag_folders").select("id").eq("name", folderValue).maybeSingle(),
+    "\u30d5\u30a9\u30eb\u30c0\u78ba\u8a8d"
+  )) as SupabaseActionResult & { data: { id: string } | null };
+
+  if (existing.error) {
+    return {
+      folderId: null,
+      error: existing.error.message.includes("tag_folders")
+        ? missingTagFolderSetupMessage()
+        : existing.error.message
+    };
+  }
+  if (existing.data?.id) return { folderId: existing.data.id, error: null };
+
+  const created = (await withActionTimeout(
+    supabase
+      .from("tag_folders")
+      .insert({
+        name: folderValue,
+        description: null,
+        created_by: userId
+      })
+      .select("id")
+      .single(),
+    "\u30d5\u30a9\u30eb\u30c0\u4f5c\u6210"
+  )) as SupabaseActionResult & { data: { id: string } | null };
+
+  if (!created.error) return { folderId: created.data?.id ?? null, error: null };
+
+  if (!created.error.message.includes("duplicate")) {
+    return {
+      folderId: null,
+      error: created.error.message.includes("tag_folders")
+        ? missingTagFolderSetupMessage()
+        : created.error.message
+    };
+  }
+
+  const duplicated = (await withActionTimeout(
+    supabase.from("tag_folders").select("id").eq("name", folderValue).maybeSingle(),
+    "\u30d5\u30a9\u30eb\u30c0\u78ba\u8a8d"
+  )) as SupabaseActionResult & { data: { id: string } | null };
+
+  return {
+    folderId: duplicated.data?.id ?? null,
+    error: duplicated.error?.message ?? null
+  };
 }
 
 export async function saveTag(
@@ -234,7 +297,6 @@ export async function moveTagsToFolder(
       return { ok: false, message: MSG.selectMoveTarget };
     }
 
-    const folderId = parsed.data.folder_id === "none" ? null : parsed.data.folder_id;
     const supabase = createClient() as any;
     const {
       data: { user }
@@ -243,6 +305,10 @@ export async function moveTagsToFolder(
     };
 
     if (!user) return { ok: false, message: MSG.loginRequired };
+
+    const target = await resolveMoveTargetFolderId(supabase, parsed.data.folder_id, user.id);
+    if (target.error) return { ok: false, message: target.error };
+    const folderId = target.folderId;
 
     const { error } = (await (async () => {
       try {
