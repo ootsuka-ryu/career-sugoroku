@@ -96,6 +96,7 @@ export default async function PublicSurveyPage({
 
         {canAnswer ? (
           <PublicSurveyForm
+            liffId={process.env.LINE_LIFF_ID ?? process.env.NEXT_PUBLIC_LINE_LIFF_ID ?? ""}
             lineUserId={searchParams.lineUserId}
             questions={questions}
             redirectUrl={survey.redirect_url}

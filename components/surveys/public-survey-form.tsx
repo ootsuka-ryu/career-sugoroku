@@ -7,6 +7,7 @@ import {
   submitPublicSurvey,
   type PublicSurveyState
 } from "@/app/survey/[id]/actions";
+import { LiffLineIdentity } from "@/components/surveys/liff-line-identity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Json } from "@/lib/supabase/database.types";
@@ -41,6 +42,7 @@ const initialState: PublicSurveyState = {
 
 export function PublicSurveyForm({
   surveyId,
+  liffId,
   lineUserId,
   studentId,
   source,
@@ -50,6 +52,7 @@ export function PublicSurveyForm({
   redirectUrl
 }: {
   surveyId: string;
+  liffId?: string;
   lineUserId?: string;
   studentId?: string;
   source?: string;
@@ -70,6 +73,8 @@ export function PublicSurveyForm({
   );
   const [nextSectionBySectionId, setNextSectionBySectionId] = useState<Record<string, string>>({});
   const [clientError, setClientError] = useState("");
+  const [resolvedLineUserId, setResolvedLineUserId] = useState(lineUserId ?? "");
+  const shouldResolveLineUserId = source === "rich-menu" && !lineUserId && !studentId;
 
   const currentSectionIndex = visibleSections.findIndex((section) => section.id === sectionId);
   const isSectionMode = visibleSections.length > 0 && sectionId !== "__no_section__";
@@ -162,10 +167,15 @@ export function PublicSurveyForm({
       noValidate
     >
       <input name="survey_id" type="hidden" value={surveyId} />
-      <input name="line_user_id" type="hidden" value={lineUserId ?? ""} />
+      <input name="line_user_id" type="hidden" value={resolvedLineUserId} />
       <input name="student_id" type="hidden" value={studentId ?? ""} />
       <input name="source" type="hidden" value={source ?? ""} />
       <input name="respondent_name" type="hidden" value="" />
+      <LiffLineIdentity
+        enabled={shouldResolveLineUserId}
+        liffId={liffId ?? ""}
+        onLineUserId={setResolvedLineUserId}
+      />
 
       {visitedSectionIds.map((visitedSectionId) => (
         <input key={visitedSectionId} name="visited_section_ids" type="hidden" value={visitedSectionId} />
