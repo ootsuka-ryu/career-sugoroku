@@ -543,6 +543,8 @@ function AreaActionEditor({
   setDraft: (updater: Draft | ((current: Draft) => Draft)) => void;
   surveys: SurveyItem[];
 }) {
+  const [isAreaEditing, setIsAreaEditing] = useState(false);
+
   function update(next: Partial<AreaAction>) {
     setDraft((current) => ({
       ...current,
@@ -557,7 +559,15 @@ function AreaActionEditor({
       <div className="flex items-center justify-between bg-slate-100 px-3 py-2">
         <div className="flex items-center gap-2">
           <span className="font-medium">ボタン{index + 1}</span>
-          <Badge variant="outline">領域編集</Badge>
+          <Button
+            aria-expanded={isAreaEditing}
+            onClick={() => setIsAreaEditing((current) => !current)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {isAreaEditing ? "領域編集を閉じる" : "領域編集"}
+          </Button>
         </div>
         <div className="flex gap-1">
           <Button size="sm" type="button" variant="ghost">
@@ -627,12 +637,14 @@ function AreaActionEditor({
           </p>
         ) : null}
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <RangeField label="左" value={action.xPct} onChange={(value) => update({ xPct: value })} />
-          <RangeField label="上" value={action.yPct} onChange={(value) => update({ yPct: value })} />
-          <RangeField label="幅" value={action.widthPct} onChange={(value) => update({ widthPct: value })} />
-          <RangeField label="高さ" value={action.heightPct} onChange={(value) => update({ heightPct: value })} />
-        </div>
+        {isAreaEditing ? (
+          <div className="grid gap-3 rounded-md border bg-slate-50 p-3 md:grid-cols-4">
+            <RangeField label="左" value={action.xPct} onChange={(value) => update({ xPct: value })} />
+            <RangeField label="上" value={action.yPct} onChange={(value) => update({ yPct: value })} />
+            <RangeField label="幅" value={action.widthPct} onChange={(value) => update({ widthPct: value })} />
+            <RangeField label="高さ" value={action.heightPct} onChange={(value) => update({ heightPct: value })} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
