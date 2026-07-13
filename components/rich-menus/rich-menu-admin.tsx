@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/app/(dashboard)/rich-menus/actions";
 import { SurveyMediaPicker } from "@/components/surveys/survey-media-picker";
 import { FolderedTagSelector } from "@/components/tags/foldered-tag-selector";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -329,6 +328,7 @@ function RichMenuForm({
   menus: RichMenuItem[];
 }) {
   const [state, action] = useFormState(saveRichMenu, initialState);
+  const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
   const template = templates.find((item) => item.id === draft.templateId) ?? templates[0];
   const layoutJson = useMemo(
     () =>
@@ -339,6 +339,15 @@ function RichMenuForm({
       }),
     [draft]
   );
+
+  function updateAreaAction(actionId: string, next: Partial<AreaAction>) {
+    setDraft((current) => ({
+      ...current,
+      actions: current.actions.map((item) =>
+        item.id === actionId ? { ...item, ...next } : item
+      )
+    }));
+  }
 
   return (
     <form action={action} className="space-y-6">
@@ -466,8 +475,12 @@ function RichMenuForm({
                 return (
                   <AreaActionEditor
                     action={currentAction}
+                    isAreaEditing={editingAreaId === area.id}
                     index={index}
                     key={area.id}
+                    onToggleAreaEditing={() =>
+                      setEditingAreaId((current) => (current === area.id ? null : area.id))
+                    }
                     setDraft={setDraft}
                     surveys={surveys}
                   />
@@ -501,18 +514,14 @@ function RichMenuForm({
                     draft.actions.find((item) => item.id === area.id) ??
                     createAreaAction(area.id, index, getAreaBounds(area, template));
                   return (
-                  <div
-                    className="absolute border-2 border-red-500 bg-red-500/20 text-center text-xs font-semibold text-white"
-                    key={area.id}
-                    style={{
-                      left: `${action.xPct}%`,
-                      top: `${action.yPct}%`,
-                      width: `${action.widthPct}%`,
-                      height: `${action.heightPct}%`
-                    }}
-                  >
-                    {index + 1}
-                  </div>
+                    <EditableAreaOverlay
+                      action={action}
+                      index={index}
+                      isEditing={editingAreaId === area.id}
+                      key={area.id}
+                      onChange={(next) => updateAreaAction(action.id, next)}
+                      onSelect={() => setEditingAreaId(action.id)}
+                    />
                   );
                 })}
               </div>
@@ -532,19 +541,112 @@ function RichMenuForm({
   );
 }
 
-function AreaActionEditor({
+function EditableAreaOverlay({
   action,
   index,
+  isEditing,
+  onChange,
+  onSelect
+}: {
+  action: AreaAction;
+  index: number;
+  isEditing: boolean;
+  onChange: (next: Partial<AreaAction>) => void;
+  onSelect: () => void;
+}) {
+  function startPointerEdit(mode: "move" | "resize", event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect();
+
+    const parent = event.currentTarget.parentElement;
+    if (!parent) return;
+
+    const bounds = parent.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const start = {
+      xPct: action.xPct,
+      yPct: action.yPct,
+      widthPct: action.widthPct,
+      heightPct: action.heightPct
+    };
+
+    function handlePointerMove(moveEvent: PointerEvent) {
+      const dxPct = ((moveEvent.clientX - startX) / bounds.width) * 100;
+      const dyPct = ((moveEvent.clientY - startY) / bounds.height) * 100;
+
+      if (mode === "move") {
+        onChange({
+          xPct: roundPercent(clampBetween(start.xPct + dxPct, 0, 100 - start.widthPct)),
+          yPct: roundPercent(clampBetween(start.yPct + dyPct, 0, 100 - start.heightPct))
+        });
+        return;
+      }
+
+      onChange({
+        widthPct: roundPercent(clampBetween(start.widthPct + dxPct, 5, 100 - start.xPct)),
+        heightPct: roundPercent(clampBetween(start.heightPct + dyPct, 5, 100 - start.yPct))
+      });
+    }
+
+    function handlePointerUp() {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }
+
+  return (
+    <div
+      aria-label={`ボタン${index + 1}の領域`}
+      className={cn(
+        "absolute flex cursor-move select-none items-center justify-center border-2 text-xs font-semibold text-white shadow-sm",
+        isEditing
+          ? "border-blue-600 bg-blue-600/25 ring-2 ring-blue-300"
+          : "border-red-500 bg-red-500/20"
+      )}
+      onPointerDown={(event) => startPointerEdit("move", event)}
+      role="button"
+      style={{
+        left: `${action.xPct}%`,
+        top: `${action.yPct}%`,
+        width: `${action.widthPct}%`,
+        height: `${action.heightPct}%`
+      }}
+      tabIndex={0}
+    >
+      <span className="rounded bg-black/45 px-1.5 py-0.5">{index + 1}</span>
+      {isEditing ? (
+        <div
+          aria-label="領域サイズを変更"
+          className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize rounded-tl bg-blue-600 ring-2 ring-white"
+          onPointerDown={(event) => startPointerEdit("resize", event)}
+          role="button"
+          tabIndex={0}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AreaActionEditor({
+  action,
+  isAreaEditing,
+  index,
+  onToggleAreaEditing,
   setDraft,
   surveys
 }: {
   action: AreaAction;
+  isAreaEditing: boolean;
   index: number;
+  onToggleAreaEditing: () => void;
   setDraft: (updater: Draft | ((current: Draft) => Draft)) => void;
   surveys: SurveyItem[];
 }) {
-  const [isAreaEditing, setIsAreaEditing] = useState(false);
-
   function update(next: Partial<AreaAction>) {
     setDraft((current) => ({
       ...current,
@@ -561,7 +663,7 @@ function AreaActionEditor({
           <span className="font-medium">ボタン{index + 1}</span>
           <Button
             aria-expanded={isAreaEditing}
-            onClick={() => setIsAreaEditing((current) => !current)}
+            onClick={onToggleAreaEditing}
             size="sm"
             type="button"
             variant="outline"
@@ -916,6 +1018,15 @@ function isActionType(value: unknown): value is ActionType {
 function clampPercent(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, value));
+}
+
+function clampBetween(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function roundPercent(value: number) {
+  return Math.round(value * 10) / 10;
 }
 
 function makeGridTemplate(id: string, name: string, columns: number, rows: number): TemplateItem {
