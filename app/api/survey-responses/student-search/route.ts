@@ -25,16 +25,52 @@ export async function GET(request: Request) {
     return NextResponse.json({ students: [] });
   }
 
-  const { data, error } = await supabase
-    .from("students")
-    .select("id, real_name, display_name, kana, university, phone, email, line_user_id, updated_at")
-    .limit(1000);
+  const selectColumns = "id, real_name, display_name, kana, university, phone, email, line_user_id, updated_at";
+  const dbQuery = normalizeDbSearchQuery(rawQuery);
+  const [directResult, sampleResult] = await Promise.all([
+    dbQuery
+      ? supabase
+          .from("students")
+          .select(selectColumns)
+          .or(
+            [
+              "real_name",
+              "display_name",
+              "kana",
+              "university",
+              "phone",
+              "email",
+              "line_user_id"
+            ]
+              .map((column) => `${column}.ilike.%${dbQuery}%`)
+              .join(",")
+          )
+          .order("updated_at", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("students")
+      .select(selectColumns)
+      .order("updated_at", { ascending: false })
+      .limit(1000)
+  ]);
 
+  const error = directResult.error ?? sampleResult.error;
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const students = (data ?? [])
+  const directIds = new Set((directResult.data ?? []).map((student: any) => student.id));
+  const candidates = Array.from(
+    new Map(
+      [...(directResult.data ?? []), ...(sampleResult.data ?? [])].map((student: any) => [
+        student.id,
+        student
+      ])
+    ).values()
+  );
+
+  const students = candidates
     .map((student: any) => {
       const fields = [
         student.real_name,
@@ -51,7 +87,7 @@ export async function GET(request: Request) {
         if (normalized === query) return total + 4;
         if (matchesJapaneseSearchQuery(normalized, rawQuery)) return total + 2;
         return total;
-      }, 0);
+      }, directIds.has(student.id) ? 1 : 0);
 
       return score > 0 ? { ...student, score } : null;
     })
@@ -60,4 +96,12 @@ export async function GET(request: Request) {
     .slice(0, 20);
 
   return NextResponse.json({ students });
+}
+
+function normalizeDbSearchQuery(value: string) {
+  return value
+    .normalize("NFKC")
+    .trim()
+    .replace(/[%_*\\,()]/g, " ")
+    .replace(/\s+/g, " ");
 }

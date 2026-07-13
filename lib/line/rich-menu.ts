@@ -58,7 +58,11 @@ export async function syncRichMenuToLine({
   }
 
   const layout = isRecord(menu.layout_jsonb) ? (menu.layout_jsonb as RichMenuLayout) : {};
-  const areas = buildLineAreas(layout, baseUrl);
+  const areas = buildLineAreas(
+    layout,
+    baseUrl,
+    process.env.LINE_LIFF_ID ?? process.env.NEXT_PUBLIC_LINE_LIFF_ID
+  );
   if (areas.length === 0) {
     return { ok: false, message: "タップ領域のアクションを1つ以上設定してください。" };
   }
@@ -131,10 +135,10 @@ export async function deleteLineRichMenu(lineAccessToken: string | undefined, ri
   });
 }
 
-function buildLineAreas(layout: RichMenuLayout, baseUrl: string) {
+function buildLineAreas(layout: RichMenuLayout, baseUrl: string, liffId?: string) {
   return (layout.actions ?? [])
     .map((area) => {
-      const action = buildLineAction(area, baseUrl);
+      const action = buildLineAction(area, baseUrl, liffId);
       if (!action) return null;
 
       return {
@@ -150,7 +154,7 @@ function buildLineAreas(layout: RichMenuLayout, baseUrl: string) {
     .filter(Boolean);
 }
 
-function buildLineAction(area: RichMenuAreaAction, baseUrl: string) {
+function buildLineAction(area: RichMenuAreaAction, baseUrl: string, liffId?: string) {
   const value = (area.value ?? "").trim();
 
   if (area.type === "message") {
@@ -165,7 +169,7 @@ function buildLineAction(area: RichMenuAreaAction, baseUrl: string) {
 
   if (area.type === "survey") {
     if (!value) return null;
-    return { type: "uri", uri: `${baseUrl.replace(/\/$/, "")}/survey/${value}?source=rich-menu` };
+    return { type: "uri", uri: buildSurveyUri(value, baseUrl, liffId) };
   }
 
   if (area.type === "url") {
@@ -174,6 +178,14 @@ function buildLineAction(area: RichMenuAreaAction, baseUrl: string) {
   }
 
   return null;
+}
+
+function buildSurveyUri(surveyId: string, baseUrl: string, liffId?: string) {
+  if (liffId?.trim()) {
+    return `https://liff.line.me/${encodeURIComponent(liffId.trim())}/${encodeURIComponent(surveyId)}?source=rich-menu`;
+  }
+
+  return `${baseUrl.replace(/\/$/, "")}/survey/${encodeURIComponent(surveyId)}?source=rich-menu`;
 }
 
 async function createLineRichMenu({
