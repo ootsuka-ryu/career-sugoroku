@@ -662,6 +662,7 @@ export function SurveyAdmin({
                       onUpdateQuestion={updateQuestion}
                       section={section}
                       sectionCount={draftSections.length}
+                      sections={draftSections}
                       tags={tags}
                     />
                   ))}
@@ -715,6 +716,7 @@ function DraftSectionEditor({
   index,
   sectionCount,
   displayIndex,
+  sections,
   tags,
   addQuestion,
   deleteSection,
@@ -728,6 +730,7 @@ function DraftSectionEditor({
   index: number;
   sectionCount: number;
   displayIndex: number;
+  sections: DraftSection[];
   tags: TagSummary[];
   addQuestion: (sectionId: string, type: DraftQuestionType, label: string) => void;
   deleteSection: (sectionId: string) => void;
@@ -799,6 +802,7 @@ function DraftSectionEditor({
               onUpdate={(patch) => onUpdateQuestion(section.id, question.id, patch)}
               question={question}
               questionCount={section.questions.length}
+              sections={sections}
               tags={tags}
             />
           ))}
@@ -818,6 +822,7 @@ function DraftSectionEditor({
 function DraftQuestionEditor({
   question,
   questionCount,
+  sections,
   tags,
   onUpdate,
   onMove,
@@ -825,6 +830,7 @@ function DraftQuestionEditor({
 }: {
   question: DraftQuestion;
   questionCount: number;
+  sections: DraftSection[];
   tags: TagSummary[];
   onUpdate: (patch: Partial<DraftQuestion>) => void;
   onMove: (direction: -1 | 1) => void;
@@ -911,12 +917,15 @@ function DraftQuestionEditor({
           <div className="grid gap-3 md:grid-cols-[9rem_1fr] md:items-start">
             <Label className="pt-2 md:text-right">選択肢</Label>
             <ChoiceListEditor
-              onChange={(nextValue, nextTagRules) =>
+              branchRulesText={question.branch_rules_text}
+              onChange={(nextValue, nextTagRules, nextBranchRules) =>
                 onUpdate({
                   options_text: nextValue,
-                  tag_rules_text: nextTagRules ?? question.tag_rules_text
+                  tag_rules_text: nextTagRules ?? question.tag_rules_text,
+                  branch_rules_text: nextBranchRules ?? question.branch_rules_text
                 })
               }
+              sections={sections}
               tagRulesText={question.tag_rules_text}
               tags={tags}
               value={question.options_text}
@@ -980,33 +989,46 @@ function ElementPalette({
 
 function ChoiceListEditor({
   value,
+  branchRulesText,
+  sections,
   tagRulesText,
   tags,
   onChange
 }: {
   value: string;
+  branchRulesText: string;
+  sections: DraftSection[];
   tagRulesText: string;
   tags: TagSummary[];
-  onChange: (value: string, tagRulesText?: string) => void;
+  onChange: (value: string, tagRulesText?: string, branchRulesText?: string) => void;
 }) {
   const tagRules = useMemo(() => parseTagRuleText(tagRulesText), [tagRulesText]);
+  const branchRules = useMemo(() => parseBranchRuleText(branchRulesText), [branchRulesText]);
   const choices = value
     .split(/\r?\n/)
     .filter((choice, index, array) => choice || index < array.length - 1)
-    .map((label) => ({ label, tagId: tagRules.get(label.trim()) ?? "" }));
+    .map((label) => ({
+      label,
+      tagId: tagRules.get(label.trim()) ?? "",
+      targetSectionId: branchRules.get(label.trim()) ?? ""
+    }));
   const normalizedChoices =
-    choices.length > 0 ? choices : [{ label: "選択肢1", tagId: "" }];
+    choices.length > 0 ? choices : [{ label: "選択肢1", tagId: "", targetSectionId: "" }];
 
-  function updateChoices(nextChoices: Array<{ label: string; tagId: string }>) {
+  function updateChoices(nextChoices: Array<{ label: string; tagId: string; targetSectionId: string }>) {
     const nextOptionsText = nextChoices.map((choice) => choice.label).join("\n");
     const nextTagRulesText = nextChoices
       .filter((choice) => choice.label.trim() && choice.tagId)
       .map((choice) => `${choice.label.trim()}=>${choice.tagId}`)
       .join("\n");
-    onChange(nextOptionsText, nextTagRulesText);
+    const nextBranchRulesText = nextChoices
+      .filter((choice) => choice.label.trim() && choice.targetSectionId)
+      .map((choice) => `${choice.label.trim()}=>${choice.targetSectionId}`)
+      .join("\n");
+    onChange(nextOptionsText, nextTagRulesText, nextBranchRulesText);
   }
 
-  function updateChoice(index: number, patch: Partial<{ label: string; tagId: string }>) {
+  function updateChoice(index: number, patch: Partial<{ label: string; tagId: string; targetSectionId: string }>) {
     updateChoices(
       normalizedChoices.map((choice, choiceIndex) =>
         choiceIndex === index ? { ...choice, ...patch } : choice
@@ -1015,14 +1037,14 @@ function ChoiceListEditor({
   }
 
   function addChoice(label = `選択肢${normalizedChoices.length + 1}`) {
-    updateChoices([...normalizedChoices, { label, tagId: "" }]);
+    updateChoices([...normalizedChoices, { label, tagId: "", targetSectionId: "" }]);
   }
 
   function duplicateChoice(index: number) {
-    const source = normalizedChoices[index] || { label: `選択肢${index + 1}`, tagId: "" };
+    const source = normalizedChoices[index] || { label: `選択肢${index + 1}`, tagId: "", targetSectionId: "" };
     updateChoices([
       ...normalizedChoices.slice(0, index + 1),
-      { label: `${source.label} のコピー`, tagId: source.tagId },
+      { label: `${source.label} のコピー`, tagId: source.tagId, targetSectionId: source.targetSectionId },
       ...normalizedChoices.slice(index + 1)
     ]);
   }
@@ -1042,7 +1064,7 @@ function ChoiceListEditor({
 
   function replaceChoicesWithTagFolder(folderTags: TagSummary[]) {
     if (folderTags.length === 0) return;
-    updateChoices(folderTags.map((tag) => ({ label: tag.name, tagId: tag.id })));
+    updateChoices(folderTags.map((tag) => ({ label: tag.name, tagId: tag.id, targetSectionId: "" })));
   }
 
   return (
@@ -1087,6 +1109,19 @@ function ChoiceListEditor({
                 tags={tags}
                 value={choice.tagId}
               />
+              <Label className="pt-2 text-sm text-muted-foreground md:text-right">移動先</Label>
+              <select
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                onChange={(event) => updateChoice(index, { targetSectionId: event.target.value })}
+                value={choice.targetSectionId}
+              >
+                <option value="">通常どおり次へ</option>
+                {sections.map((section, sectionIndex) => (
+                  <option key={section.id} value={section.id}>
+                    セクション{sectionIndex + 1}: {section.title}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         ))}
@@ -1114,6 +1149,19 @@ function parseTagRuleText(value: string) {
     .forEach((line) => {
       const [answer, tagId] = line.split("=>").map((part) => part.trim());
       if (answer && tagId) map.set(answer, tagId);
+    });
+  return map;
+}
+
+function parseBranchRuleText(value: string) {
+  const map = new Map<string, string>();
+  value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const [answer, targetSectionId] = line.split("=>").map((part) => part.trim());
+      if (answer && targetSectionId) map.set(answer, targetSectionId);
     });
   return map;
 }
