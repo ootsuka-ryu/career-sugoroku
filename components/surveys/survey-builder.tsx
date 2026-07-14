@@ -1073,7 +1073,7 @@ function ChoiceListEditor({
                 <option value=""></option>
                 {sections.map((section, sectionIndex) => (
                   <option key={section.id} value={section.id}>
-                    セクション{sectionIndex + 1}: {section.title}
+                    セクション{sectionIndex + 1}
                   </option>
                 ))}
               </select>
