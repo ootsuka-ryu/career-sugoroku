@@ -64,13 +64,22 @@ export function PublicSurveyForm({
   const [state, formAction] = useFormState(submitPublicSurvey, initialState);
   const visibleSections = sections.filter((section) => section.is_visible !== false);
   const visibleQuestions = questions.filter((question) => question.is_visible !== false);
+  const branchTargetSectionIds = new Set(
+    visibleQuestions.flatMap((question) =>
+      Array.isArray(question.branch_rules_jsonb)
+        ? (question.branch_rules_jsonb as Array<{ targetSectionId?: unknown }>)
+            .map((rule) => rule.targetSectionId)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+        : []
+    )
+  );
   const answerableSectionIds = new Set(
     visibleQuestions
       .filter((question) => question.type !== "heading" && question.section_id)
       .map((question) => question.section_id)
   );
   const navigableSections = visibleSections.filter((section) =>
-    answerableSectionIds.has(section.id)
+    answerableSectionIds.has(section.id) || branchTargetSectionIds.has(section.id)
   );
   const hasAnswerableQuestions = visibleQuestions.some(
     (question) => question.type !== "heading"
@@ -292,16 +301,26 @@ export function PublicSurveyForm({
 
 function SectionHeader({ section }: { section?: PublicSection }) {
   if (!section) return null;
+  const title = section.title.trim();
+  const showTitle = title && !isGeneratedSectionTitle(title);
+  if (!showTitle && !section.description) return null;
+
   return (
     <div className="rounded-[14px] border-l-4 border-[#149447] bg-[#fffdf8] p-4 shadow-sm">
-      <h2 className="text-lg font-semibold text-[#2f241b]">{section.title}</h2>
+      {showTitle ? (
+        <h2 className="text-lg font-semibold text-[#2f241b]">{section.title}</h2>
+      ) : null}
       {section.description ? (
-        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#725a43]">
+        <p className={`${showTitle ? "mt-2 " : ""}whitespace-pre-line text-sm leading-6 text-[#725a43]`}>
           {section.description}
         </p>
       ) : null}
     </div>
   );
+}
+
+function isGeneratedSectionTitle(title: string) {
+  return /^セクション\d+(?:\s*のコピー)*$/.test(title.trim());
 }
 
 function QuestionField({
