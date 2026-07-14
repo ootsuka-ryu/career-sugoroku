@@ -64,20 +64,28 @@ export function PublicSurveyForm({
   const [state, formAction] = useFormState(submitPublicSurvey, initialState);
   const visibleSections = sections.filter((section) => section.is_visible !== false);
   const visibleQuestions = questions.filter((question) => question.is_visible !== false);
+  const answerableSectionIds = new Set(
+    visibleQuestions
+      .filter((question) => question.type !== "heading" && question.section_id)
+      .map((question) => question.section_id)
+  );
+  const navigableSections = visibleSections.filter((section) =>
+    answerableSectionIds.has(section.id)
+  );
   const hasAnswerableQuestions = visibleQuestions.some(
     (question) => question.type !== "heading"
   );
-  const [sectionId, setSectionId] = useState(visibleSections[0]?.id ?? "__no_section__");
+  const [sectionId, setSectionId] = useState(navigableSections[0]?.id ?? "__no_section__");
   const [visitedSectionIds, setVisitedSectionIds] = useState<string[]>(
-    visibleSections[0]?.id ? [visibleSections[0].id] : ["__no_section__"]
+    navigableSections[0]?.id ? [navigableSections[0].id] : ["__no_section__"]
   );
   const [nextSectionBySectionId, setNextSectionBySectionId] = useState<Record<string, string>>({});
   const [clientError, setClientError] = useState("");
   const [resolvedLineUserId, setResolvedLineUserId] = useState(lineUserId ?? "");
   const shouldResolveLineUserId = source === "rich-menu" && !lineUserId && !studentId;
 
-  const currentSectionIndex = visibleSections.findIndex((section) => section.id === sectionId);
-  const isSectionMode = visibleSections.length > 0 && sectionId !== "__no_section__";
+  const currentSectionIndex = navigableSections.findIndex((section) => section.id === sectionId);
+  const isSectionMode = navigableSections.length > 0 && sectionId !== "__no_section__";
   const currentQuestions = useMemo(
     () =>
       sectionId === "__no_section__"
@@ -85,18 +93,36 @@ export function PublicSurveyForm({
         : visibleQuestions.filter((question) => question.section_id === sectionId),
     [sectionId, visibleQuestions]
   );
-  const isLastSection = !isSectionMode || currentSectionIndex >= visibleSections.length - 1;
+  const isLastSection = !isSectionMode || currentSectionIndex >= navigableSections.length - 1;
 
   function moveToNextSection(event: MouseEvent<HTMLButtonElement>) {
     if (!isSectionMode) return;
     if (!validateCurrentSection(event.currentTarget.form)) return;
     const explicitNextId = nextSectionBySectionId[sectionId];
-    const nextSectionId = explicitNextId || visibleSections[currentSectionIndex + 1]?.id;
+    const nextSectionId =
+      resolveNextAnswerableSectionId(explicitNextId) ||
+      navigableSections[currentSectionIndex + 1]?.id;
     if (!nextSectionId) return;
     setClientError("");
     setSectionId(nextSectionId);
     setVisitedSectionIds((current) =>
       current.includes(nextSectionId) ? current : [...current, nextSectionId]
+    );
+  }
+
+  function resolveNextAnswerableSectionId(targetSectionId?: string) {
+    if (!targetSectionId) return "";
+    if (navigableSections.some((section) => section.id === targetSectionId)) {
+      return targetSectionId;
+    }
+
+    const targetIndex = visibleSections.findIndex((section) => section.id === targetSectionId);
+    if (targetIndex < 0) return "";
+
+    return (
+      visibleSections
+        .slice(targetIndex + 1)
+        .find((section) => answerableSectionIds.has(section.id))?.id ?? ""
     );
   }
 
@@ -181,16 +207,16 @@ export function PublicSurveyForm({
         <input key={visitedSectionId} name="visited_section_ids" type="hidden" value={visitedSectionId} />
       ))}
 
-      {visibleSections.length > 0 ? (
+      {navigableSections.length > 0 ? (
         <div className="flex items-center gap-3 text-sm text-[#725a43]">
           <span className="whitespace-nowrap text-base font-medium">
-            {currentSectionIndex + 1} / {visibleSections.length}
+            {currentSectionIndex + 1} / {navigableSections.length}
           </span>
           <div className="h-2 flex-1 rounded-full bg-[#ead6b8]">
             <div
               className="h-2 rounded-full bg-[#149447] transition-all"
               style={{
-                width: `${((currentSectionIndex + 1) / Math.max(visibleSections.length, 1)) * 100}%`
+                width: `${((currentSectionIndex + 1) / Math.max(navigableSections.length, 1)) * 100}%`
               }}
             />
           </div>
