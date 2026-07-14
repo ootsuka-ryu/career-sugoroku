@@ -39,6 +39,11 @@ const folderRenameSchema = z.object({
   name: z.string().trim().min(1, "フォルダ名を入力してください。")
 });
 
+const deleteSurveySchema = z.object({
+  survey_id: z.string().uuid(),
+  confirmation: z.string().trim().min(1, "確認欄にアンケート名を入力してください。")
+});
+
 type DraftPayload = {
   sections?: Array<{
     id?: string;
@@ -252,6 +257,84 @@ export async function toggleSurveyActive(
     ok: true,
     message: nextActive ? "公開しました。" : "非公開にしました。"
   };
+}
+
+export async function deleteSurvey(
+  _prevState: SurveyActionState = initialState,
+  formData: FormData
+): Promise<SurveyActionState> {
+  const parsed = deleteSurveySchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: parsed.error.errors[0]?.message ?? "削除内容を確認してください。"
+    };
+  }
+
+  const supabase = createClient() as any;
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, message: "ログインが必要です。" };
+
+  const { survey_id: surveyId, confirmation } = parsed.data;
+  const { data: survey, error: surveyError } = await supabase
+    .from("surveys")
+    .select("id, title, admin_title, public_title")
+    .eq("id", surveyId)
+    .maybeSingle();
+
+  if (surveyError) return { ok: false, message: surveyError.message };
+  if (!survey) return { ok: false, message: "アンケートが見つかりません。" };
+
+  const expectedName = survey.admin_title || survey.public_title || survey.title;
+  if (confirmation !== expectedName) {
+    return {
+      ok: false,
+      message: "確認欄のアンケート名が一致しません。削除する場合は表示名を正確に入力してください。"
+    };
+  }
+
+  const { data: questions, error: questionsError } = await supabase
+    .from("survey_questions")
+    .select("id")
+    .eq("survey_id", surveyId);
+
+  if (questionsError) return { ok: false, message: questionsError.message };
+
+  const questionIds = (questions ?? []).map((question: { id: string }) => question.id);
+  const cleanupSteps: Array<PromiseLike<{ error?: { message?: string } | null }>> = [];
+
+  if (questionIds.length > 0) {
+    cleanupSteps.push(
+      supabase.from("survey_question_tags").delete().in("question_id", questionIds)
+    );
+  }
+
+  cleanupSteps.push(
+    supabase.from("events").update({ survey_id: null }).eq("survey_id", surveyId),
+    supabase
+      .from("broadcast_followup_steps")
+      .update({ survey_id: null, require_survey_unanswered: false })
+      .eq("survey_id", surveyId),
+    supabase.from("survey_link_clicks").delete().eq("survey_id", surveyId),
+    supabase.from("survey_responses").delete().eq("survey_id", surveyId),
+    supabase.from("survey_questions").delete().eq("survey_id", surveyId),
+    supabase.from("survey_sections").delete().eq("survey_id", surveyId),
+    supabase.from("surveys").delete().eq("id", surveyId)
+  );
+
+  for (const step of cleanupSteps) {
+    const { error } = await step;
+    if (error) return { ok: false, message: error.message ?? "削除に失敗しました。" };
+  }
+
+  revalidatePath("/surveys");
+  revalidatePath(`/surveys/${surveyId}/builder`);
+
+  return { ok: true, message: "アンケートを削除しました。" };
 }
 
 export async function createSurveyTagByName(name: string) {

@@ -30,6 +30,7 @@ import {
 import {
   createSurvey,
   createSurveyFolder,
+  deleteSurvey,
   moveSurveysToFolder,
   renameSurveyFolder,
   toggleSurveyActive,
@@ -1397,10 +1398,14 @@ function SurveyRow({
   onSelectedChange: (checked: boolean) => void;
 }) {
   const [state, formAction] = useFormState(toggleSurveyActive, initialState);
+  const [deleteState, deleteAction] = useFormState(deleteSurvey, initialState);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
   const [copyMessage, setCopyMessage] = useState("");
   const isPublic = survey.is_active && survey.is_visible !== false;
+  const deleteConfirmationName = survey.admin_title || survey.public_title || survey.title;
   const publicPath = `/survey/${survey.id}`;
   const publicUrl =
     typeof window === "undefined" ? publicPath : `${location.origin}${publicPath}`;
@@ -1449,6 +1454,7 @@ function SurveyRow({
   }
 
   return (
+    <>
     <TableRow className={selected ? "bg-green-50" : undefined}>
       <TableCell>
         <input
@@ -1603,7 +1609,7 @@ function SurveyRow({
                 <button
                   className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm text-destructive hover:bg-secondary"
                   onClick={() => {
-                    setCopyMessage("削除機能は誤操作防止の確認画面を追加してから有効化します。");
+                    setDeleteOpen(true);
                     setMenuOpen(false);
                   }}
                   type="button"
@@ -1621,6 +1627,51 @@ function SurveyRow({
         <FormMessage state={state} />
       </TableCell>
     </TableRow>
+    {deleteOpen ? (
+      <TableRow className="bg-destructive/5">
+        <TableCell colSpan={7}>
+          <form action={deleteAction} className="rounded-md border border-destructive/30 bg-background p-4">
+            <input name="survey_id" type="hidden" value={survey.id} />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <p className="font-semibold text-destructive">このアンケートを削除しますか？</p>
+                <p className="text-sm text-muted-foreground">
+                  質問 {survey.question_count}件、回答 {survey.response_count}件も削除されます。元に戻せません。
+                </p>
+                <p className="text-sm">
+                  削除するには、下の欄に
+                  <span className="mx-1 font-semibold text-foreground">{deleteConfirmationName}</span>
+                  と入力してください。
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeleteConfirmation("");
+                }}
+                type="button"
+                variant="ghost"
+              >
+                キャンセル
+              </Button>
+            </div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                autoComplete="off"
+                className="sm:max-w-md"
+                name="confirmation"
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                placeholder={deleteConfirmationName}
+                value={deleteConfirmation}
+              />
+              <DeleteSurveyButton enabled={deleteConfirmation === deleteConfirmationName} />
+            </div>
+            <FormMessage state={deleteState} />
+          </form>
+        </TableCell>
+      </TableRow>
+    ) : null}
+    </>
   );
 }
 
@@ -2251,6 +2302,16 @@ function ToggleButton({ active }: { active: boolean }) {
     <Button disabled={pending} size="sm" type="submit" variant="ghost">
       <Power className="mr-2 h-4 w-4" />
       {active ? "非公開" : "公開"}
+    </Button>
+  );
+}
+
+function DeleteSurveyButton({ enabled }: { enabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button disabled={!enabled || pending} type="submit" variant="destructive">
+      <Trash2 className="mr-2 h-4 w-4" />
+      {pending ? "削除中..." : "完全に削除"}
     </Button>
   );
 }
