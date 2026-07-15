@@ -247,10 +247,16 @@ export function PublicSurveyForm({
               (question) => question.section_id === visitedSectionId
             );
             const isCurrent = visitedSectionId === sectionId;
+            const hasSectionHeader =
+              Boolean(visitedSection?.description) ||
+              Boolean(visitedSection?.title && !isGeneratedSectionTitle(visitedSection.title));
 
             return (
               <div className={isCurrent ? "space-y-5" : "hidden"} key={visitedSectionId}>
                 <SectionHeader section={visitedSection} />
+                {sectionQuestions.length === 0 && !hasSectionHeader ? (
+                  <EmptySectionNotice />
+                ) : null}
                 {sectionQuestions.map((question) => (
                   <QuestionField
                     key={question.id}
@@ -321,6 +327,14 @@ function SectionHeader({ section }: { section?: PublicSection }) {
 
 function isGeneratedSectionTitle(title: string) {
   return /^セクション\d+(?:\s*のコピー)*$/.test(title.trim());
+}
+
+function EmptySectionNotice() {
+  return (
+    <div className="rounded-[14px] border border-[#d6b77f] bg-[#fffdf8] p-4 text-sm leading-6 text-[#725a43]">
+      この分岐先には表示できる設問がありません。管理画面でこのセクションに設問を追加するか、分岐先を設問のあるセクションに変更してください。
+    </div>
+  );
 }
 
 function QuestionField({
