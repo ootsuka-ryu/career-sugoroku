@@ -112,7 +112,17 @@ export async function createSurvey(
   if (error) return { ok: false, message: error.message };
 
   if (survey?.id) {
-    await insertDraftSectionsAndQuestions(supabase, survey.id, payload);
+    try {
+      await insertDraftSectionsAndQuestions(supabase, survey.id, payload);
+    } catch (draftError) {
+      return {
+        ok: false,
+        message:
+          draftError instanceof Error
+            ? `アンケートは作成しましたが、選択肢やタグ設定の保存に失敗しました: ${draftError.message}`
+            : "アンケートは作成しましたが、選択肢やタグ設定の保存に失敗しました。"
+      };
+    }
   }
 
   revalidatePath("/surveys");
@@ -422,7 +432,7 @@ async function insertDraftSectionsAndQuestions(
       const question = questions[questionIndex];
       if (!question.label?.trim()) continue;
 
-      const { data: insertedQuestion } = await supabase
+      const { data: insertedQuestion, error: questionError } = await supabase
         .from("survey_questions")
         .insert({
           survey_id: surveyId,
@@ -441,6 +451,8 @@ async function insertDraftSectionsAndQuestions(
         })
         .select("id")
         .single();
+
+      if (questionError) throw questionError;
 
       if (insertedQuestion?.id) {
         await syncQuestionTagRules(supabase, insertedQuestion.id, question.tag_rules_text);
@@ -506,13 +518,15 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
 
   if (resolvedRules.length === 0) return;
 
-  await supabase.from("survey_question_tags").insert(
+  const { error } = await supabase.from("survey_question_tags").insert(
     resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
       when_answer_matches_jsonb: { equals: rule.answer }
     }))
   );
+
+  if (error) throw error;
 }
 
 async function resolveTagId(supabase: any, tagValue: string) {

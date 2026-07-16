@@ -75,6 +75,11 @@ const questionOperationSchema = z.object({
   direction: z.enum(["up", "down"])
 });
 
+function revalidateSurveyBuilderPaths(surveyId: string) {
+  revalidatePath("/surveys");
+  revalidatePath(`/surveys/${surveyId}/builder`);
+}
+
 export async function updateSurveySettings(
   _prevState: SurveyBuilderState = initialState,
   formData: FormData
@@ -116,8 +121,7 @@ export async function updateSurveySettings(
 
   if (error) return { ok: false, message: error.message };
 
-  revalidatePath("/surveys");
-  revalidatePath(`/surveys/${input.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(input.survey_id);
   return { ok: true, message: "保存しました。" };
 }
 
@@ -147,7 +151,7 @@ export async function addSurveySection(
 
   if (error) return { ok: false, message: error.message };
 
-  revalidatePath(`/surveys/${parsed.data.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(parsed.data.survey_id);
   return { ok: true, message: "セクションを追加しました。" };
 }
 
@@ -217,7 +221,7 @@ export async function duplicateSurveySection(
     );
   }
 
-  revalidatePath(`/surveys/${parsed.data.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(parsed.data.survey_id);
   return { ok: true, message: "セクションを複製しました。" };
 }
 
@@ -252,7 +256,7 @@ export async function moveSurveySection(
   await supabase.from("survey_sections").update({ order: target.order }).eq("id", current.id);
   await supabase.from("survey_sections").update({ order: current.order }).eq("id", target.id);
 
-  revalidatePath(`/surveys/${parsed.data.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(parsed.data.survey_id);
   return { ok: true, message: "セクションを移動しました。" };
 }
 
@@ -299,8 +303,7 @@ export async function deleteSurveySection(
     );
   }
 
-  revalidatePath("/surveys");
-  revalidatePath(`/surveys/${survey_id}/builder`);
+  revalidateSurveyBuilderPaths(survey_id);
   return { ok: true, message: "セクションを削除しました。" };
 }
 
@@ -347,10 +350,20 @@ export async function addSurveyQuestion(
 
   if (error) return { ok: false, message: error.message };
   if (inserted?.id) {
-    await syncQuestionTagRules(supabase, inserted.id, input.tag_rules_text);
+    try {
+      await syncQuestionTagRules(supabase, inserted.id, input.tag_rules_text);
+    } catch (tagError) {
+      return {
+        ok: false,
+        message:
+          tagError instanceof Error
+            ? `項目は追加しましたが、タグ設定を保存できませんでした: ${tagError.message}`
+            : "項目は追加しましたが、タグ設定を保存できませんでした。"
+      };
+    }
   }
 
-  revalidatePath(`/surveys/${input.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(input.survey_id);
   return { ok: true, message: "項目を追加しました。" };
 }
 
@@ -387,9 +400,19 @@ export async function updateSurveyQuestion(
     .eq("id", input.question_id);
 
   if (error) return { ok: false, message: error.message };
-  await syncQuestionTagRules(supabase, input.question_id, input.tag_rules_text);
+  try {
+    await syncQuestionTagRules(supabase, input.question_id, input.tag_rules_text);
+  } catch (tagError) {
+    return {
+      ok: false,
+      message:
+        tagError instanceof Error
+          ? `項目は保存しましたが、タグ設定を保存できませんでした: ${tagError.message}`
+          : "項目は保存しましたが、タグ設定を保存できませんでした。"
+    };
+  }
 
-  revalidatePath(`/surveys/${input.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(input.survey_id);
   return { ok: true, message: "項目を保存しました。" };
 }
 
@@ -410,7 +433,7 @@ export async function deleteSurveyQuestion(
 
   if (error) return { ok: false, message: error.message };
 
-  revalidatePath(`/surveys/${survey_id}/builder`);
+  revalidateSurveyBuilderPaths(survey_id);
   return { ok: true, message: "項目を削除しました。" };
 }
 
@@ -449,7 +472,7 @@ export async function moveSurveyQuestion(
   await supabase.from("survey_questions").update({ order: target.order }).eq("id", current.id);
   await supabase.from("survey_questions").update({ order: current.order }).eq("id", target.id);
 
-  revalidatePath(`/surveys/${input.survey_id}/builder`);
+  revalidateSurveyBuilderPaths(input.survey_id);
   return { ok: true, message: "項目を移動しました。" };
 }
 
@@ -512,7 +535,12 @@ function parseTagRules(value?: string) {
 async function syncQuestionTagRules(supabase: any, questionId: string, value?: string) {
   const rules = parseTagRules(value);
 
-  await supabase.from("survey_question_tags").delete().eq("question_id", questionId);
+  const { error: deleteError } = await supabase
+    .from("survey_question_tags")
+    .delete()
+    .eq("question_id", questionId);
+
+  if (deleteError) throw deleteError;
 
   if (rules.length === 0) return;
 
@@ -527,13 +555,15 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
 
   if (resolvedRules.length === 0) return;
 
-  await supabase.from("survey_question_tags").insert(
+  const { error: insertError } = await supabase.from("survey_question_tags").insert(
     resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
       when_answer_matches_jsonb: { equals: rule.answer }
     }))
   );
+
+  if (insertError) throw insertError;
 }
 
 async function resolveTagId(supabase: any, tagValue: string) {
