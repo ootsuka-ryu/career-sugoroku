@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { UNIVERSITY_TAG_COLORS } from "@/lib/tags/university-folders";
 
@@ -533,9 +534,10 @@ function parseTagRules(value?: string) {
 }
 
 async function syncQuestionTagRules(supabase: any, questionId: string, value?: string) {
+  const admin = createAdminClient() as any;
   const rules = parseTagRules(value);
 
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await admin
     .from("survey_question_tags")
     .delete()
     .eq("question_id", questionId);
@@ -548,14 +550,14 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
     await Promise.all(
       rules.map(async (rule) => ({
         answer: rule.answer,
-        tagId: await resolveTagId(supabase, rule.tagId)
+        tagId: await resolveTagId(admin, rule.tagId)
       }))
     )
   ).filter((rule) => rule.tagId);
 
   if (resolvedRules.length === 0) return;
 
-  const { error: insertError } = await supabase.from("survey_question_tags").insert(
+  const { error: insertError } = await admin.from("survey_question_tags").insert(
     resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
