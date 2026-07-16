@@ -505,22 +505,22 @@ function parseTagRules(value?: string) {
 }
 
 async function syncQuestionTagRules(supabase: any, questionId: string, value?: string) {
-  const admin = createAdminClient() as any;
   const rules = parseTagRules(value);
   if (rules.length === 0) return;
+  const tagRuleClient = getQuestionTagRuleClient(supabase);
 
   const resolvedRules = (
     await Promise.all(
       rules.map(async (rule) => ({
         answer: rule.answer,
-        tagId: await resolveTagId(admin, rule.tagId)
+        tagId: await resolveTagId(tagRuleClient, rule.tagId)
       }))
     )
   ).filter((rule) => rule.tagId);
 
   if (resolvedRules.length === 0) return;
 
-  const { error } = await admin.from("survey_question_tags").insert(
+  const { error } = await tagRuleClient.from("survey_question_tags").insert(
     resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
@@ -529,6 +529,14 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
   );
 
   if (error) throw error;
+}
+
+function getQuestionTagRuleClient(fallbackClient: any) {
+  try {
+    return createAdminClient() as any;
+  } catch {
+    return fallbackClient;
+  }
 }
 
 async function resolveTagId(supabase: any, tagValue: string) {

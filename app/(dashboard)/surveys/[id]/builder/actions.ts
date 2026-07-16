@@ -534,15 +534,18 @@ function parseTagRules(value?: string) {
 }
 
 async function syncQuestionTagRules(supabase: any, questionId: string, value?: string) {
-  const admin = createAdminClient() as any;
   const rules = parseTagRules(value);
+  const { client: tagRuleClient, usesAdmin } = getQuestionTagRuleClient(supabase);
 
-  const { error: deleteError } = await admin
+  const { error: deleteError } = await tagRuleClient
     .from("survey_question_tags")
     .delete()
     .eq("question_id", questionId);
 
-  if (deleteError) throw deleteError;
+  if (deleteError) {
+    if (rules.length === 0 && !usesAdmin) return;
+    throw deleteError;
+  }
 
   if (rules.length === 0) return;
 
@@ -550,14 +553,14 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
     await Promise.all(
       rules.map(async (rule) => ({
         answer: rule.answer,
-        tagId: await resolveTagId(admin, rule.tagId)
+        tagId: await resolveTagId(tagRuleClient, rule.tagId)
       }))
     )
   ).filter((rule) => rule.tagId);
 
   if (resolvedRules.length === 0) return;
 
-  const { error: insertError } = await admin.from("survey_question_tags").insert(
+  const { error: insertError } = await tagRuleClient.from("survey_question_tags").insert(
     resolvedRules.map((rule) => ({
       question_id: questionId,
       tag_id: rule.tagId,
@@ -566,6 +569,14 @@ async function syncQuestionTagRules(supabase: any, questionId: string, value?: s
   );
 
   if (insertError) throw insertError;
+}
+
+function getQuestionTagRuleClient(fallbackClient: any) {
+  try {
+    return { client: createAdminClient() as any, usesAdmin: true };
+  } catch {
+    return { client: fallbackClient, usesAdmin: false };
+  }
 }
 
 async function resolveTagId(supabase: any, tagValue: string) {
